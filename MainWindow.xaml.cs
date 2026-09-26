@@ -16,6 +16,8 @@ namespace DecklinkSwitcher
         
         private DeckLinkDevice _btn1Input;
         private DeckLinkDevice _btn2Input;
+        private DeckLinkDevice _btn3Input;
+        private DeckLinkDevice _btn4Input;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpOutput;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
