@@ -186,6 +186,11 @@ namespace DecklinkSwitcher
             if (_btn4Input != null) { _activeSourceType = 0; _activeInput = _btn4Input; Log("Switched to Input 4"); }
         }
 
+        private void Preview1_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput1_Click(null, null);
+        private void Preview2_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput2_Click(null, null);
+        private void Preview3_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput3_Click(null, null);
+        private void Preview4_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput4_Click(null, null);
+
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 1; Log("Switched to Color Bars");
