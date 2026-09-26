@@ -196,11 +196,6 @@ namespace DecklinkSwitcher
             _activeSourceType = 2; Log("Switched to Matte");
         }
 
-        private void BtnInput4_Click(object sender, RoutedEventArgs e)
-        {
-            if (_btn4Input != null) { _activeInput = _btn4Input; Log("Switched to Input 4"); }
-        }
-
 
 
         private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, DeckLinkDeviceInfo in1Info, DeckLinkDeviceInfo in2Info, DeckLinkDeviceInfo in3Info, DeckLinkDeviceInfo in4Info, System.Windows.Media.Imaging.WriteableBitmap bmp1, System.Windows.Media.Imaging.WriteableBitmap bmp2, System.Windows.Media.Imaging.WriteableBitmap bmp3, System.Windows.Media.Imaging.WriteableBitmap bmp4, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
