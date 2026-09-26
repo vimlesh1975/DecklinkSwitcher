@@ -22,3 +22,4 @@ D:\_projects\decklinkswitcher\obj\Debug\net11.0-windows\refint\DecklinkSwitcher.
 D:\_projects\decklinkswitcher\obj\Debug\net11.0-windows\DecklinkSwitcher.pdb
 D:\_projects\decklinkswitcher\obj\Debug\net11.0-windows\DecklinkSwitcher.genruntimeconfig.cache
 D:\_projects\decklinkswitcher\obj\Debug\net11.0-windows\ref\DecklinkSwitcher.dll
+D:\_projects\decklinkswitcher\obj\Debug\net11.0-windows\DecklinkSwitcher.sourcelink.json

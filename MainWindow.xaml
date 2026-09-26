@@ -13,7 +13,7 @@
         </Grid.ColumnDefinitions>
         
         <!-- LEFT COLUMN: Previews and Switcher -->
-        <Grid Grid.Column="0" Name="LeftPanel" IsEnabled="False">
+        <Grid Grid.Column="0" Name="LeftPanel">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Output Preview -->
                 <RowDefinition Height="*"/> <!-- Inputs -->
@@ -26,7 +26,7 @@
             </StackPanel>
 
             <!-- SWITCHER PANEL -->
-            <Grid Grid.Row="1" Name="SwitcherPanel">
+            <Grid Grid.Row="1" Name="SwitcherPanel" IsEnabled="False">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
