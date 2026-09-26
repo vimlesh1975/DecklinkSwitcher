@@ -31,7 +31,14 @@ namespace DecklinkSwitcher
         {
             Log("=========================================");
             Log("Application Started");
-            InitializeComponent();
+            try
+            {
+                InitializeComponent();
+            }
+            catch (Exception ex)
+            {
+                Log("InitializeComponent error: " + ex.ToString());
+            }
             
             _bmpColorBars = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
@@ -40,22 +47,29 @@ namespace DecklinkSwitcher
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
             
-            _mediaSource = new VlcMediaSource();
-            _mediaSource.OnVideoAndAudioArrived = (vBuf, w, h, rb, aBuf, aCount) => {
-                if (_activeSourceType == 3) _activeOutput?.ScheduleCustomFrame(vBuf, w, h, rb, aBuf, aCount, _mediaSource.AudioLevel);
-            };
-            _mediaSource.OnPreviewBufferUpdated = (buf) => {
-                Application.Current.Dispatcher.BeginInvoke(() => {
-                    _bmpMedia.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                    if (_activeSourceType == 3) _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                });
-            };
-            _mediaSource.OnAudioLevelArrived = (l, r) => {
-                Application.Current.Dispatcher.BeginInvoke(() => {
-                    AudioBarMediaL.Value = l; AudioBarMediaR.Value = r;
-                    if (_activeSourceType == 3) { AudioOutputL.Value = l; AudioOutputR.Value = r; }
-                });
-            };
+            try
+            {
+                _mediaSource = new VlcMediaSource();
+                _mediaSource.OnVideoAndAudioArrived = (vBuf, w, h, rb, aBuf, aCount) => {
+                    if (_activeSourceType == 3) _activeOutput?.ScheduleCustomFrame(vBuf, w, h, rb, aBuf, aCount, _mediaSource.AudioLevel);
+                };
+                _mediaSource.OnPreviewBufferUpdated = (buf) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        _bmpMedia.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        if (_activeSourceType == 3) _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                    });
+                };
+                _mediaSource.OnAudioLevelArrived = (l, r) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        AudioBarMediaL.Value = l; AudioBarMediaR.Value = r;
+                        if (_activeSourceType == 3) { AudioOutputL.Value = l; AudioOutputR.Value = r; }
+                    });
+                };
+            }
+            catch (Exception ex)
+            {
+                Log("VlcMediaSource init error: " + ex.ToString());
+            }
 
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
@@ -104,67 +118,86 @@ namespace DecklinkSwitcher
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            Log("Window loaded. Discovering DeckLink devices...");
-            
-            UpdateMiniPreviewsSynthetic();
-            
-            List<DeckLinkDeviceInfo> devices = new List<DeckLinkDeviceInfo>();
-            IDeckLinkIterator deckLinkIterator = new CDeckLinkIterator();
-            if (deckLinkIterator != null)
+            try
             {
-                while (true)
+                Log("Window loaded. Discovering DeckLink devices...");
+                
+                UpdateMiniPreviewsSynthetic();
+                
+                List<DeckLinkDeviceInfo> devices = new List<DeckLinkDeviceInfo>();
+                Log("Creating DeckLinkIterator...");
+                IDeckLinkIterator deckLinkIterator = null;
+                try
                 {
-                    deckLinkIterator.Next(out IDeckLink deckLink);
-                    if (deckLink == null) break;
-
-                    deckLink.GetModelName(out string modelName);
-                    // Differentiate Duo ports by adding a unique identifier or just listing them
-                    // Since the API returns multiple identical "DeckLink Duo 2" names, we can append an index
-                    string uniqueName = $"{modelName} (Port {devices.Count + 1})";
-                    devices.Add(new DeckLinkDeviceInfo { DisplayName = uniqueName, Index = devices.Count });
+                    deckLinkIterator = new CDeckLinkIterator();
+                    Log("DeckLinkIterator created successfully.");
                 }
-            }
+                catch (Exception ex)
+                {
+                    Log("Failed to create DeckLinkIterator: " + ex.ToString());
+                }
 
-            if (devices.Count == 0)
+                if (deckLinkIterator != null)
+                {
+                    while (true)
+                    {
+                        deckLinkIterator.Next(out IDeckLink deckLink);
+                        if (deckLink == null) break;
+
+                        deckLink.GetModelName(out string modelName);
+                        // Differentiate Duo ports by adding a unique identifier or just listing them
+                        // Since the API returns multiple identical "DeckLink Duo 2" names, we can append an index
+                        string uniqueName = $"{modelName} (Port {devices.Count + 1})";
+                        devices.Add(new DeckLinkDeviceInfo { DisplayName = uniqueName, Index = devices.Count });
+                    }
+                }
+
+                if (devices.Count == 0)
+                {
+                    Log("No DeckLink devices found.");
+                    TxtStatus.Text = "No devices found.";
+                    return;
+                }
+
+                CmbOutput.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
+                CmbInput1.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
+                CmbInput2.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
+                CmbInput3.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
+                CmbInput4.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
+
+                var settings = AppSettings.Load();
+                
+                if (settings.WindowWidth > 0 && !double.IsNaN(settings.WindowWidth)) this.Width = settings.WindowWidth;
+                if (settings.WindowHeight > 0 && !double.IsNaN(settings.WindowHeight)) this.Height = settings.WindowHeight;
+
+                int FindDeviceIndex(string name, int defaultIndex)
+                {
+                    var idx = devices.FindIndex(d => d.DisplayName == name);
+                    return idx >= 0 ? idx : defaultIndex;
+                }
+
+                if (devices.Count > 0) CmbOutput.SelectedIndex = FindDeviceIndex(settings.OutputDevice, 0);
+                if (devices.Count > 1) CmbInput1.SelectedIndex = FindDeviceIndex(settings.Input1Device, 1);
+                if (devices.Count > 2) CmbInput2.SelectedIndex = FindDeviceIndex(settings.Input2Device, 2);
+                if (devices.Count > 3) CmbInput3.SelectedIndex = FindDeviceIndex(settings.Input3Device, 3);
+                if (devices.Count > 4) CmbInput4.SelectedIndex = FindDeviceIndex(settings.Input4Device, 4);
+                
+                SldPgmAudio.Value = settings.AudioLevelPgm;
+                SldInput1Audio.Value = settings.AudioLevel1;
+                SldInput2Audio.Value = settings.AudioLevel2;
+                SldInput3Audio.Value = settings.AudioLevel3;
+                SldInput4Audio.Value = settings.AudioLevel4;
+                SldColorBarsAudio.Value = settings.AudioLevelColorBars;
+                SldMediaAudio.Value = settings.AudioLevelMedia;
+                CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
+                
+                TxtStatus.Text = "Ready to assign.";
+                Log("MainWindow_Loaded completed successfully.");
+            }
+            catch (Exception ex)
             {
-                Log("No DeckLink devices found.");
-                TxtStatus.Text = "No devices found.";
-                return;
+                Log("MainWindow_Loaded error: " + ex.ToString());
             }
-
-            CmbOutput.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-            CmbInput1.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-            CmbInput2.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-            CmbInput3.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-            CmbInput4.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-
-            var settings = AppSettings.Load();
-            
-            this.Width = settings.WindowWidth;
-            this.Height = settings.WindowHeight;
-
-            int FindDeviceIndex(string name, int defaultIndex)
-            {
-                var idx = devices.FindIndex(d => d.DisplayName == name);
-                return idx >= 0 ? idx : defaultIndex;
-            }
-
-            if (devices.Count > 0) CmbOutput.SelectedIndex = FindDeviceIndex(settings.OutputDevice, 0);
-            if (devices.Count > 1) CmbInput1.SelectedIndex = FindDeviceIndex(settings.Input1Device, 1);
-            if (devices.Count > 2) CmbInput2.SelectedIndex = FindDeviceIndex(settings.Input2Device, 2);
-            if (devices.Count > 3) CmbInput3.SelectedIndex = FindDeviceIndex(settings.Input3Device, 3);
-            if (devices.Count > 4) CmbInput4.SelectedIndex = FindDeviceIndex(settings.Input4Device, 4);
-            
-            SldPgmAudio.Value = settings.AudioLevelPgm;
-            SldInput1Audio.Value = settings.AudioLevel1;
-            SldInput2Audio.Value = settings.AudioLevel2;
-            SldInput3Audio.Value = settings.AudioLevel3;
-            SldInput4Audio.Value = settings.AudioLevel4;
-            SldColorBarsAudio.Value = settings.AudioLevelColorBars;
-            SldMediaAudio.Value = settings.AudioLevelMedia;
-            CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
-            
-            TxtStatus.Text = "Ready to assign.";
         }
 
         public static void Log(string message)

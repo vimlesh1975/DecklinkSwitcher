@@ -5,6 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DecklinkSwitcher"
         mc:Ignorable="d"
+        WindowStartupLocation="CenterScreen"
+        MinWidth="800" MinHeight="600"
         Title="DeckLink Switcher" Height="700" Width="1200" Background="#1e1e1e">
     <Grid Margin="20">
         <Grid.ColumnDefinitions>
