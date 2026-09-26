@@ -10,11 +10,6 @@ namespace DecklinkSwitcher
 {
     public partial class MainWindow : Window
     {
-        private DeckLinkDevice _decklink4K;
-        private DeckLinkDevice _decklinkDuo1;
-        private DeckLinkDevice _decklinkDuo2;
-        private DeckLinkDevice _decklinkDuo3;
-        private DeckLinkDevice _decklinkDuo4;
 
         private DeckLinkDevice _activeInput;
         private DeckLinkDevice _activeOutput;
@@ -126,13 +121,13 @@ namespace DecklinkSwitcher
             }
 
             // Stop existing if any
-            if (_decklink4K != null) _decklink4K.StopCapture();
-            if (_decklinkDuo2 != null) _decklinkDuo2.StopCapture();
-            if (_decklinkDuo3 != null) _decklinkDuo3.StopCapture();
-            if (_decklinkDuo4 != null) _decklinkDuo4.StopCapture();
-            if (_decklinkDuo1 != null) _decklinkDuo1.StopPlayback();
+            if (_activeOutput != null) _activeOutput.StopPlayback();
+            if (_btn1Input != null) _btn1Input.StopCapture();
+            if (_btn2Input != null) _btn2Input.StopCapture();
+            if (_btn3Input != null) _btn3Input.StopCapture();
+            if (_btn4Input != null) _btn4Input.StopCapture();
             
-            _decklinkDuo1 = _decklink4K = _decklinkDuo2 = _decklinkDuo3 = _decklinkDuo4 = null;
+            _activeOutput = _btn1Input = _btn2Input = _btn3Input = _btn4Input = null;
             
             System.Windows.Media.Imaging.WriteableBitmap bmp1 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             System.Windows.Media.Imaging.WriteableBitmap bmp2 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
