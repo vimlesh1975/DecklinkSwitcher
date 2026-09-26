@@ -22,7 +22,11 @@
             <!-- Output Preview -->
             <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,30">
                 <TextBlock Text="PROGRAM OUTPUT" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                <Image Name="PreviewOutput" Stretch="Uniform" Height="250" Width="444"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="250" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Image Name="PreviewOutput" Stretch="Uniform" Height="250" Width="444"/>
+                    <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="250" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- SWITCHER PANEL -->

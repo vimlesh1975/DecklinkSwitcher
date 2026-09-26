@@ -219,7 +219,7 @@ namespace DecklinkSwitcher
                     if (_activeInput == _btn1Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; }); };
+                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; if (_activeInput == _btn1Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn1Input.StartCapture();
             }
 
@@ -236,7 +236,7 @@ namespace DecklinkSwitcher
                     if (_activeInput == _btn2Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; }); };
+                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; if (_activeInput == _btn2Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn2Input.StartCapture();
             }
 
@@ -253,7 +253,7 @@ namespace DecklinkSwitcher
                     if (_activeInput == _btn3Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; }); };
+                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; if (_activeInput == _btn3Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn3Input.StartCapture();
             }
 
@@ -270,7 +270,7 @@ namespace DecklinkSwitcher
                     if (_activeInput == _btn4Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; }); };
+                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; if (_activeInput == _btn4Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn4Input.StartCapture();
             }
 
