@@ -24,7 +24,7 @@ namespace DecklinkSwitcher
         private DeckLinkDevice _btn3Input;
         private DeckLinkDevice _btn4Input;
 
-        private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklink_log.txt");
+        private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
 
         public MainWindow()
         {
