@@ -16,11 +16,12 @@ namespace DecklinkSwitcher
         
         private DeckLinkDevice _btn1Input;
         private DeckLinkDevice _btn2Input;
-        private DeckLinkDevice _btn3Input;
-        private DeckLinkDevice _btn4Input;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpOutput;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
+        
+        private VlcMediaSource _mediaSource;
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
 
@@ -32,8 +33,27 @@ namespace DecklinkSwitcher
             
             _bmpColorBars = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpMedia = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
+            PreviewMedia.Source = _bmpMedia;
+            
+            _mediaSource = new VlcMediaSource();
+            _mediaSource.OnVideoAndAudioArrived = (vBuf, w, h, rb, aBuf, aCount) => {
+                if (_activeSourceType == 3) _activeOutput?.ScheduleCustomFrame(vBuf, w, h, rb, aBuf, aCount, _mediaSource.AudioLevel);
+            };
+            _mediaSource.OnPreviewBufferUpdated = (buf) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    _bmpMedia.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                    if (_activeSourceType == 3) _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                });
+            };
+            _mediaSource.OnAudioLevelArrived = (l, r) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    AudioBarMediaL.Value = l; AudioBarMediaR.Value = r;
+                    if (_activeSourceType == 3) { AudioOutputL.Value = l; AudioOutputR.Value = r; }
+                });
+            };
 
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
@@ -55,6 +75,7 @@ namespace DecklinkSwitcher
                 if (_btn3Input != null) _btn3Input.StopCapture();
                 if (_btn4Input != null) _btn4Input.StopCapture();
                 if (_activeOutput != null) _activeOutput.StopPlayback();
+                if (_mediaSource != null) _mediaSource.Dispose();
                 Log("Resources released.");
                 Environment.Exit(0);
             });
@@ -210,6 +231,22 @@ namespace DecklinkSwitcher
         }
         private void PreviewMatte_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMatte_Click(null, null);
 
+        private void BtnMedia_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 3; Log("Switched to Local Video");
+        }
+        private void PreviewMedia_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMedia_Click(null, null);
+
+        private void BtnSelectMedia_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.Filter = "Video Files|*.mp4;*.mkv;*.avi;*.mov|All Files|*.*";
+            if (dlg.ShowDialog() == true)
+            {
+                _mediaSource.Play(dlg.FileName);
+            }
+        }
+
         public static byte MatteY = 41;
         public static byte MatteU = 212;
         public static byte MatteV = 114;
@@ -236,6 +273,8 @@ namespace DecklinkSwitcher
                 AudioOutputR.Value = val;
             }
         }
+        
+        private void SldMediaAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_mediaSource != null) _mediaSource.AudioLevel = (float)e.NewValue; }
 
         private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
         private void SldInput2Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn2Input != null) _btn2Input.AudioLevel = (float)e.NewValue; }
@@ -673,6 +712,75 @@ namespace DecklinkSwitcher
                 catch (Exception ex) 
                 {
                     MainWindow.Log($"[{_roleName}] Task.Run DisplayVideo/Audio error: {ex.Message}");
+                }
+                finally
+                {
+                    if (modifiedAudioBuffer != IntPtr.Zero)
+                    {
+                        System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+                    }
+                    Interlocked.Exchange(ref _isDisplaying, 0);
+                }
+            });
+        }
+        
+        public void ScheduleCustomFrame(IntPtr inputBuffer, int width, int height, int rowBytes, IntPtr audioBuffer, uint audioSampleCount, float inputVolume = 1.0f)
+        {
+            if (_reusableOutputFrame == null)
+            {
+                _deckLinkOutput.CreateVideoFrame(width, height, rowBytes, _BMDPixelFormat.bmdFormat8BitYUV, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
+            }
+
+            if (Interlocked.CompareExchange(ref _isDisplaying, 1, 0) == 1) return;
+
+            var outputBuf = (IDeckLinkVideoBuffer)_reusableOutputFrame;
+            outputBuf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
+            try
+            {
+                outputBuf.GetBytes(out IntPtr outputBuffer);
+                UIntPtr size = new UIntPtr((uint)(height * rowBytes));
+                memcpy(outputBuffer, inputBuffer, size);
+            }
+            finally
+            {
+                outputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
+            }
+
+            IntPtr modifiedAudioBuffer = IntPtr.Zero;
+            float totalLevel = inputVolume * MainWindow.PgmAudioLevel;
+            
+            if (totalLevel != 1.0f && audioSampleCount > 0 && audioBuffer != IntPtr.Zero)
+            {
+                modifiedAudioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4);
+                unsafe
+                {
+                    short* srcPtr = (short*)audioBuffer.ToPointer();
+                    short* dstPtr = (short*)modifiedAudioBuffer.ToPointer();
+                    int totalSamples = (int)audioSampleCount * 2;
+                    for (int i = 0; i < totalSamples; i++)
+                    {
+                        float sample = srcPtr[i] * totalLevel;
+                        if (sample > 32767) sample = 32767;
+                        else if (sample < -32768) sample = -32768;
+                        dstPtr[i] = (short)sample;
+                    }
+                }
+                audioBuffer = modifiedAudioBuffer;
+            }
+
+            System.Threading.Tasks.Task.Run(() => 
+            {
+                try 
+                {
+                    _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
+                    if (audioBuffer != IntPtr.Zero && audioSampleCount > 0)
+                    {
+                        _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, audioSampleCount, out uint written);
+                    }
+                } 
+                catch (Exception ex) 
+                {
+                    MainWindow.Log($"[{_roleName}] Task.Run DisplayCustomVideo/Audio error: {ex.Message}");
                 }
                 finally
                 {

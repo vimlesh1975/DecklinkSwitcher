@@ -47,6 +47,16 @@
         "net11.0-windows": {
           "framework": "net11.0-windows7.0",
           "targetAlias": "net11.0-windows",
+          "dependencies": {
+            "LibVLCSharp": {
+              "target": "Package",
+              "version": "[3.10.1, )"
+            },
+            "VideoLAN.LibVLC.Windows": {
+              "target": "Package",
+              "version": "[3.0.24, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "nZEc+6tjcsk=",
+  "dgSpecHash": "qfkPpJoVwtc=",
   "success": true,
   "projectFilePath": "D:\\_projects\\decklinkswitcher\\DecklinkSwitcher.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\Administrator\\.nuget\\packages\\libvlcsharp\\3.10.1\\libvlcsharp.3.10.1.nupkg.sha512",
+    "C:\\Users\\Administrator\\.nuget\\packages\\videolan.libvlc.windows\\3.0.24\\videolan.libvlc.windows.3.0.24.nupkg.sha512"
+  ],
   "logs": []
 }
