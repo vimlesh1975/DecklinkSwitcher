@@ -52,7 +52,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <ProgressBar Name="AudioBar1L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
                     <Image Name="Preview1" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview1_MouseDown"/>
-                    <ProgressBar Name="AudioBar1R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
+                    <ProgressBar Name="AudioBar1R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Slider Name="SldInput1Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput1Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput1" Content="Input 1" FontSize="16" Height="40" Click="BtnInput1_Click" Background="#2d2d30" Foreground="White"/>
             </StackPanel>
@@ -62,7 +63,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <ProgressBar Name="AudioBar2L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
                     <Image Name="Preview2" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview2_MouseDown"/>
-                    <ProgressBar Name="AudioBar2R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
+                    <ProgressBar Name="AudioBar2R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Slider Name="SldInput2Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput2Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput2" Content="Input 2" FontSize="16" Height="40" Click="BtnInput2_Click" Background="#2d2d30" Foreground="White"/>
             </StackPanel>
@@ -72,7 +74,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <ProgressBar Name="AudioBar3L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
                     <Image Name="Preview3" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview3_MouseDown"/>
-                    <ProgressBar Name="AudioBar3R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
+                    <ProgressBar Name="AudioBar3R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Slider Name="SldInput3Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput3Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput3" Content="Input 3" FontSize="16" Height="40" Click="BtnInput3_Click" Background="#2d2d30" Foreground="White"/>
             </StackPanel>
@@ -82,7 +85,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <ProgressBar Name="AudioBar4L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
                     <Image Name="Preview4" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview4_MouseDown"/>
-                    <ProgressBar Name="AudioBar4R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
+                    <ProgressBar Name="AudioBar4R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Slider Name="SldInput4Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput4Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput4" Content="Input 4" FontSize="16" Height="40" Click="BtnInput4_Click" Background="#2d2d30" Foreground="White"/>
             </StackPanel>

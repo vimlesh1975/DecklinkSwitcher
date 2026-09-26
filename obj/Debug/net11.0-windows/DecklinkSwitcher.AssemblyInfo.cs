@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DecklinkSwitcher")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bf5de7e1a4a005271bb69a3dfb6abb183ba6f7dd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5d8d5a019e7dff1f3bdb2f4194722c767b7171db")]
 [assembly: System.Reflection.AssemblyProductAttribute("DecklinkSwitcher")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DecklinkSwitcher")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

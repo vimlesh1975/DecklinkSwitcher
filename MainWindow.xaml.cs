@@ -211,6 +211,11 @@ namespace DecklinkSwitcher
             PgmAudioLevel = (float)e.NewValue;
         }
 
+        private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput2Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn2Input != null) _btn2Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput3Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn3Input != null) _btn3Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput4Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn4Input != null) _btn4Input.AudioLevel = (float)e.NewValue; }
+
         private void CmbMatteColor_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
@@ -329,7 +334,7 @@ namespace DecklinkSwitcher
                 _btn1Input.PreviewBitmap = bmp1;
                 _btn1Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeSourceType == 0 && _activeInput == _btn1Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn1Input) _activeOutput.ScheduleFrame(frame, audio, _btn1Input.AudioLevel);
                     else if (_activeSourceType == 1 && _activeInput == _btn1Input) _activeOutput.ScheduleSyntheticFrame(true);
                     else if (_activeSourceType == 2 && _activeInput == _btn1Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
@@ -348,7 +353,7 @@ namespace DecklinkSwitcher
                 _btn2Input.PreviewBitmap = bmp2;
                 _btn2Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeSourceType == 0 && _activeInput == _btn2Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn2Input) _activeOutput.ScheduleFrame(frame, audio, _btn2Input.AudioLevel);
                     else if (_activeSourceType == 1 && _activeInput == _btn2Input) _activeOutput.ScheduleSyntheticFrame(true);
                     else if (_activeSourceType == 2 && _activeInput == _btn2Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
@@ -367,7 +372,7 @@ namespace DecklinkSwitcher
                 _btn3Input.PreviewBitmap = bmp3;
                 _btn3Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeSourceType == 0 && _activeInput == _btn3Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn3Input) _activeOutput.ScheduleFrame(frame, audio, _btn3Input.AudioLevel);
                     else if (_activeSourceType == 1 && _activeInput == _btn3Input) _activeOutput.ScheduleSyntheticFrame(true);
                     else if (_activeSourceType == 2 && _activeInput == _btn3Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
@@ -386,7 +391,7 @@ namespace DecklinkSwitcher
                 _btn4Input.PreviewBitmap = bmp4;
                 _btn4Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeSourceType == 0 && _activeInput == _btn4Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn4Input) _activeOutput.ScheduleFrame(frame, audio, _btn4Input.AudioLevel);
                     else if (_activeSourceType == 1 && _activeInput == _btn4Input) _activeOutput.ScheduleSyntheticFrame(true);
                     else if (_activeSourceType == 2 && _activeInput == _btn4Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
@@ -428,6 +433,7 @@ namespace DecklinkSwitcher
         private bool _isCapturing = false;
         private bool _isPlaying = false;
         private int _frameCount = 0;
+        public float AudioLevel { get; set; } = 1.0f;
 
         public System.Windows.Media.Imaging.WriteableBitmap PreviewBitmap;
         private int _lastPreviewTicks = 0;
@@ -505,7 +511,7 @@ namespace DecklinkSwitcher
 
         private int _isDisplaying = 0;
 
-        public void ScheduleFrame(IDeckLinkVideoInputFrame inputFrame, IDeckLinkAudioInputPacket audioPacket)
+        public void ScheduleFrame(IDeckLinkVideoInputFrame inputFrame, IDeckLinkAudioInputPacket audioPacket, float inputVolume = 1.0f)
         {
             int width = inputFrame.GetWidth();
             int height = inputFrame.GetHeight();
@@ -558,18 +564,18 @@ namespace DecklinkSwitcher
                 audioPacket.GetBytes(out audioBuffer);
                 audioSampleCount = (uint)audioPacket.GetSampleFrameCount();
 
-                if (MainWindow.PgmAudioLevel != 1.0f && audioSampleCount > 0)
+                float totalLevel = inputVolume * MainWindow.PgmAudioLevel;
+                if (totalLevel != 1.0f && audioSampleCount > 0)
                 {
                     modifiedAudioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4); // 2 channels, 16-bit
                     unsafe
                     {
                         short* srcPtr = (short*)audioBuffer.ToPointer();
                         short* dstPtr = (short*)modifiedAudioBuffer.ToPointer();
-                        float level = MainWindow.PgmAudioLevel;
                         int totalSamples = (int)audioSampleCount * 2;
                         for (int i = 0; i < totalSamples; i++)
                         {
-                            float sample = srcPtr[i] * level;
+                            float sample = srcPtr[i] * totalLevel;
                             if (sample > 32767) sample = 32767;
                             else if (sample < -32768) sample = -32768;
                             dstPtr[i] = (short)sample;
