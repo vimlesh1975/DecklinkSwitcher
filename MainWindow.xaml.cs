@@ -618,9 +618,9 @@ namespace DecklinkSwitcher
                         short sample = (short)val;
                         audioPtr[i * 2] = sample; // Left
                         audioPtr[i * 2 + 1] = sample; // Right
-                        _audioPhase += 2 * Math.PI * 1000.0 / 48000.0;
+                        _audioPhase += 2.0 * Math.PI * 1000.0 / 48000.0;
+                        if (_audioPhase >= 2.0 * Math.PI) _audioPhase -= 2.0 * Math.PI;
                     }
-                    if (_audioPhase > 2 * Math.PI * 1000.0) _audioPhase -= 2 * Math.PI * 1000.0;
                 }
             }
             
