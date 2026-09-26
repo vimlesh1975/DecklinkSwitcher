@@ -23,6 +23,7 @@ namespace DecklinkSwitcher
         private DeckLinkDevice _btn2Input;
         private DeckLinkDevice _btn3Input;
         private DeckLinkDevice _btn4Input;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpOutput;
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
 
@@ -137,13 +138,13 @@ namespace DecklinkSwitcher
             System.Windows.Media.Imaging.WriteableBitmap bmp2 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             System.Windows.Media.Imaging.WriteableBitmap bmp3 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             System.Windows.Media.Imaging.WriteableBitmap bmp4 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-            System.Windows.Media.Imaging.WriteableBitmap bmpOutput = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpOutput = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
 
             Preview1.Source = bmp1;
             Preview2.Source = bmp2;
             Preview3.Source = bmp3;
             Preview4.Source = bmp4;
-            PreviewOutput.Source = bmpOutput;
+            PreviewOutput.Source = _bmpOutput;
 
             SwitcherPanel.IsEnabled = false;
             TxtStatus.Text = "Initializing...";
@@ -152,7 +153,7 @@ namespace DecklinkSwitcher
             {
                 try
                 {
-                    InitializeDynamicRouting(outInfo, in1Info, in2Info, in3Info, in4Info, bmp1, bmp2, bmp3, bmp4, bmpOutput);
+                    InitializeDynamicRouting(outInfo, in1Info, in2Info, in3Info, in4Info, bmp1, bmp2, bmp3, bmp4, _bmpOutput);
                 }
                 catch (Exception ex)
                 {
@@ -194,11 +195,13 @@ namespace DecklinkSwitcher
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 1; Log("Switched to Color Bars");
+            UpdatePgmPreviewSynthetic();
         }
 
         private void BtnMatte_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 2; Log("Switched to Matte");
+            UpdatePgmPreviewSynthetic();
         }
 
         public static byte MatteY = 41;
@@ -229,7 +232,78 @@ namespace DecklinkSwitcher
                     case "Blue":    MatteY = 41;  MatteU = 212; MatteV = 114; break;
                     case "Black":   MatteY = 16;  MatteU = 128; MatteV = 128; break;
                 }
+                if (_activeSourceType == 2) UpdatePgmPreviewSynthetic();
             }
+        }
+
+        private void UpdatePgmPreviewSynthetic()
+        {
+            if (_activeSourceType == 0 || _bmpOutput == null) return;
+
+            byte[] pixels = new byte[480 * 270 * 4];
+            
+            if (_activeSourceType == 2) // Matte
+            {
+                byte r=0, g=0, b=0;
+                string color = "";
+                Application.Current.Dispatcher.Invoke(() => {
+                    if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
+                        color = item.Content?.ToString();
+                });
+                
+                switch (color)
+                {
+                    case "White":   r=255; g=255; b=255; break;
+                    case "Yellow":  r=255; g=255; b=0;   break;
+                    case "Cyan":    r=0;   g=255; b=255; break;
+                    case "Green":   r=0;   g=255; b=0;   break;
+                    case "Magenta": r=255; g=0;   b=255; break;
+                    case "Red":     r=255; g=0;   b=0;   break;
+                    case "Blue":    r=0;   g=0;   b=255; break;
+                    case "Black":   r=0;   g=0;   b=0;   break;
+                }
+                
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    pixels[i] = b; // B
+                    pixels[i+1] = g; // G
+                    pixels[i+2] = r; // R
+                    pixels[i+3] = 255; // A
+                }
+            }
+            else if (_activeSourceType == 1) // Color Bars
+            {
+                byte[,] colors = new byte[8, 3] {
+                    { 255, 255, 255 }, // White
+                    { 0, 255, 255 },   // Yellow
+                    { 255, 255, 0 },   // Cyan
+                    { 0, 255, 0 },     // Green
+                    { 255, 0, 255 },   // Magenta
+                    { 0, 0, 255 },     // Red
+                    { 255, 0, 0 },     // Blue
+                    { 0, 0, 0 }        // Black
+                };
+                
+                for (int y = 0; y < 270; y++)
+                {
+                    for (int x = 0; x < 480; x++)
+                    {
+                        int barIndex = (x * 8) / 480;
+                        int offset = (y * 480 + x) * 4;
+                        pixels[offset] = colors[barIndex, 0]; // B
+                        pixels[offset+1] = colors[barIndex, 1]; // G
+                        pixels[offset+2] = colors[barIndex, 2]; // R
+                        pixels[offset+3] = 255; // A
+                    }
+                }
+            }
+
+            Application.Current.Dispatcher.BeginInvoke(() => {
+                if (_bmpOutput != null)
+                {
+                    _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), pixels, 480 * 4, 0);
+                }
+            });
         }
 
 
