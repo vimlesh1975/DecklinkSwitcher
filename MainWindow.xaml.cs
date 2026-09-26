@@ -164,19 +164,36 @@ namespace DecklinkSwitcher
             mtaThread.Start();
         }
 
+        private int _activeSourceType = 0; // 0=Device, 1=ColorBars, 2=Matte
+
         private void BtnInput1_Click(object sender, RoutedEventArgs e)
         {
-            if (_btn1Input != null) { _activeInput = _btn1Input; Log("Switched to Input 1"); }
+            if (_btn1Input != null) { _activeSourceType = 0; _activeInput = _btn1Input; Log("Switched to Input 1"); }
         }
 
         private void BtnInput2_Click(object sender, RoutedEventArgs e)
         {
-            if (_btn2Input != null) { _activeInput = _btn2Input; Log("Switched to Input 2"); }
+            if (_btn2Input != null) { _activeSourceType = 0; _activeInput = _btn2Input; Log("Switched to Input 2"); }
         }
 
         private void BtnInput3_Click(object sender, RoutedEventArgs e)
         {
-            if (_btn3Input != null) { _activeInput = _btn3Input; Log("Switched to Input 3"); }
+            if (_btn3Input != null) { _activeSourceType = 0; _activeInput = _btn3Input; Log("Switched to Input 3"); }
+        }
+
+        private void BtnInput4_Click(object sender, RoutedEventArgs e)
+        {
+            if (_btn4Input != null) { _activeSourceType = 0; _activeInput = _btn4Input; Log("Switched to Input 4"); }
+        }
+
+        private void BtnColorBars_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 1; Log("Switched to Color Bars");
+        }
+
+        private void BtnMatte_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 2; Log("Switched to Matte");
         }
 
         private void BtnInput4_Click(object sender, RoutedEventArgs e)
@@ -212,14 +229,16 @@ namespace DecklinkSwitcher
                 _btn1Input.PreviewBitmap = bmp1;
                 _btn1Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeInput == _btn1Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn1Input) _activeOutput.ScheduleFrame(frame, audio);
+                    else if (_activeSourceType == 1 && _activeInput == _btn1Input) _activeOutput.ScheduleSyntheticFrame(true);
+                    else if (_activeSourceType == 2 && _activeInput == _btn1Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
                 _btn1Input.OnPreviewBufferUpdated = (buf) => 
                 { 
-                    if (_activeInput == _btn1Input) 
+                    if (_activeSourceType == 0 && _activeInput == _btn1Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; if (_activeInput == _btn1Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn1Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn1Input.StartCapture();
             }
 
@@ -229,14 +248,16 @@ namespace DecklinkSwitcher
                 _btn2Input.PreviewBitmap = bmp2;
                 _btn2Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeInput == _btn2Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn2Input) _activeOutput.ScheduleFrame(frame, audio);
+                    else if (_activeSourceType == 1 && _activeInput == _btn2Input) _activeOutput.ScheduleSyntheticFrame(true);
+                    else if (_activeSourceType == 2 && _activeInput == _btn2Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
                 _btn2Input.OnPreviewBufferUpdated = (buf) => 
                 { 
-                    if (_activeInput == _btn2Input) 
+                    if (_activeSourceType == 0 && _activeInput == _btn2Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; if (_activeInput == _btn2Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn2Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn2Input.StartCapture();
             }
 
@@ -246,14 +267,16 @@ namespace DecklinkSwitcher
                 _btn3Input.PreviewBitmap = bmp3;
                 _btn3Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeInput == _btn3Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn3Input) _activeOutput.ScheduleFrame(frame, audio);
+                    else if (_activeSourceType == 1 && _activeInput == _btn3Input) _activeOutput.ScheduleSyntheticFrame(true);
+                    else if (_activeSourceType == 2 && _activeInput == _btn3Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
                 _btn3Input.OnPreviewBufferUpdated = (buf) => 
                 { 
-                    if (_activeInput == _btn3Input) 
+                    if (_activeSourceType == 0 && _activeInput == _btn3Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; if (_activeInput == _btn3Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn3Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn3Input.StartCapture();
             }
 
@@ -263,14 +286,16 @@ namespace DecklinkSwitcher
                 _btn4Input.PreviewBitmap = bmp4;
                 _btn4Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeInput == _btn4Input) _activeOutput.ScheduleFrame(frame, audio);
+                    if (_activeSourceType == 0 && _activeInput == _btn4Input) _activeOutput.ScheduleFrame(frame, audio);
+                    else if (_activeSourceType == 1 && _activeInput == _btn4Input) _activeOutput.ScheduleSyntheticFrame(true);
+                    else if (_activeSourceType == 2 && _activeInput == _btn4Input) _activeOutput.ScheduleSyntheticFrame(false);
                 };
                 _btn4Input.OnPreviewBufferUpdated = (buf) => 
                 { 
-                    if (_activeInput == _btn4Input) 
+                    if (_activeSourceType == 0 && _activeInput == _btn4Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; if (_activeInput == _btn4Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn4Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
                 _btn4Input.StartCapture();
             }
 
@@ -440,6 +465,117 @@ namespace DecklinkSwitcher
                     if (audioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
                         _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, audioSampleCount, out uint written);
+                    }
+                } 
+                catch (Exception ex) 
+                {
+                    MainWindow.Log($"[{_roleName}] Task.Run DisplayVideo/Audio error: {ex.Message}");
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _isDisplaying, 0);
+                }
+            });
+        }
+
+        private double _audioPhase = 0;
+
+        public void ScheduleSyntheticFrame(bool isColorBar)
+        {
+            if (Interlocked.CompareExchange(ref _isDisplaying, 1, 0) == 1)
+            {
+                return;
+            }
+
+            var outputBuf = (IDeckLinkVideoBuffer)_reusableOutputFrame;
+            outputBuf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
+            try
+            {
+                outputBuf.GetBytes(out IntPtr outputBuffer);
+                int width = 1920;
+                int height = 1080;
+                int rowBytes = 1920 * 2;
+
+                unsafe
+                {
+                    byte* ptr = (byte*)outputBuffer.ToPointer();
+                    if (!isColorBar)
+                    {
+                        // Matte Black (UYVY)
+                        for (int i = 0; i < height * rowBytes; i += 4)
+                        {
+                            ptr[i] = 128; // U
+                            ptr[i + 1] = 16; // Y
+                            ptr[i + 2] = 128; // V
+                            ptr[i + 3] = 16; // Y
+                        }
+                    }
+                    else
+                    {
+                        // 8 color bars
+                        byte[,] colors = new byte[8, 4] {
+                            { 128, 235, 128, 235 }, // White
+                            { 44, 210, 171, 210 }, // Yellow
+                            { 156, 170, 44, 170 }, // Cyan
+                            { 74, 145, 84, 145 }, // Green
+                            { 182, 106, 172, 106 }, // Magenta
+                            { 98, 81, 212, 81 }, // Red
+                            { 212, 41, 114, 41 }, // Blue
+                            { 128, 16, 128, 16 }  // Black
+                        };
+
+                        for (int y = 0; y < height; y++)
+                        {
+                            byte* rowPtr = ptr + y * rowBytes;
+                            for (int x = 0; x < width; x += 2)
+                            {
+                                int barIndex = (x * 8) / width;
+                                int offset = x * 2;
+                                rowPtr[offset] = colors[barIndex, 0];
+                                rowPtr[offset + 1] = colors[barIndex, 1];
+                                rowPtr[offset + 2] = colors[barIndex, 2];
+                                rowPtr[offset + 3] = colors[barIndex, 3];
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                outputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
+            }
+
+            // Generate synthetic audio
+            uint audioSampleCount = 1920; // 48000 Hz / 25 fps = 1920
+            IntPtr audioBuffer = IntPtr.Zero;
+            
+            if (isColorBar)
+            {
+                audioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4); // 2 channels, 2 bytes/sample
+                unsafe
+                {
+                    short* audioPtr = (short*)audioBuffer.ToPointer();
+                    for (int i = 0; i < audioSampleCount; i++)
+                    {
+                        double val = Math.Sin(_audioPhase) * 16384; // Half volume
+                        short sample = (short)val;
+                        audioPtr[i * 2] = sample; // Left
+                        audioPtr[i * 2 + 1] = sample; // Right
+                        _audioPhase += 2 * Math.PI * 1000.0 / 48000.0;
+                    }
+                    if (_audioPhase > 2 * Math.PI * 1000.0) _audioPhase -= 2 * Math.PI * 1000.0;
+                }
+            }
+            
+            System.Threading.Tasks.Task.Run(() => 
+            {
+                try 
+                {
+                    _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
+                    if (audioBuffer != IntPtr.Zero)
+                    {
+                        _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, audioSampleCount, out uint written);
+                        System.Runtime.InteropServices.Marshal.FreeCoTaskMem(audioBuffer);
                     }
                 } 
                 catch (Exception ex) 

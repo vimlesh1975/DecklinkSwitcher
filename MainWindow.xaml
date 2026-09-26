@@ -38,7 +38,8 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
             <!-- Input 1 -->
@@ -72,13 +73,22 @@
             </StackPanel>
 
             <!-- Input 4 -->
-            <StackPanel Grid.Column="3" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
+            <StackPanel Grid.Column="3" Grid.Row="0" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <ProgressBar Name="AudioBar4L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
                     <Image Name="Preview4" Stretch="Uniform" Height="100" Width="177"/>
                     <ProgressBar Name="AudioBar4R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
                 </StackPanel>
                 <Button Name="BtnInput4" Content="Input 4" FontSize="16" Height="40" Click="BtnInput4_Click" Background="#2d2d30" Foreground="White"/>
+            </StackPanel>
+
+            <!-- Special Sources -->
+            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
+                <Button Name="BtnColorBars" Content="Color Bars + Tone" FontSize="16" Height="40" Click="BtnColorBars_Click" Background="#2d2d30" Foreground="White"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
+                <Button Name="BtnMatte" Content="Matte Color" FontSize="16" Height="40" Click="BtnMatte_Click" Background="#2d2d30" Foreground="White"/>
             </StackPanel>
         </Grid>
         </Grid>
