@@ -196,6 +196,29 @@ namespace DecklinkSwitcher
             _activeSourceType = 2; Log("Switched to Matte");
         }
 
+        public static byte MatteY = 41;
+        public static byte MatteU = 212;
+        public static byte MatteV = 114;
+
+        private void CmbMatteColor_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
+            {
+                string color = item.Content?.ToString();
+                switch (color)
+                {
+                    case "White":   MatteY = 235; MatteU = 128; MatteV = 128; break;
+                    case "Yellow":  MatteY = 210; MatteU = 44;  MatteV = 171; break;
+                    case "Cyan":    MatteY = 170; MatteU = 156; MatteV = 44; break;
+                    case "Green":   MatteY = 145; MatteU = 74;  MatteV = 84; break;
+                    case "Magenta": MatteY = 106; MatteU = 182; MatteV = 172; break;
+                    case "Red":     MatteY = 81;  MatteU = 98;  MatteV = 212; break;
+                    case "Blue":    MatteY = 41;  MatteU = 212; MatteV = 114; break;
+                    case "Black":   MatteY = 16;  MatteU = 128; MatteV = 128; break;
+                }
+            }
+        }
+
 
 
         private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, DeckLinkDeviceInfo in1Info, DeckLinkDeviceInfo in2Info, DeckLinkDeviceInfo in3Info, DeckLinkDeviceInfo in4Info, System.Windows.Media.Imaging.WriteableBitmap bmp1, System.Windows.Media.Imaging.WriteableBitmap bmp2, System.Windows.Media.Imaging.WriteableBitmap bmp3, System.Windows.Media.Imaging.WriteableBitmap bmp4, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
@@ -496,13 +519,13 @@ namespace DecklinkSwitcher
                     byte* ptr = (byte*)outputBuffer.ToPointer();
                     if (!isColorBar)
                     {
-                        // Matte Black (UYVY)
+                        // Matte Color (UYVY)
                         for (int i = 0; i < height * rowBytes; i += 4)
                         {
-                            ptr[i] = 128; // U
-                            ptr[i + 1] = 16; // Y
-                            ptr[i + 2] = 128; // V
-                            ptr[i + 3] = 16; // Y
+                            ptr[i] = MainWindow.MatteU; // U
+                            ptr[i + 1] = MainWindow.MatteY; // Y
+                            ptr[i + 2] = MainWindow.MatteV; // V
+                            ptr[i + 3] = MainWindow.MatteY; // Y
                         }
                     }
                     else

@@ -88,7 +88,17 @@
             </StackPanel>
             
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <Button Name="BtnMatte" Content="Matte Color" FontSize="16" Height="40" Click="BtnMatte_Click" Background="#2d2d30" Foreground="White"/>
+                <Button Name="BtnMatte" Content="Matte Color" FontSize="16" Height="40" Click="BtnMatte_Click" Background="#2d2d30" Foreground="White" Margin="0,0,0,5"/>
+                <ComboBox Name="CmbMatteColor" FontSize="14" Height="30" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
+                    <ComboBoxItem Content="Black"/>
+                    <ComboBoxItem Content="White"/>
+                    <ComboBoxItem Content="Red"/>
+                    <ComboBoxItem Content="Green"/>
+                    <ComboBoxItem Content="Blue"/>
+                    <ComboBoxItem Content="Yellow"/>
+                    <ComboBoxItem Content="Cyan"/>
+                    <ComboBoxItem Content="Magenta"/>
+                </ComboBox>
             </StackPanel>
         </Grid>
         </Grid>
