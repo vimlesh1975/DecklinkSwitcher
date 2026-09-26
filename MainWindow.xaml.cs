@@ -205,6 +205,14 @@ namespace DecklinkSwitcher
         public static byte MatteU = 212;
         public static byte MatteV = 114;
 
+        private static float _pgmAudioLevel = 1.0f;
+        public static float PgmAudioLevel { get { return _pgmAudioLevel; } set { _pgmAudioLevel = value; } }
+
+        private void SldPgmAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            PgmAudioLevel = (float)e.NewValue;
+        }
+
         private void CmbMatteColor_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
@@ -474,10 +482,32 @@ namespace DecklinkSwitcher
             // Extract audio data
             IntPtr audioBuffer = IntPtr.Zero;
             uint audioSampleCount = 0;
+            IntPtr modifiedAudioBuffer = IntPtr.Zero;
+
             if (audioPacket != null)
             {
                 audioPacket.GetBytes(out audioBuffer);
                 audioSampleCount = (uint)audioPacket.GetSampleFrameCount();
+
+                if (MainWindow.PgmAudioLevel != 1.0f && audioSampleCount > 0)
+                {
+                    modifiedAudioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4); // 2 channels, 16-bit
+                    unsafe
+                    {
+                        short* srcPtr = (short*)audioBuffer.ToPointer();
+                        short* dstPtr = (short*)modifiedAudioBuffer.ToPointer();
+                        float level = MainWindow.PgmAudioLevel;
+                        int totalSamples = (int)audioSampleCount * 2;
+                        for (int i = 0; i < totalSamples; i++)
+                        {
+                            float sample = srcPtr[i] * level;
+                            if (sample > 32767) sample = 32767;
+                            else if (sample < -32768) sample = -32768;
+                            dstPtr[i] = (short)sample;
+                        }
+                    }
+                    audioBuffer = modifiedAudioBuffer;
+                }
             }
 
             System.Threading.Tasks.Task.Run(() => 
@@ -496,6 +526,10 @@ namespace DecklinkSwitcher
                 }
                 finally
                 {
+                    if (modifiedAudioBuffer != IntPtr.Zero)
+                    {
+                        System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+                    }
                     Interlocked.Exchange(ref _isDisplaying, 0);
                 }
             });
@@ -580,7 +614,7 @@ namespace DecklinkSwitcher
                     short* audioPtr = (short*)audioBuffer.ToPointer();
                     for (int i = 0; i < audioSampleCount; i++)
                     {
-                        double val = Math.Sin(_audioPhase) * 16384; // Half volume
+                        double val = Math.Sin(_audioPhase) * 16384 * MainWindow.PgmAudioLevel; // Half volume, adjusted by PGM level
                         short sample = (short)val;
                         audioPtr[i * 2] = sample; // Left
                         audioPtr[i * 2 + 1] = sample; // Right
