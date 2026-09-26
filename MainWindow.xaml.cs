@@ -65,6 +65,25 @@ namespace DecklinkSwitcher
         {
             Log("Application closing. Releasing DeckLink resources...");
             
+            // Save Settings
+            var settings = new AppSettings();
+            settings.WindowWidth = this.Width;
+            settings.WindowHeight = this.Height;
+            if (CmbOutput.SelectedItem is DeckLinkDeviceInfo dout) settings.OutputDevice = dout.DisplayName;
+            if (CmbInput1.SelectedItem is DeckLinkDeviceInfo din1) settings.Input1Device = din1.DisplayName;
+            if (CmbInput2.SelectedItem is DeckLinkDeviceInfo din2) settings.Input2Device = din2.DisplayName;
+            if (CmbInput3.SelectedItem is DeckLinkDeviceInfo din3) settings.Input3Device = din3.DisplayName;
+            if (CmbInput4.SelectedItem is DeckLinkDeviceInfo din4) settings.Input4Device = din4.DisplayName;
+            settings.AudioLevelPgm = SldPgmAudio.Value;
+            settings.AudioLevel1 = SldInput1Audio.Value;
+            settings.AudioLevel2 = SldInput2Audio.Value;
+            settings.AudioLevel3 = SldInput3Audio.Value;
+            settings.AudioLevel4 = SldInput4Audio.Value;
+            settings.AudioLevelColorBars = SldColorBarsAudio.Value;
+            settings.AudioLevelMedia = SldMediaAudio.Value;
+            settings.MatteColorIndex = CmbMatteColor.SelectedIndex;
+            settings.Save();
+
             // Hide the window immediately so it doesn't freeze on screen
             this.Hide();
             e.Cancel = true;
@@ -119,11 +138,31 @@ namespace DecklinkSwitcher
             CmbInput3.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
             CmbInput4.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
 
-            if (devices.Count > 0) CmbOutput.SelectedIndex = 0;
-            if (devices.Count > 1) CmbInput1.SelectedIndex = 1;
-            if (devices.Count > 2) CmbInput2.SelectedIndex = 2;
-            if (devices.Count > 3) CmbInput3.SelectedIndex = 3;
-            if (devices.Count > 4) CmbInput4.SelectedIndex = 4;
+            var settings = AppSettings.Load();
+            
+            this.Width = settings.WindowWidth;
+            this.Height = settings.WindowHeight;
+
+            int FindDeviceIndex(string name, int defaultIndex)
+            {
+                var idx = devices.FindIndex(d => d.DisplayName == name);
+                return idx >= 0 ? idx : defaultIndex;
+            }
+
+            if (devices.Count > 0) CmbOutput.SelectedIndex = FindDeviceIndex(settings.OutputDevice, 0);
+            if (devices.Count > 1) CmbInput1.SelectedIndex = FindDeviceIndex(settings.Input1Device, 1);
+            if (devices.Count > 2) CmbInput2.SelectedIndex = FindDeviceIndex(settings.Input2Device, 2);
+            if (devices.Count > 3) CmbInput3.SelectedIndex = FindDeviceIndex(settings.Input3Device, 3);
+            if (devices.Count > 4) CmbInput4.SelectedIndex = FindDeviceIndex(settings.Input4Device, 4);
+            
+            SldPgmAudio.Value = settings.AudioLevelPgm;
+            SldInput1Audio.Value = settings.AudioLevel1;
+            SldInput2Audio.Value = settings.AudioLevel2;
+            SldInput3Audio.Value = settings.AudioLevel3;
+            SldInput4Audio.Value = settings.AudioLevel4;
+            SldColorBarsAudio.Value = settings.AudioLevelColorBars;
+            SldMediaAudio.Value = settings.AudioLevelMedia;
+            CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
             
             TxtStatus.Text = "Ready to assign.";
         }
