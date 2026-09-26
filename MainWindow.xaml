@@ -93,10 +93,19 @@
 
             <!-- Special Sources -->
             <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <ProgressBar Name="AudioBarCBL" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Image Name="PreviewColorBars" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewColorBars_MouseDown"/>
+                    <ProgressBar Name="AudioBarCBR" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
+                    <Slider Name="SldColorBarsAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldColorBarsAudio_ValueChanged"/>
+                </StackPanel>
                 <Button Name="BtnColorBars" Content="Color Bars + Tone" FontSize="16" Height="40" Click="BtnColorBars_Click" Background="#2d2d30" Foreground="White"/>
             </StackPanel>
             
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <Image Name="PreviewMatte" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewMatte_MouseDown"/>
+                </StackPanel>
                 <Button Name="BtnMatte" Content="Matte Color" FontSize="16" Height="40" Click="BtnMatte_Click" Background="#2d2d30" Foreground="White" Margin="0,0,0,5"/>
                 <ComboBox Name="CmbMatteColor" FontSize="14" Height="30" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
                     <ComboBoxItem Content="Black"/>

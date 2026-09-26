@@ -19,6 +19,8 @@ namespace DecklinkSwitcher
         private DeckLinkDevice _btn3Input;
         private DeckLinkDevice _btn4Input;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpOutput;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
 
@@ -28,6 +30,11 @@ namespace DecklinkSwitcher
             Log("Application Started");
             InitializeComponent();
             
+            _bmpColorBars = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            PreviewColorBars.Source = _bmpColorBars;
+            PreviewMatte.Source = _bmpMatte;
+
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
         }
@@ -56,6 +63,8 @@ namespace DecklinkSwitcher
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Log("Window loaded. Discovering DeckLink devices...");
+            
+            UpdateMiniPreviewsSynthetic();
             
             List<DeckLinkDeviceInfo> devices = new List<DeckLinkDeviceInfo>();
             IDeckLinkIterator deckLinkIterator = new CDeckLinkIterator();
@@ -192,12 +201,14 @@ namespace DecklinkSwitcher
             _activeSourceType = 1; Log("Switched to Color Bars");
             UpdatePgmPreviewSynthetic();
         }
+        private void PreviewColorBars_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnColorBars_Click(null, null);
 
         private void BtnMatte_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 2; Log("Switched to Matte");
             UpdatePgmPreviewSynthetic();
         }
+        private void PreviewMatte_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMatte_Click(null, null);
 
         public static byte MatteY = 41;
         public static byte MatteU = 212;
@@ -206,9 +217,24 @@ namespace DecklinkSwitcher
         private static float _pgmAudioLevel = 1.0f;
         public static float PgmAudioLevel { get { return _pgmAudioLevel; } set { _pgmAudioLevel = value; } }
 
+        public static float ColorBarsAudioLevel = 1.0f;
+
         private void SldPgmAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             PgmAudioLevel = (float)e.NewValue;
+        }
+
+        private void SldColorBarsAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            ColorBarsAudioLevel = (float)e.NewValue;
+            double val = 50 * ColorBarsAudioLevel; // 50% is 16384 out of 32768
+            AudioBarCBL.Value = val;
+            AudioBarCBR.Value = val;
+            if (_activeSourceType == 1)
+            {
+                AudioOutputL.Value = val;
+                AudioOutputR.Value = val;
+            }
         }
 
         private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
@@ -232,6 +258,7 @@ namespace DecklinkSwitcher
                     case "Blue":    MatteY = 41;  MatteU = 212; MatteV = 114; break;
                     case "Black":   MatteY = 16;  MatteU = 128; MatteV = 128; break;
                 }
+                UpdateMiniPreviewsSynthetic();
                 if (_activeSourceType == 2) UpdatePgmPreviewSynthetic();
             }
         }
@@ -303,6 +330,54 @@ namespace DecklinkSwitcher
                 {
                     _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), pixels, 480 * 4, 0);
                 }
+            });
+        }
+
+        private void UpdateMiniPreviewsSynthetic()
+        {
+            // Color Bars (Type 1)
+            byte[] cbPixels = new byte[480 * 270 * 4];
+            byte[,] colors = new byte[8, 3] {
+                { 255, 255, 255 }, { 0, 255, 255 }, { 255, 255, 0 }, { 0, 255, 0 },
+                { 255, 0, 255 }, { 0, 0, 255 }, { 255, 0, 0 }, { 0, 0, 0 }
+            };
+            for (int y = 0; y < 270; y++) {
+                for (int x = 0; x < 480; x++) {
+                    int barIndex = (x * 8) / 480;
+                    int offset = (y * 480 + x) * 4;
+                    cbPixels[offset] = colors[barIndex, 0];
+                    cbPixels[offset+1] = colors[barIndex, 1];
+                    cbPixels[offset+2] = colors[barIndex, 2];
+                    cbPixels[offset+3] = 255;
+                }
+            }
+            
+            // Matte (Type 2)
+            byte[] mPixels = new byte[480 * 270 * 4];
+            byte r=0, g=0, b=0;
+            string color = "";
+            Application.Current.Dispatcher.Invoke(() => {
+                if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
+                    color = item.Content?.ToString();
+            });
+            switch (color)
+            {
+                case "White":   r=255; g=255; b=255; break;
+                case "Yellow":  r=255; g=255; b=0;   break;
+                case "Cyan":    r=0;   g=255; b=255; break;
+                case "Green":   r=0;   g=255; b=0;   break;
+                case "Magenta": r=255; g=0;   b=255; break;
+                case "Red":     r=255; g=0;   b=0;   break;
+                case "Blue":    r=0;   g=0;   b=255; break;
+                case "Black":   r=0;   g=0;   b=0;   break;
+            }
+            for (int i = 0; i < mPixels.Length; i += 4) {
+                mPixels[i] = b; mPixels[i+1] = g; mPixels[i+2] = r; mPixels[i+3] = 255;
+            }
+
+            Application.Current.Dispatcher.BeginInvoke(() => {
+                if (_bmpColorBars != null) _bmpColorBars.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), cbPixels, 480 * 4, 0);
+                if (_bmpMatte != null) _bmpMatte.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), mPixels, 480 * 4, 0);
             });
         }
 
@@ -689,8 +764,8 @@ namespace DecklinkSwitcher
                     short* audioPtr = (short*)audioBuffer.ToPointer();
                     for (int i = 0; i < audioSampleCount; i++)
                     {
-                        double val = Math.Sin(_audioPhase) * 16384 * MainWindow.PgmAudioLevel; // Half volume, adjusted by PGM level
-                        short sample = (short)val;
+                        double val = Math.Sin(_audioPhase) * 16384 * MainWindow.ColorBarsAudioLevel * MainWindow.PgmAudioLevel;
+                        short sample = (short)Math.Clamp(val, -32768, 32767);
                         audioPtr[i * 2] = sample; // Left
                         audioPtr[i * 2 + 1] = sample; // Right
                         _audioPhase += 2.0 * Math.PI * 1000.0 / 48000.0;
