@@ -21,6 +21,27 @@
           "build/VideoLAN.LibVLC.Windows.targets": {}
         }
       }
+    },
+    "net11.0-windows/win-x64": {
+      "LibVLCSharp/3.10.1": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0/LibVLCSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0/LibVLCSharp.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "VideoLAN.LibVLC.Windows/3.0.24": {
+        "type": "package",
+        "build": {
+          "build/VideoLAN.LibVLC.Windows.targets": {}
+        }
+      }
     }
   },
   "libraries": {
@@ -2049,6 +2070,11 @@
           "System.Xml.XPath": "(,4.3.32767]",
           "System.Xml.XPath.XDocument": "(,5.0.32767]"
         }
+      }
+    },
+    "runtimes": {
+      "win-x64": {
+        "#import": []
       }
     }
   }
