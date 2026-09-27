@@ -25,9 +25,20 @@ namespace DecklinkSwitcher
         
         public int MatteColorIndex { get; set; } = 4;
         
+        private static string GetSettingsPath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string appFolder = Path.Combine(appData, "DecklinkSwitcher");
+            if (!Directory.Exists(appFolder))
+            {
+                Directory.CreateDirectory(appFolder);
+            }
+            return Path.Combine(appFolder, "settings.json");
+        }
+
         public static AppSettings Load()
         {
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
+            string path = GetSettingsPath();
             if (File.Exists(path))
             {
                 try
@@ -45,7 +56,7 @@ namespace DecklinkSwitcher
         {
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
+                string path = GetSettingsPath();
                 string json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(path, json);
             }
