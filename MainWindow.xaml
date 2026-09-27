@@ -26,7 +26,10 @@
                 <TextBlock Text="PROGRAM OUTPUT" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="250" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="PreviewOutput" Stretch="Uniform" Height="250" Width="444"/>
+                    <StackPanel Orientation="Vertical">
+                        <Image Name="PreviewOutput" Stretch="Uniform" Height="250" Width="444"/>
+                        <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="White" Margin="0,5,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                    </StackPanel>
                     <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="250" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
                     
                     <StackPanel Orientation="Vertical" Margin="15,0,0,0" HorizontalAlignment="Center">
@@ -58,6 +61,11 @@
                     <Slider Name="SldInput1Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput1Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput1" Content="Input 1" FontSize="16" Height="40" Click="BtnInput1_Click" Background="#2d2d30" Foreground="White"/>
+                <ComboBox Name="CmbAudioState1" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                    <ComboBoxItem Content="AFV"/>
+                    <ComboBoxItem Content="ON"/>
+                    <ComboBoxItem Content="OFF"/>
+                </ComboBox>
             </StackPanel>
 
             <!-- Input 2 -->
@@ -69,6 +77,11 @@
                     <Slider Name="SldInput2Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput2Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput2" Content="Input 2" FontSize="16" Height="40" Click="BtnInput2_Click" Background="#2d2d30" Foreground="White"/>
+                <ComboBox Name="CmbAudioState2" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                    <ComboBoxItem Content="AFV"/>
+                    <ComboBoxItem Content="ON"/>
+                    <ComboBoxItem Content="OFF"/>
+                </ComboBox>
             </StackPanel>
 
             <!-- Input 3 -->
@@ -80,6 +93,11 @@
                     <Slider Name="SldInput3Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput3Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput3" Content="Input 3" FontSize="16" Height="40" Click="BtnInput3_Click" Background="#2d2d30" Foreground="White"/>
+                <ComboBox Name="CmbAudioState3" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                    <ComboBoxItem Content="AFV"/>
+                    <ComboBoxItem Content="ON"/>
+                    <ComboBoxItem Content="OFF"/>
+                </ComboBox>
             </StackPanel>
 
             <!-- Input 4 -->
@@ -91,6 +109,11 @@
                     <Slider Name="SldInput4Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput4Audio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnInput4" Content="Input 4" FontSize="16" Height="40" Click="BtnInput4_Click" Background="#2d2d30" Foreground="White"/>
+                <ComboBox Name="CmbAudioState4" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                    <ComboBoxItem Content="AFV"/>
+                    <ComboBoxItem Content="ON"/>
+                    <ComboBoxItem Content="OFF"/>
+                </ComboBox>
             </StackPanel>
 
             <!-- Special Sources -->
@@ -102,7 +125,20 @@
                     <Slider Name="SldMediaAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldMediaAudio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnMedia" Content="Local Video" FontSize="16" Height="40" Click="BtnMedia_Click" Background="#2d2d30" Foreground="White" Margin="0,0,0,5"/>
-                <Button Name="BtnSelectMedia" Content="Select File..." FontSize="14" Height="30" Click="BtnSelectMedia_Click" Background="#333333" Foreground="LightGray"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,5">
+                    <Button Name="BtnSelectMedia" Content="Select File..." FontSize="12" Height="25" Width="70" Click="BtnSelectMedia_Click" Background="#333333" Foreground="LightGray" Margin="0,0,5,0"/>
+                    <Button Name="BtnCueMedia" Content="Cue" FontSize="12" Height="25" Width="40" Click="BtnCueMedia_Click" Background="#333333" Foreground="LightGray" Margin="0,0,5,0"/>
+                    <Button Name="BtnPauseMedia" Content="Pause" FontSize="12" Height="25" Width="45" Click="BtnPauseMedia_Click" Background="#333333" Foreground="LightGray" Margin="0,0,5,0"/>
+                    <Button Name="BtnResumeMedia" Content="Resume" FontSize="12" Height="25" Width="55" Click="BtnResumeMedia_Click" Background="#333333" Foreground="LightGray"/>
+                    <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="LightGray" Margin="5,0,0,0"/>
+                </StackPanel>
+                <Slider Name="SldMediaSeek" Margin="10,0,10,0" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.01" 
+                        Thumb.DragStarted="SldMediaSeek_DragStarted" Thumb.DragCompleted="SldMediaSeek_DragCompleted" ValueChanged="SldMediaSeek_ValueChanged"/>
+                <ComboBox Name="CmbAudioStateMedia" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                    <ComboBoxItem Content="AFV"/>
+                    <ComboBoxItem Content="ON"/>
+                    <ComboBoxItem Content="OFF"/>
+                </ComboBox>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
@@ -113,6 +149,11 @@
                     <Slider Name="SldColorBarsAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldColorBarsAudio_ValueChanged"/>
                 </StackPanel>
                 <Button Name="BtnColorBars" Content="Color Bars + Tone" FontSize="16" Height="40" Click="BtnColorBars_Click" Background="#2d2d30" Foreground="White"/>
+                <ComboBox Name="CmbAudioStateColorBars" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                    <ComboBoxItem Content="AFV"/>
+                    <ComboBoxItem Content="ON"/>
+                    <ComboBoxItem Content="OFF"/>
+                </ComboBox>
             </StackPanel>
             
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">

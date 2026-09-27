@@ -70,16 +70,68 @@ namespace DecklinkSwitcher
             _mediaPlayer.SetAudioCallbacks(_playAudioCb, _pauseAudioCb, _resumeAudioCb, _flushAudioCb, _drainAudioCb);
         }
 
-        public void Play(string filePath)
+        private bool _pauseOnNextFrame = false;
+
+        public void Play(string filePath, bool loop)
         {
+            _pauseOnNextFrame = false;
             var media = new Media(_libVlc, filePath, FromType.FromPath);
-            media.AddOption(":input-repeat=65535"); // Loop indefinitely
+            if (loop) media.AddOption(":input-repeat=65535"); // Loop indefinitely
+            
+            string lowerPath = filePath.ToLower();
+            if (lowerPath.EndsWith(".jpg") || lowerPath.EndsWith(".jpeg") || lowerPath.EndsWith(".png") || lowerPath.EndsWith(".bmp"))
+            {
+                media.AddOption(":image-duration=-1");
+            }
+            
+            _mediaPlayer.Play(media);
+        }
+
+        public void Cue(string filePath, bool loop)
+        {
+            _pauseOnNextFrame = true;
+            var media = new Media(_libVlc, filePath, FromType.FromPath);
+            if (loop) media.AddOption(":input-repeat=65535");
+            
+            string lowerPath = filePath.ToLower();
+            if (lowerPath.EndsWith(".jpg") || lowerPath.EndsWith(".jpeg") || lowerPath.EndsWith(".png") || lowerPath.EndsWith(".bmp"))
+            {
+                media.AddOption(":image-duration=-1");
+            }
+            
             _mediaPlayer.Play(media);
         }
         
         public void Stop()
         {
             _mediaPlayer.Stop();
+        }
+
+        public void Pause()
+        {
+            _mediaPlayer.SetPause(true);
+        }
+
+        public void Resume()
+        {
+            _mediaPlayer.SetPause(false);
+        }
+
+        public float Position
+        {
+            get => _mediaPlayer.Position;
+            set => _mediaPlayer.Position = value;
+        }
+
+        public long Time
+        {
+            get => _mediaPlayer.Time;
+            set => _mediaPlayer.Time = value;
+        }
+
+        public long Length
+        {
+            get => _mediaPlayer.Length;
         }
 
 
@@ -98,6 +150,15 @@ namespace DecklinkSwitcher
 
         private void DisplayVideo(IntPtr opaque, IntPtr picture)
         {
+            if (_pauseOnNextFrame)
+            {
+                _pauseOnNextFrame = false;
+                System.Threading.Tasks.Task.Run(() => {
+                    _mediaPlayer.SetPause(true);
+                    _mediaPlayer.Position = 0;
+                });
+            }
+
             uint sampleCount = 1920; 
             IntPtr audioPtr = Marshal.AllocCoTaskMem((int)sampleCount * 4);
             
@@ -120,6 +181,10 @@ namespace DecklinkSwitcher
                     // zero out the rest
                     for (int i = readSamples; i < sampleCount * 2; i++) dst[i] = 0;
                 }
+                
+                short[] arr = new short[sampleCount * 2];
+                Marshal.Copy(audioPtr, arr, 0, (int)sampleCount * 2);
+                DecklinkSwitcher.MainWindow.LatestAudioPackets["Media"] = arr;
                 
                 int maxL = 0;
                 int maxR = 0;

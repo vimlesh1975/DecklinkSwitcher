@@ -4,6 +4,8 @@ using System.Text.Json;
 
 namespace DecklinkSwitcher
 {
+    public enum AudioState { AFV, ON, OFF }
+
     public class AppSettings
     {
         public double WindowWidth { get; set; } = 1200;
@@ -23,7 +25,17 @@ namespace DecklinkSwitcher
         public double AudioLevelColorBars { get; set; } = 1.0;
         public double AudioLevelMedia { get; set; } = 1.0;
         
+        public AudioState AudioState1 { get; set; } = AudioState.AFV;
+        public AudioState AudioState2 { get; set; } = AudioState.AFV;
+        public AudioState AudioState3 { get; set; } = AudioState.AFV;
+        public AudioState AudioState4 { get; set; } = AudioState.AFV;
+        public AudioState AudioStateColorBars { get; set; } = AudioState.AFV;
+        public AudioState AudioStateMedia { get; set; } = AudioState.AFV;
+        
         public int MatteColorIndex { get; set; } = 4;
+        
+        public bool SystemAudioMonitorEnabled { get; set; } = false;
+        public bool LoopMediaEnabled { get; set; } = false;
         
         private static string GetSettingsPath()
         {

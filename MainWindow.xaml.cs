@@ -28,6 +28,9 @@ namespace DecklinkSwitcher
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
 
+        private System.Windows.Threading.DispatcherTimer _seekTimer;
+        private bool _isDraggingSeek = false;
+
         public MainWindow()
         {
             Log("=========================================");
@@ -52,7 +55,23 @@ namespace DecklinkSwitcher
             {
                 _mediaSource = new VlcMediaSource();
                 _mediaSource.OnVideoAndAudioArrived = (vBuf, w, h, rb, aBuf, aCount) => {
-                    if (_activeSourceType == 3) _activeOutput?.ScheduleCustomFrame(vBuf, w, h, rb, aBuf, aCount, _mediaSource.AudioLevel);
+                    if (_activeSourceType == 3) 
+                    {
+                        if (_activeOutput != null)
+                        {
+                            _activeOutput.ScheduleCustomFrame(vBuf, w, h, rb, aBuf, aCount);
+                        }
+                        else
+                        {
+                            uint mixedSampleCount = aCount > 0 ? aCount : 1920;
+                            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(mixedSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
+                            if (modifiedAudioBuffer != IntPtr.Zero)
+                            {
+                                SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
+                                System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+                            }
+                        }
+                    }
                 };
                 _mediaSource.OnPreviewBufferUpdated = (buf) => {
                     Application.Current.Dispatcher.BeginInvoke(() => {
@@ -62,15 +81,26 @@ namespace DecklinkSwitcher
                 };
                 _mediaSource.OnAudioLevelArrived = (l, r) => {
                     Application.Current.Dispatcher.BeginInvoke(() => {
-                        AudioBarMediaL.Value = l; AudioBarMediaR.Value = r;
-                        if (_activeSourceType == 3) { AudioOutputL.Value = l; AudioOutputR.Value = r; }
+                        double mediaL = l * _mediaSource.AudioLevel;
+                        double mediaR = r * _mediaSource.AudioLevel;
+                        AudioBarMediaL.Value = mediaL; AudioBarMediaR.Value = mediaR;
+                        if (_activeSourceType == 3) 
+                        { 
+                            AudioOutputL.Value = mediaL * PgmAudioLevel; 
+                            AudioOutputR.Value = mediaR * PgmAudioLevel; 
+                        }
                     });
                 };
             }
             catch (Exception ex)
             {
-                Log("VlcMediaSource init error: " + ex.ToString());
             }
+
+            SystemAudioPlayer.Init();
+
+            _seekTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _seekTimer.Tick += SeekTimer_Tick;
+            _seekTimer.Start();
 
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
@@ -97,7 +127,17 @@ namespace DecklinkSwitcher
             settings.AudioLevelColorBars = SldColorBarsAudio.Value;
             settings.AudioLevelMedia = SldMediaAudio.Value;
             settings.MatteColorIndex = CmbMatteColor.SelectedIndex;
+            settings.SystemAudioMonitorEnabled = ChkSystemAudioOut.IsChecked == true;
+            settings.LoopMediaEnabled = ChkLoopMedia.IsChecked == true;
+            settings.AudioState1 = (AudioState)CmbAudioState1.SelectedIndex;
+            settings.AudioState2 = (AudioState)CmbAudioState2.SelectedIndex;
+            settings.AudioState3 = (AudioState)CmbAudioState3.SelectedIndex;
+            settings.AudioState4 = (AudioState)CmbAudioState4.SelectedIndex;
+            settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
+            settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
             settings.Save();
+
+            _seekTimer?.Stop();
 
             // Hide the window immediately so it doesn't freeze on screen
             this.Hide();
@@ -113,6 +153,7 @@ namespace DecklinkSwitcher
                 if (_btn4Input != null) _btn4Input.StopCapture();
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
+                SystemAudioPlayer.Shutdown();
                 Log("Resources released.");
                 Environment.Exit(0);
             });
@@ -220,6 +261,14 @@ namespace DecklinkSwitcher
                 SldColorBarsAudio.Value = settings.AudioLevelColorBars;
                 SldMediaAudio.Value = settings.AudioLevelMedia;
                 CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
+                ChkSystemAudioOut.IsChecked = settings.SystemAudioMonitorEnabled;
+                ChkLoopMedia.IsChecked = settings.LoopMediaEnabled;
+                CmbAudioState1.SelectedIndex = (int)settings.AudioState1;
+                CmbAudioState2.SelectedIndex = (int)settings.AudioState2;
+                CmbAudioState3.SelectedIndex = (int)settings.AudioState3;
+                CmbAudioState4.SelectedIndex = (int)settings.AudioState4;
+                CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;
+                CmbAudioStateMedia.SelectedIndex = (int)settings.AudioStateMedia;
                 
                 TxtStatus.Text = "Ready to assign.";
                 Log("MainWindow_Loaded completed successfully.");
@@ -296,6 +345,8 @@ namespace DecklinkSwitcher
         }
 
         private int _activeSourceType = 0; // 0=Device, 1=ColorBars, 2=Matte, 3=Media
+        public static int ActiveSourceType = 0;
+        public static string ActiveInputName = "";
 
         private void ClearPgmPreview()
         {
@@ -315,8 +366,8 @@ namespace DecklinkSwitcher
 
         private void BtnInput1_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 0;
-            _activeInput = _btn1Input;
+            _activeSourceType = 0; ActiveSourceType = 0;
+            _activeInput = _btn1Input; ActiveInputName = "Input 1";
             if (_btn1Input != null)
             {
                 Log("Switched to Input 1");
@@ -330,8 +381,8 @@ namespace DecklinkSwitcher
 
         private void BtnInput2_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 0;
-            _activeInput = _btn2Input;
+            _activeSourceType = 0; ActiveSourceType = 0;
+            _activeInput = _btn2Input; ActiveInputName = "Input 2";
             if (_btn2Input != null)
             {
                 Log("Switched to Input 2");
@@ -345,8 +396,8 @@ namespace DecklinkSwitcher
 
         private void BtnInput3_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 0;
-            _activeInput = _btn3Input;
+            _activeSourceType = 0; ActiveSourceType = 0;
+            _activeInput = _btn3Input; ActiveInputName = "Input 3";
             if (_btn3Input != null)
             {
                 Log("Switched to Input 3");
@@ -360,8 +411,8 @@ namespace DecklinkSwitcher
 
         private void BtnInput4_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 0;
-            _activeInput = _btn4Input;
+            _activeSourceType = 0; ActiveSourceType = 0;
+            _activeInput = _btn4Input; ActiveInputName = "Input 4";
             if (_btn4Input != null)
             {
                 Log("Switched to Input 4");
@@ -380,7 +431,7 @@ namespace DecklinkSwitcher
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 1;
+            _activeSourceType = 1; ActiveSourceType = 1; ActiveInputName = "Color Bars";
             Log("Switched to Color Bars");
             UpdatePgmPreviewSynthetic();
             double val = 50 * ColorBarsAudioLevel * PgmAudioLevel;
@@ -391,7 +442,7 @@ namespace DecklinkSwitcher
 
         private void BtnMatte_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 2;
+            _activeSourceType = 2; ActiveSourceType = 2; ActiveInputName = "Matte";
             Log("Switched to Matte");
             UpdatePgmPreviewSynthetic();
             AudioOutputL.Value = 0;
@@ -401,19 +452,22 @@ namespace DecklinkSwitcher
 
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
         {
-            _activeSourceType = 3; Log("Switched to Local Video");
+            _activeSourceType = 3; ActiveSourceType = 3; ActiveInputName = "Media"; Log("Switched to Local Video");
         }
         private void PreviewMedia_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMedia_Click(null, null);
+
+        private string _lastMediaFile = "";
 
         private void BtnSelectMedia_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-            dlg.Filter = "Video Files|*.mp4;*.mkv;*.avi;*.mov|All Files|*.*";
+            dlg.Filter = "Video and Image Files|*.mp4;*.mkv;*.avi;*.mov;*.jpg;*.jpeg;*.png;*.bmp|All Files|*.*";
             if (dlg.ShowDialog() == true)
             {
                 if (_mediaSource != null)
                 {
-                    _mediaSource.Play(dlg.FileName);
+                    _lastMediaFile = dlg.FileName;
+                    _mediaSource.Play(dlg.FileName, ChkLoopMedia.IsChecked == true);
                 }
                 else
                 {
@@ -422,14 +476,94 @@ namespace DecklinkSwitcher
             }
         }
 
+        private void BtnCueMedia_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mediaSource != null && !string.IsNullOrEmpty(_lastMediaFile))
+            {
+                _mediaSource.Cue(_lastMediaFile, ChkLoopMedia.IsChecked == true);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show("No media file selected. Please select a file first.");
+            }
+        }
+
+        private void BtnPauseMedia_Click(object sender, RoutedEventArgs e)
+        {
+            _mediaSource?.Pause();
+        }
+
+        private void BtnResumeMedia_Click(object sender, RoutedEventArgs e)
+        {
+            _mediaSource?.Resume();
+        }
+
+        private void SeekTimer_Tick(object sender, EventArgs e)
+        {
+            if (_mediaSource != null && !_isDraggingSeek)
+            {
+                float pos = _mediaSource.Position;
+                if (pos >= 0 && pos <= 1)
+                {
+                    SldMediaSeek.Value = pos;
+                }
+            }
+        }
+
+        private void SldMediaSeek_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
+        {
+            _isDraggingSeek = true;
+        }
+
+        private void SldMediaSeek_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+        {
+            _isDraggingSeek = false;
+            if (_mediaSource != null)
+            {
+                _mediaSource.Position = (float)SldMediaSeek.Value;
+            }
+        }
+
+        private void SldMediaSeek_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_isDraggingSeek && _mediaSource != null)
+            {
+                _mediaSource.Position = (float)e.NewValue;
+            }
+        }
+
         public static byte MatteY = 41;
         public static byte MatteU = 212;
         public static byte MatteV = 114;
+
+        private void ChkSystemAudioOut_Checked(object sender, RoutedEventArgs e)
+        {
+            SystemAudioPlayer.IsEnabled = true;
+        }
+
+        private void ChkSystemAudioOut_Unchecked(object sender, RoutedEventArgs e)
+        {
+            SystemAudioPlayer.IsEnabled = false;
+        }
 
         private static float _pgmAudioLevel = 1.0f;
         public static float PgmAudioLevel { get { return _pgmAudioLevel; } set { _pgmAudioLevel = value; } }
 
         public static float ColorBarsAudioLevel = 1.0f;
+        public static float MediaAudioLevel = 1.0f;
+        public static float Input1AudioLevel = 1.0f;
+        public static float Input2AudioLevel = 1.0f;
+        public static float Input3AudioLevel = 1.0f;
+        public static float Input4AudioLevel = 1.0f;
+        
+        public static AudioState State1 = AudioState.AFV;
+        public static AudioState State2 = AudioState.AFV;
+        public static AudioState State3 = AudioState.AFV;
+        public static AudioState State4 = AudioState.AFV;
+        public static AudioState StateMedia = AudioState.AFV;
+        public static AudioState StateColorBars = AudioState.AFV;
+        
+        public static System.Collections.Concurrent.ConcurrentDictionary<string, short[]> LatestAudioPackets = new();
 
         private void SldPgmAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
@@ -451,10 +585,110 @@ namespace DecklinkSwitcher
         
         private void SldMediaAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_mediaSource != null) _mediaSource.AudioLevel = (float)e.NewValue; }
 
-        private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
-        private void SldInput2Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn2Input != null) _btn2Input.AudioLevel = (float)e.NewValue; }
-        private void SldInput3Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn3Input != null) _btn3Input.AudioLevel = (float)e.NewValue; }
-        private void SldInput4Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_btn4Input != null) _btn4Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input1AudioLevel = (float)e.NewValue; if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput2Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input2AudioLevel = (float)e.NewValue; if (_btn2Input != null) _btn2Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput3Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input3AudioLevel = (float)e.NewValue; if (_btn3Input != null) _btn3Input.AudioLevel = (float)e.NewValue; }
+        private void SldInput4Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input4AudioLevel = (float)e.NewValue; if (_btn4Input != null) _btn4Input.AudioLevel = (float)e.NewValue; }
+
+        private void CmbAudioState_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            State1 = (AudioState)CmbAudioState1.SelectedIndex;
+            State2 = (AudioState)CmbAudioState2.SelectedIndex;
+            State3 = (AudioState)CmbAudioState3.SelectedIndex;
+            State4 = (AudioState)CmbAudioState4.SelectedIndex;
+            StateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
+            StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
+        }
+
+        private static double _syntheticAudioPhase = 0;
+
+        public static IntPtr MixAudio(uint audioSampleCount, int activeSourceType, string activeInputName)
+        {
+            int totalSamples = (int)audioSampleCount * 2;
+            int[] mixed = new int[totalSamples];
+
+            Action<string, float, AudioState, bool> mixSource = (name, level, state, isLocalActive) =>
+            {
+                if (state == AudioState.OFF) return;
+                if (state == AudioState.AFV && !isLocalActive) return;
+                
+                if (name == "Color Bars")
+                {
+                    for (int i = 0; i < totalSamples; i += 2)
+                    {
+                        short sample = (short)(Math.Sin(_syntheticAudioPhase) * 16384 * level);
+                        mixed[i] += sample;
+                        mixed[i+1] += sample;
+                        _syntheticAudioPhase += 2.0 * Math.PI * 1000.0 / 48000.0;
+                        if (_syntheticAudioPhase >= 2.0 * Math.PI) _syntheticAudioPhase -= 2.0 * Math.PI;
+                    }
+                    return;
+                }
+
+                if (LatestAudioPackets.TryGetValue(name, out short[] packet) && packet != null)
+                {
+                    int toMix = Math.Min(totalSamples, packet.Length);
+                    int sum = 0;
+                    for (int i = 0; i < toMix; i++)
+                    {
+                        mixed[i] += (int)(packet[i] * level);
+                        sum += Math.Abs(packet[i]);
+                    }
+                    if (sum > 0 && name == "Media") MainWindow.Log($"Mixed Media packet! Length: {packet.Length}, Sum: {sum}");
+                    LatestAudioPackets[name] = null; // Consume the packet
+                }
+            };
+
+            mixSource("Input 1", Input1AudioLevel, State1, activeSourceType == 0 && activeInputName == "Input 1");
+            mixSource("Input 2", Input2AudioLevel, State2, activeSourceType == 0 && activeInputName == "Input 2");
+            mixSource("Input 3", Input3AudioLevel, State3, activeSourceType == 0 && activeInputName == "Input 3");
+            mixSource("Input 4", Input4AudioLevel, State4, activeSourceType == 0 && activeInputName == "Input 4");
+            mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
+            mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
+
+            int maxL = 0, maxR = 0;
+            IntPtr outBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(totalSamples * 2);
+            unsafe
+            {
+                short* dstPtr = (short*)outBuffer.ToPointer();
+                for (int i = 0; i < totalSamples; i += 2)
+                {
+                    float finalL = mixed[i] * PgmAudioLevel;
+                    if (finalL > 32767) finalL = 32767;
+                    else if (finalL < -32768) finalL = -32768;
+                    dstPtr[i] = (short)finalL;
+                    
+                    float finalR = mixed[i+1] * PgmAudioLevel;
+                    if (finalR > 32767) finalR = 32767;
+                    else if (finalR < -32768) finalR = -32768;
+                    dstPtr[i+1] = (short)finalR;
+
+                    int valL = Math.Abs((int)dstPtr[i]);
+                    int valR = Math.Abs((int)dstPtr[i+1]);
+                    if (valL > maxL) maxL = valL;
+                    if (valR > maxR) maxR = valR;
+                }
+            }
+            
+            int volL = (maxL * 100) / 32768;
+            int volR = (maxR * 100) / 32768;
+            
+            if (activeSourceType == 1 || activeSourceType == 3)
+            {
+                MainWindow.Log($"MixAudio ({activeInputName}) MaxL: {maxL}, MaxR: {maxR}, VolL: {volL}, PgmLevel: {PgmAudioLevel}");
+            }
+            
+            Application.Current.Dispatcher.BeginInvoke(() => {
+                if (Application.Current.MainWindow is MainWindow mw)
+                {
+                    mw.AudioOutputL.Value = volL;
+                    mw.AudioOutputR.Value = volR;
+                }
+            });
+            
+            return outBuffer;
+        }
 
         private void CmbMatteColor_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
@@ -624,7 +858,7 @@ namespace DecklinkSwitcher
             IDeckLink outLink = GetLink(outInfo);
             if (outLink != null)
             {
-                _activeOutput = new DeckLinkDevice(outLink, outInfo.DisplayName);
+                _activeOutput = new DeckLinkDevice(outLink, "Output");
                 _activeOutput.StartPlayback();
             }
             else
@@ -635,7 +869,7 @@ namespace DecklinkSwitcher
 
             if (in1Info != null && in1Info.Index >= 0 && GetLink(in1Info) is IDeckLink link1)
             {
-                _btn1Input = new DeckLinkDevice(link1, in1Info.DisplayName);
+                _btn1Input = new DeckLinkDevice(link1, "Input 1");
                 _btn1Input.PreviewBitmap = bmp1;
                 _btn1Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
@@ -646,7 +880,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn1Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn1Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; }); };
                 _btn1Input.StartCapture();
             }
             else
@@ -656,7 +890,7 @@ namespace DecklinkSwitcher
 
             if (in2Info != null && in2Info.Index >= 0 && GetLink(in2Info) is IDeckLink link2)
             {
-                _btn2Input = new DeckLinkDevice(link2, in2Info.DisplayName);
+                _btn2Input = new DeckLinkDevice(link2, "Input 2");
                 _btn2Input.PreviewBitmap = bmp2;
                 _btn2Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
@@ -667,7 +901,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn2Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn2Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; }); };
                 _btn2Input.StartCapture();
             }
             else
@@ -677,7 +911,7 @@ namespace DecklinkSwitcher
 
             if (in3Info != null && in3Info.Index >= 0 && GetLink(in3Info) is IDeckLink link3)
             {
-                _btn3Input = new DeckLinkDevice(link3, in3Info.DisplayName);
+                _btn3Input = new DeckLinkDevice(link3, "Input 3");
                 _btn3Input.PreviewBitmap = bmp3;
                 _btn3Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
@@ -688,7 +922,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn3Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn3Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; }); };
                 _btn3Input.StartCapture();
             }
             else
@@ -698,7 +932,7 @@ namespace DecklinkSwitcher
 
             if (in4Info != null && in4Info.Index >= 0 && GetLink(in4Info) is IDeckLink link4)
             {
-                _btn4Input = new DeckLinkDevice(link4, in4Info.DisplayName);
+                _btn4Input = new DeckLinkDevice(link4, "Input 4");
                 _btn4Input.PreviewBitmap = bmp4;
                 _btn4Input.OnVideoAndAudioArrived = (frame, audio) => 
                 {
@@ -709,7 +943,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn4Input) 
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0); 
                 };
-                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; if (_activeSourceType == 0 && _activeInput == _btn4Input) { AudioOutputL.Value = l; AudioOutputR.Value = r; } }); };
+                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; }); };
                 _btn4Input.StartCapture();
             }
             else
@@ -725,13 +959,27 @@ namespace DecklinkSwitcher
 
             Task.Run(async () =>
             {
+                double syntheticAudioPhase = 0;
                 while (!token.IsCancellationRequested)
                 {
                     try
                     {
-                        if (_activeOutput != null && (_activeSourceType == 1 || _activeSourceType == 2))
+                        if (_activeSourceType == 1 || _activeSourceType == 2)
                         {
-                            _activeOutput.ScheduleSyntheticFrame(_activeSourceType == 1);
+                            if (_activeOutput != null)
+                            {
+                                _activeOutput.ScheduleSyntheticFrame(_activeSourceType == 1);
+                            }
+                            else
+                            {
+                                uint audioSampleCount = 1920;
+                                IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
+                                if (modifiedAudioBuffer != IntPtr.Zero)
+                                {
+                                    SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
+                                    System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+                                }
+                            }
                         }
                         await Task.Delay(40, token);
                     }
@@ -894,44 +1142,18 @@ namespace DecklinkSwitcher
             }
 
             // Extract audio data
-            IntPtr audioBuffer = IntPtr.Zero;
-            uint audioSampleCount = 0;
-            IntPtr modifiedAudioBuffer = IntPtr.Zero;
-
-            if (audioPacket != null)
-            {
-                audioPacket.GetBytes(out audioBuffer);
-                audioSampleCount = (uint)audioPacket.GetSampleFrameCount();
-
-                float totalLevel = inputVolume * MainWindow.PgmAudioLevel;
-                if (totalLevel != 1.0f && audioSampleCount > 0)
-                {
-                    modifiedAudioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4); // 2 channels, 16-bit
-                    unsafe
-                    {
-                        short* srcPtr = (short*)audioBuffer.ToPointer();
-                        short* dstPtr = (short*)modifiedAudioBuffer.ToPointer();
-                        int totalSamples = (int)audioSampleCount * 2;
-                        for (int i = 0; i < totalSamples; i++)
-                        {
-                            float sample = srcPtr[i] * totalLevel;
-                            if (sample > 32767) sample = 32767;
-                            else if (sample < -32768) sample = -32768;
-                            dstPtr[i] = (short)sample;
-                        }
-                    }
-                    audioBuffer = modifiedAudioBuffer;
-                }
-            }
+            uint audioSampleCount = audioPacket != null ? (uint)audioPacket.GetSampleFrameCount() : 1920;
+            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
 
             System.Threading.Tasks.Task.Run(() => 
             {
                 try 
                 {
                     _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
-                    if (audioBuffer != IntPtr.Zero && audioSampleCount > 0)
+                    if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, audioSampleCount, out uint written);
+                        _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out uint written);
+                        SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                     }
                 } 
                 catch (Exception ex) 
@@ -971,36 +1193,18 @@ namespace DecklinkSwitcher
                 outputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
             }
 
-            IntPtr modifiedAudioBuffer = IntPtr.Zero;
-            float totalLevel = inputVolume * MainWindow.PgmAudioLevel;
-            
-            if (totalLevel != 1.0f && audioSampleCount > 0 && audioBuffer != IntPtr.Zero)
-            {
-                modifiedAudioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4);
-                unsafe
-                {
-                    short* srcPtr = (short*)audioBuffer.ToPointer();
-                    short* dstPtr = (short*)modifiedAudioBuffer.ToPointer();
-                    int totalSamples = (int)audioSampleCount * 2;
-                    for (int i = 0; i < totalSamples; i++)
-                    {
-                        float sample = srcPtr[i] * totalLevel;
-                        if (sample > 32767) sample = 32767;
-                        else if (sample < -32768) sample = -32768;
-                        dstPtr[i] = (short)sample;
-                    }
-                }
-                audioBuffer = modifiedAudioBuffer;
-            }
+            uint mixedSampleCount = audioSampleCount > 0 ? audioSampleCount : 1920;
+            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(mixedSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
 
             System.Threading.Tasks.Task.Run(() => 
             {
                 try 
                 {
                     _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
-                    if (audioBuffer != IntPtr.Zero && audioSampleCount > 0)
+                    if (modifiedAudioBuffer != IntPtr.Zero && mixedSampleCount > 0)
                     {
-                        _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, audioSampleCount, out uint written);
+                        _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, mixedSampleCount, out uint written);
+                        SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
                     }
                 } 
                 catch (Exception ex) 
@@ -1085,45 +1289,31 @@ namespace DecklinkSwitcher
                 outputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
             }
 
-            // Generate synthetic audio
-            uint audioSampleCount = 1920; // 48000 Hz / 25 fps = 1920
-            IntPtr audioBuffer = IntPtr.Zero;
-            
-            if (isColorBar)
-            {
-                audioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem((int)audioSampleCount * 4); // 2 channels, 2 bytes/sample
-                unsafe
-                {
-                    short* audioPtr = (short*)audioBuffer.ToPointer();
-                    for (int i = 0; i < audioSampleCount; i++)
-                    {
-                        double val = Math.Sin(_audioPhase) * 16384 * MainWindow.ColorBarsAudioLevel * MainWindow.PgmAudioLevel;
-                        short sample = (short)Math.Clamp(val, -32768, 32767);
-                        audioPtr[i * 2] = sample; // Left
-                        audioPtr[i * 2 + 1] = sample; // Right
-                        _audioPhase += 2.0 * Math.PI * 1000.0 / 48000.0;
-                        if (_audioPhase >= 2.0 * Math.PI) _audioPhase -= 2.0 * Math.PI;
-                    }
-                }
-            }
-            
+            // Audio is now generated in the background loop!
+            uint audioSampleCount = 1920;
+            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
+
             System.Threading.Tasks.Task.Run(() => 
             {
                 try 
                 {
                     _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
-                    if (audioBuffer != IntPtr.Zero)
+                    if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, audioSampleCount, out uint written);
-                        System.Runtime.InteropServices.Marshal.FreeCoTaskMem(audioBuffer);
+                        _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out uint written);
+                        SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                     }
                 } 
                 catch (Exception ex) 
                 {
-                    MainWindow.Log($"[{_roleName}] Task.Run DisplayVideo/Audio error: {ex.Message}");
+                    MainWindow.Log($"[{_roleName}] Task.Run DisplaySyntheticVideo/Audio error: {ex.Message}");
                 }
                 finally
                 {
+                    if (modifiedAudioBuffer != IntPtr.Zero)
+                    {
+                        System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+                    }
                     Interlocked.Exchange(ref _isDisplaying, 0);
                 }
             });
@@ -1186,27 +1376,34 @@ namespace DecklinkSwitcher
                         }
                     }
 
-                    if (audioPacket != null && OnAudioLevelArrived != null && Environment.TickCount - _lastPreviewTicks <= 200) 
+                    if (audioPacket != null)
                     {
                         audioPacket.GetBytes(out IntPtr audioPtr);
                         int sampleCount = (int)audioPacket.GetSampleFrameCount();
                         
-                        unsafe 
+                        short[] arr = new short[sampleCount * 2];
+                        System.Runtime.InteropServices.Marshal.Copy(audioPtr, arr, 0, sampleCount * 2);
+                        MainWindow.LatestAudioPackets[_roleName] = arr;
+
+                        if (OnAudioLevelArrived != null && Environment.TickCount - _lastPreviewTicks <= 200) 
                         {
-                            short* samples = (short*)audioPtr.ToPointer();
-                            int maxL = 0;
-                            int maxR = 0;
-                            for (int i = 0; i < sampleCount * 2; i += 2) // 2 channels
+                            unsafe 
                             {
-                                int valL = Math.Abs(samples[i]);
-                                int valR = Math.Abs(samples[i+1]);
-                                if (valL > maxL) maxL = valL;
-                                if (valR > maxR) maxR = valR;
+                                short* samples = (short*)audioPtr.ToPointer();
+                                int maxL = 0;
+                                int maxR = 0;
+                                for (int i = 0; i < sampleCount * 2; i += 2) // 2 channels
+                                {
+                                    int valL = Math.Abs(samples[i]);
+                                    int valR = Math.Abs(samples[i+1]);
+                                    if (valL > maxL) maxL = valL;
+                                    if (valR > maxR) maxR = valR;
+                                }
+                                
+                                int volL = (maxL * 100) / 32768;
+                                int volR = (maxR * 100) / 32768;
+                                OnAudioLevelArrived(volL, volR);
                             }
-                            
-                            int volL = (maxL * 100) / 32768;
-                            int volR = (maxR * 100) / 32768;
-                            OnAudioLevelArrived(volL, volR);
                         }
                     }
 
