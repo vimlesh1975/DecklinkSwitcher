@@ -7,8 +7,82 @@
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
         MinWidth="800" MinHeight="600"
-        Title="DeckLink Switcher" Height="700" Width="1200" Background="#1e1e1e">
-    <Grid Margin="20">
+        Title="DeckLink Switcher" Height="780" Width="1280" Background="#0f0f13" FontFamily="Segoe UI">
+    
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#555" BorderThickness="1.5">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="5" ShadowDepth="2" Opacity="0.5"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#00e676"/>
+                                <Setter TargetName="BtnBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#00e676" BlurRadius="20" ShadowDepth="0" Opacity="1.0"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="#00e676"/>
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#ffffff"/>
+                                <Setter TargetName="BtnBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#00e676" BlurRadius="30" ShadowDepth="0" Opacity="1.0"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Foreground" Value="Black"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        
+        <Style x:Key="MixerPanel" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#252530" Offset="0.0" />
+                        <GradientStop Color="#181820" Offset="1.0" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#3a3a45"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="3" Opacity="0.6"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#1e1e24"/>
+            <Setter Property="Foreground" Value="Black"/> <!-- Default text in standard combo box often requires black unless fully restyled -->
+            <Setter Property="BorderBrush" Value="#333"/>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="Black"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="BorderBrush" Value="#222"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="25">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="250"/>
@@ -22,22 +96,26 @@
             </Grid.RowDefinitions>
             
             <!-- Output Preview -->
-            <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,30">
-                <TextBlock Text="PROGRAM OUTPUT" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="250" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <StackPanel Orientation="Vertical">
-                        <Image Name="PreviewOutput" Stretch="Uniform" Height="250" Width="444"/>
-                        <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="White" Margin="0,5,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
-                    </StackPanel>
-                    <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="250" Margin="5,0,0,0" Foreground="#00ff00" Background="#333333"/>
-                    
-                    <StackPanel Orientation="Vertical" Margin="15,0,0,0" HorizontalAlignment="Center">
-                        <TextBlock Text="VOL" Foreground="White" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                        <Slider Name="SldPgmAudio" Orientation="Vertical" Height="230" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldPgmAudio_ValueChanged"/>
+            <Border Grid.Row="0" Style="{StaticResource MixerPanel}" Margin="0,0,0,25">
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                    <TextBlock Text="PROGRAM OUTPUT" FontSize="22" FontWeight="Black" Foreground="#e0e0e0" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="0,0,15,0" Foreground="#00e676" Background="#252530"/>
+                        <StackPanel Orientation="Vertical">
+                            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="4" Background="Black" Padding="2">
+                                <Image Name="PreviewOutput" Stretch="Uniform" Height="270" Width="480"/>
+                            </Border>
+                            <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="#aaa" Margin="0,10,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                        </StackPanel>
+                        <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="15,0,0,0" Foreground="#00e676" Background="#252530"/>
+                        
+                        <StackPanel Orientation="Vertical" Margin="25,0,0,0" HorizontalAlignment="Center">
+                            <TextBlock Text="VOL" Foreground="#888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            <Slider Name="SldPgmAudio" Orientation="Vertical" Height="250" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldPgmAudio_ValueChanged"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
-            </StackPanel>
+            </Border>
 
             <!-- SWITCHER PANEL -->
             <Grid Grid.Row="1" Name="SwitcherPanel" IsEnabled="False">
@@ -53,125 +131,155 @@
                 </Grid.RowDefinitions>
 
             <!-- Input 1 -->
-            <StackPanel Grid.Column="0" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <ProgressBar Name="AudioBar1L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="Preview1" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview1_MouseDown"/>
-                    <ProgressBar Name="AudioBar1R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Slider Name="SldInput1Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput1Audio_ValueChanged"/>
+            <Border Grid.Column="0" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Name="AudioBar1L" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="Preview1" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview1_MouseDown" Cursor="Hand"/>
+                        </Border>
+                        <ProgressBar Name="AudioBar1R" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Slider Name="SldInput1Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput1Audio_ValueChanged"/>
+                    </StackPanel>
+                    <Button Name="BtnInput1" Content="Input 1" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnInput1_Click" Background="#2962ff" Foreground="White" Cursor="Hand"/>
+                    <ComboBox Name="CmbAudioState1" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnInput1" Content="Input 1" FontSize="16" Height="40" Click="BtnInput1_Click" Background="#2d2d30" Foreground="White"/>
-                <ComboBox Name="CmbAudioState1" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
-                    <ComboBoxItem Content="AFV"/>
-                    <ComboBoxItem Content="ON"/>
-                    <ComboBoxItem Content="OFF"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
 
             <!-- Input 2 -->
-            <StackPanel Grid.Column="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <ProgressBar Name="AudioBar2L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="Preview2" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview2_MouseDown"/>
-                    <ProgressBar Name="AudioBar2R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Slider Name="SldInput2Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput2Audio_ValueChanged"/>
+            <Border Grid.Column="1" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Name="AudioBar2L" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="Preview2" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview2_MouseDown" Cursor="Hand"/>
+                        </Border>
+                        <ProgressBar Name="AudioBar2R" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Slider Name="SldInput2Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput2Audio_ValueChanged"/>
+                    </StackPanel>
+                    <Button Name="BtnInput2" Content="Input 2" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnInput2_Click" Background="#2962ff" Foreground="White" Cursor="Hand"/>
+                    <ComboBox Name="CmbAudioState2" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnInput2" Content="Input 2" FontSize="16" Height="40" Click="BtnInput2_Click" Background="#2d2d30" Foreground="White"/>
-                <ComboBox Name="CmbAudioState2" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
-                    <ComboBoxItem Content="AFV"/>
-                    <ComboBoxItem Content="ON"/>
-                    <ComboBoxItem Content="OFF"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
 
             <!-- Input 3 -->
-            <StackPanel Grid.Column="2" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <ProgressBar Name="AudioBar3L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="Preview3" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview3_MouseDown"/>
-                    <ProgressBar Name="AudioBar3R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Slider Name="SldInput3Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput3Audio_ValueChanged"/>
+            <Border Grid.Column="2" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Name="AudioBar3L" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="Preview3" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview3_MouseDown" Cursor="Hand"/>
+                        </Border>
+                        <ProgressBar Name="AudioBar3R" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Slider Name="SldInput3Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput3Audio_ValueChanged"/>
+                    </StackPanel>
+                    <Button Name="BtnInput3" Content="Input 3" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnInput3_Click" Background="#2962ff" Foreground="White" Cursor="Hand"/>
+                    <ComboBox Name="CmbAudioState3" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnInput3" Content="Input 3" FontSize="16" Height="40" Click="BtnInput3_Click" Background="#2d2d30" Foreground="White"/>
-                <ComboBox Name="CmbAudioState3" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
-                    <ComboBoxItem Content="AFV"/>
-                    <ComboBoxItem Content="ON"/>
-                    <ComboBoxItem Content="OFF"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
 
             <!-- Input 4 -->
-            <StackPanel Grid.Column="3" Grid.Row="0" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <ProgressBar Name="AudioBar4L" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="Preview4" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview4_MouseDown"/>
-                    <ProgressBar Name="AudioBar4R" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Slider Name="SldInput4Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput4Audio_ValueChanged"/>
+            <Border Grid.Column="3" Grid.Row="0" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Name="AudioBar4L" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="Preview4" Stretch="Uniform" Height="100" Width="177" MouseDown="Preview4_MouseDown" Cursor="Hand"/>
+                        </Border>
+                        <ProgressBar Name="AudioBar4R" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Slider Name="SldInput4Audio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldInput4Audio_ValueChanged"/>
+                    </StackPanel>
+                    <Button Name="BtnInput4" Content="Input 4" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnInput4_Click" Background="#2962ff" Foreground="White" Cursor="Hand"/>
+                    <ComboBox Name="CmbAudioState4" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnInput4" Content="Input 4" FontSize="16" Height="40" Click="BtnInput4_Click" Background="#2d2d30" Foreground="White"/>
-                <ComboBox Name="CmbAudioState4" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
-                    <ComboBoxItem Content="AFV"/>
-                    <ComboBoxItem Content="ON"/>
-                    <ComboBoxItem Content="OFF"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
 
             <!-- Special Sources -->
-            <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <ProgressBar Name="AudioBarMediaL" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="PreviewMedia" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewMedia_MouseDown"/>
-                    <ProgressBar Name="AudioBarMediaR" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Slider Name="SldMediaAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldMediaAudio_ValueChanged"/>
+            <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Name="AudioBarMediaL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="PreviewMedia" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewMedia_MouseDown" Cursor="Hand"/>
+                        </Border>
+                        <ProgressBar Name="AudioBarMediaR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Slider Name="SldMediaAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldMediaAudio_ValueChanged"/>
+                    </StackPanel>
+                    <Button Name="BtnMedia" Content="Local Video" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMedia_Click" Background="#333344" Foreground="White" Margin="0,0,0,8" Cursor="Hand"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                        <Button Name="BtnSelectMedia" Content="Select File" FontSize="11" Height="24" Width="65" Click="BtnSelectMedia_Click" Background="#444455" Foreground="White" Margin="0,0,4,0"/>
+                        <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="24" Width="35" Click="BtnCueMedia_Click" Background="#444455" Foreground="White" Margin="0,0,4,0"/>
+                        <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="24" Width="45" Click="BtnPauseMedia_Click" Background="#444455" Foreground="White" Margin="0,0,4,0"/>
+                        <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" Height="24" Width="55" Click="BtnResumeMedia_Click" Background="#444455" Foreground="White"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                        <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="#aaa" Margin="0,0,10,0"/>
+                        <Slider Name="SldMediaSeek" Width="140" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.01" 
+                                Thumb.DragStarted="SldMediaSeek_DragStarted" Thumb.DragCompleted="SldMediaSeek_DragCompleted" ValueChanged="SldMediaSeek_ValueChanged"/>
+                    </StackPanel>
+                    <ComboBox Name="CmbAudioStateMedia" FontSize="12" Height="26" SelectionChanged="CmbAudioState_SelectionChanged">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnMedia" Content="Local Video" FontSize="16" Height="40" Click="BtnMedia_Click" Background="#2d2d30" Foreground="White" Margin="0,0,0,5"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,5">
-                    <Button Name="BtnSelectMedia" Content="Select File..." FontSize="12" Height="25" Width="70" Click="BtnSelectMedia_Click" Background="#333333" Foreground="LightGray" Margin="0,0,5,0"/>
-                    <Button Name="BtnCueMedia" Content="Cue" FontSize="12" Height="25" Width="40" Click="BtnCueMedia_Click" Background="#333333" Foreground="LightGray" Margin="0,0,5,0"/>
-                    <Button Name="BtnPauseMedia" Content="Pause" FontSize="12" Height="25" Width="45" Click="BtnPauseMedia_Click" Background="#333333" Foreground="LightGray" Margin="0,0,5,0"/>
-                    <Button Name="BtnResumeMedia" Content="Resume" FontSize="12" Height="25" Width="55" Click="BtnResumeMedia_Click" Background="#333333" Foreground="LightGray"/>
-                    <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="LightGray" Margin="5,0,0,0"/>
-                </StackPanel>
-                <Slider Name="SldMediaSeek" Margin="10,0,10,0" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.01" 
-                        Thumb.DragStarted="SldMediaSeek_DragStarted" Thumb.DragCompleted="SldMediaSeek_DragCompleted" ValueChanged="SldMediaSeek_ValueChanged"/>
-                <ComboBox Name="CmbAudioStateMedia" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
-                    <ComboBoxItem Content="AFV"/>
-                    <ComboBoxItem Content="ON"/>
-                    <ComboBoxItem Content="OFF"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
 
-            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <ProgressBar Name="AudioBarCBL" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="0,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Image Name="PreviewColorBars" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewColorBars_MouseDown"/>
-                    <ProgressBar Name="AudioBarCBR" Orientation="Vertical" Minimum="0" Maximum="100" Width="10" Height="100" Margin="5,0,5,0" Foreground="#00ff00" Background="#333333"/>
-                    <Slider Name="SldColorBarsAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldColorBarsAudio_ValueChanged"/>
+            <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Name="AudioBarCBL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="PreviewColorBars" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewColorBars_MouseDown" Cursor="Hand"/>
+                        </Border>
+                        <ProgressBar Name="AudioBarCBR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <Slider Name="SldColorBarsAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldColorBarsAudio_ValueChanged"/>
+                    </StackPanel>
+                    <Button Name="BtnColorBars" Content="Color Bars" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnColorBars_Click" Background="#333344" Foreground="White" Cursor="Hand"/>
+                    <ComboBox Name="CmbAudioStateColorBars" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnColorBars" Content="Color Bars + Tone" FontSize="16" Height="40" Click="BtnColorBars_Click" Background="#2d2d30" Foreground="White"/>
-                <ComboBox Name="CmbAudioStateColorBars" FontSize="12" Height="25" Margin="0,5,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
-                    <ComboBoxItem Content="AFV"/>
-                    <ComboBoxItem Content="ON"/>
-                    <ComboBoxItem Content="OFF"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
             
-            <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <Image Name="PreviewMatte" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewMatte_MouseDown"/>
+            <Border Grid.Column="2" Grid.Row="1" Style="{StaticResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Image Name="PreviewMatte" Stretch="Uniform" Height="100" Width="177" MouseDown="PreviewMatte_MouseDown" Cursor="Hand"/>
+                        </Border>
+                    </StackPanel>
+                    <Button Name="BtnMatte" Content="Matte Color" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMatte_Click" Background="#333344" Foreground="White" Margin="0,0,0,8" Cursor="Hand"/>
+                    <ComboBox Name="CmbMatteColor" FontSize="12" Height="26" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
+                        <ComboBoxItem Content="Black"/>
+                        <ComboBoxItem Content="White"/>
+                        <ComboBoxItem Content="Red"/>
+                        <ComboBoxItem Content="Green"/>
+                        <ComboBoxItem Content="Blue"/>
+                        <ComboBoxItem Content="Yellow"/>
+                        <ComboBoxItem Content="Cyan"/>
+                        <ComboBoxItem Content="Magenta"/>
+                    </ComboBox>
                 </StackPanel>
-                <Button Name="BtnMatte" Content="Matte Color" FontSize="16" Height="40" Click="BtnMatte_Click" Background="#2d2d30" Foreground="White" Margin="0,0,0,5"/>
-                <ComboBox Name="CmbMatteColor" FontSize="14" Height="30" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
-                    <ComboBoxItem Content="Black"/>
-                    <ComboBoxItem Content="White"/>
-                    <ComboBoxItem Content="Red"/>
-                    <ComboBoxItem Content="Green"/>
-                    <ComboBoxItem Content="Blue"/>
-                    <ComboBoxItem Content="Yellow"/>
-                    <ComboBoxItem Content="Cyan"/>
-                    <ComboBoxItem Content="Magenta"/>
-                </ComboBox>
-            </StackPanel>
+            </Border>
 
             <ScrollViewer Grid.Column="3" Grid.Row="1" Margin="10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <StackPanel Name="PnlDynamicAudio" Orientation="Horizontal" HorizontalAlignment="Left">
@@ -182,32 +290,36 @@
         </Grid>
 
         <!-- SETTINGS PANEL -->
-        <StackPanel Grid.Column="1" Margin="20,0,0,0">
-            <TextBlock Text="Settings" FontSize="20" Foreground="White" Margin="0,0,0,20" FontWeight="Bold"/>
-            
-            <TextBlock Text="Output Device:" Foreground="LightGray"/>
-            <ComboBox Name="CmbOutput" Margin="0,5,0,15" DisplayMemberPath="DisplayName"/>
-            
-            <TextBlock Text="Button 1 Input:" Foreground="LightGray"/>
-            <ComboBox Name="CmbInput1" Margin="0,5,0,15" DisplayMemberPath="DisplayName"/>
-            
-            <TextBlock Text="Button 2 Input:" Foreground="LightGray"/>
-            <ComboBox Name="CmbInput2" Margin="0,5,0,15" DisplayMemberPath="DisplayName"/>
-            
-            <TextBlock Text="Button 3 Input:" Foreground="LightGray"/>
-            <ComboBox Name="CmbInput3" Margin="0,5,0,15" DisplayMemberPath="DisplayName"/>
-            
-            <TextBlock Text="Button 4 Input:" Foreground="LightGray"/>
-            <ComboBox Name="CmbInput4" Margin="0,5,0,20" DisplayMemberPath="DisplayName"/>
-            
-            <Button Name="BtnApplySettings" Content="Apply Settings &amp; Start" Height="40" Background="#007acc" Foreground="White" Click="BtnApplySettings_Click"/>
-            
-            <TextBlock Text="YouTube Streaming" FontSize="16" Foreground="White" Margin="0,30,0,10" FontWeight="Bold"/>
-            <TextBlock Text="Stream Key:" Foreground="LightGray"/>
-            <TextBox Name="TxtStreamKey" Margin="0,5,0,10" Height="25" Background="#1e1e1e" Foreground="White"/>
-            <Button Name="BtnStream" Content="START STREAM" Height="40" Background="#aa0000" Foreground="White" Click="BtnStream_Click" FontWeight="Bold"/>
-            
-            <TextBlock Name="TxtStatus" Foreground="LightGreen" TextWrapping="Wrap" Margin="0,10,0,0"/>
-        </StackPanel>
+        <Border Grid.Column="1" Style="{StaticResource MixerPanel}" Margin="25,0,0,0">
+            <StackPanel>
+                <TextBlock Text="SETTINGS" FontSize="16" Foreground="#e0e0e0" Margin="0,0,0,20" FontWeight="Black"/>
+                
+                <TextBlock Text="Output Device:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox Name="CmbOutput" Height="28" Margin="0,0,0,15" DisplayMemberPath="DisplayName"/>
+                
+                <TextBlock Text="Button 1 Input:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox Name="CmbInput1" Height="28" Margin="0,0,0,15" DisplayMemberPath="DisplayName"/>
+                
+                <TextBlock Text="Button 2 Input:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox Name="CmbInput2" Height="28" Margin="0,0,0,15" DisplayMemberPath="DisplayName"/>
+                
+                <TextBlock Text="Button 3 Input:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox Name="CmbInput3" Height="28" Margin="0,0,0,15" DisplayMemberPath="DisplayName"/>
+                
+                <TextBlock Text="Button 4 Input:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <ComboBox Name="CmbInput4" Height="28" Margin="0,0,0,20" DisplayMemberPath="DisplayName"/>
+                
+                <Button Name="BtnApplySettings" Content="Apply Settings &amp; Start" Height="36" Background="#0066cc" Foreground="White" FontWeight="Bold" Click="BtnApplySettings_Click" Cursor="Hand"/>
+                
+                <Rectangle Height="1" Fill="#2a2a35" Margin="0,25,0,20"/>
+                
+                <TextBlock Text="YOUTUBE STREAMING" FontSize="14" Foreground="#e0e0e0" Margin="0,0,0,15" FontWeight="Black"/>
+                <TextBlock Text="Stream Key:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox Name="TxtStreamKey" Margin="0,0,0,15" Height="28" Background="#1a1a20" Foreground="White" BorderBrush="#333" Padding="4,2"/>
+                <Button Name="BtnStream" Content="START STREAM" Height="40" Background="#d32f2f" Foreground="White" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
+                
+                <TextBlock Name="TxtStatus" Foreground="#00e676" TextWrapping="Wrap" Margin="0,15,0,0" FontSize="12" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
