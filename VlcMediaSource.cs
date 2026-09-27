@@ -28,6 +28,17 @@ namespace DecklinkSwitcher
         public float AudioLevel { get; set; } = 1.0f;
 
         private IntPtr _previewBuffer;
+        private IntPtr _audioFormatPtr;
+
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCVideoLockCb _lockVideoCb;
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCVideoUnlockCb _unlockVideoCb;
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCVideoDisplayCb _displayVideoCb;
+
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCAudioPlayCb _playAudioCb;
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCAudioPauseCb _pauseAudioCb;
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCAudioResumeCb _resumeAudioCb;
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCAudioFlushCb _flushAudioCb;
+        private LibVLCSharp.Shared.MediaPlayer.LibVLCAudioDrainCb _drainAudioCb;
 
         public VlcMediaSource()
         {
@@ -38,11 +49,25 @@ namespace DecklinkSwitcher
             _libVlc = new LibVLC();
             _mediaPlayer = new MediaPlayer(_libVlc);
             
-            _mediaPlayer.SetVideoFormatCallbacks(VideoFormatSetup, VideoCleanup);
-            _mediaPlayer.SetVideoCallbacks(LockVideo, UnlockVideo, DisplayVideo);
+            _audioFormatPtr = Marshal.AllocCoTaskMem(4);
+            byte[] fmt = System.Text.Encoding.ASCII.GetBytes("S16N");
+            Marshal.Copy(fmt, 0, _audioFormatPtr, 4);
             
-            _mediaPlayer.SetAudioFormatCallback(AudioFormatSetup, AudioCleanup);
-            _mediaPlayer.SetAudioCallbacks(PlayAudio, PauseAudio, ResumeAudio, FlushAudio, DrainAudio);
+            _mediaPlayer.SetVideoFormat("UYVY", (uint)_width, (uint)_height, (uint)(_width * 2));
+            
+            _lockVideoCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCVideoLockCb(LockVideo);
+            _unlockVideoCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCVideoUnlockCb(UnlockVideo);
+            _displayVideoCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCVideoDisplayCb(DisplayVideo);
+            _mediaPlayer.SetVideoCallbacks(_lockVideoCb, _unlockVideoCb, _displayVideoCb);
+            
+            _mediaPlayer.SetAudioFormat("S16N", 48000, 2);
+            
+            _playAudioCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCAudioPlayCb(PlayAudio);
+            _pauseAudioCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCAudioPauseCb(PauseAudio);
+            _resumeAudioCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCAudioResumeCb(ResumeAudio);
+            _flushAudioCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCAudioFlushCb(FlushAudio);
+            _drainAudioCb = new LibVLCSharp.Shared.MediaPlayer.LibVLCAudioDrainCb(DrainAudio);
+            _mediaPlayer.SetAudioCallbacks(_playAudioCb, _pauseAudioCb, _resumeAudioCb, _flushAudioCb, _drainAudioCb);
         }
 
         public void Play(string filePath)
@@ -57,20 +82,7 @@ namespace DecklinkSwitcher
             _mediaPlayer.Stop();
         }
 
-        private uint VideoFormatSetup(ref IntPtr opaque, IntPtr chroma, ref uint width, ref uint height, ref uint pitches, ref uint lines)
-        {
-            byte[] fmt = System.Text.Encoding.ASCII.GetBytes("UYVY");
-            Marshal.Copy(fmt, 0, chroma, 4);
-            width = (uint)_width;
-            height = (uint)_height;
-            pitches = width * 2;
-            lines = height;
-            return 1;
-        }
 
-        private void VideoCleanup(ref IntPtr opaque)
-        {
-        }
 
         private IntPtr LockVideo(IntPtr opaque, IntPtr planes)
         {
@@ -140,18 +152,7 @@ namespace DecklinkSwitcher
             }
         }
 
-        private int AudioFormatSetup(ref IntPtr opaque, ref IntPtr format, ref uint rate, ref uint channels)
-        {
-            byte[] fmt = System.Text.Encoding.ASCII.GetBytes("S16N");
-            Marshal.Copy(fmt, 0, format, 4);
-            rate = 48000;
-            channels = 2;
-            return 0;
-        }
 
-        private void AudioCleanup(IntPtr opaque)
-        {
-        }
 
         private void PlayAudio(IntPtr data, IntPtr samples, uint count, long pts)
         {
@@ -181,6 +182,7 @@ namespace DecklinkSwitcher
             _libVlc.Dispose();
             Marshal.FreeCoTaskMem(_videoBuffer);
             Marshal.FreeCoTaskMem(_previewBuffer);
+            Marshal.FreeCoTaskMem(_audioFormatPtr);
         }
     }
 }

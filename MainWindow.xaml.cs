@@ -411,7 +411,14 @@ namespace DecklinkSwitcher
             dlg.Filter = "Video Files|*.mp4;*.mkv;*.avi;*.mov|All Files|*.*";
             if (dlg.ShowDialog() == true)
             {
-                _mediaSource.Play(dlg.FileName);
+                if (_mediaSource != null)
+                {
+                    _mediaSource.Play(dlg.FileName);
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show("Media source is not initialized. Please check logs.");
+                }
             }
         }
 
