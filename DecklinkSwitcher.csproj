@@ -12,9 +12,11 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
     <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="app.ico" />
     <Reference Include="DeckLinkAPI.Interop">
       <HintPath>DeckLinkAPI.Interop.dll</HintPath>
     </Reference>

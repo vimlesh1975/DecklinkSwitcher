@@ -17,6 +17,8 @@ namespace DecklinkSwitcher
         public string Input3Device { get; set; } = "";
         public string Input4Device { get; set; } = "";
         
+        public string YouTubeStreamKey { get; set; } = "";
+        
         public double AudioLevelPgm { get; set; } = 1.0;
         public double AudioLevel1 { get; set; } = 1.0;
         public double AudioLevel2 { get; set; } = 1.0;
