@@ -1,0 +1,223 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0/win-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {},
+    ".NETCoreApp,Version=v10.0/win-x64": {
+      "DecklinkSwitcher/1.0.0": {
+        "dependencies": {
+          "LibVLCSharp": "3.10.1",
+          "NAudio": "3.1.0",
+          "DeckLinkAPI.Interop": "1.0.0.0"
+        },
+        "runtime": {
+          "DecklinkSwitcher.dll": {}
+        }
+      },
+      "LibVLCSharp/3.10.1": {
+        "runtime": {
+          "lib/net10.0/LibVLCSharp.dll": {
+            "assemblyVersion": "3.10.1.0",
+            "fileVersion": "3.10.1.0"
+          }
+        }
+      },
+      "NAudio/3.1.0": {
+        "dependencies": {
+          "NAudio.Asio": "3.1.0",
+          "NAudio.Core": "3.1.0",
+          "NAudio.Dmo": "3.1.0",
+          "NAudio.Midi": "3.1.0",
+          "NAudio.Wasapi": "3.1.0",
+          "NAudio.WinForms": "3.1.0",
+          "NAudio.WinMM": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.Asio/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.Asio.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.Core/3.1.0": {
+        "dependencies": {
+          "System.Numerics.Tensors": "9.0.0"
+        },
+        "runtime": {
+          "lib/net9.0/NAudio.Core.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.Dmo/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.Dmo.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.Midi/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0/NAudio.Midi.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.Wasapi/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0/NAudio.Wasapi.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.WinForms/3.1.0": {
+        "dependencies": {
+          "NAudio.WinMM": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.WinForms.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "NAudio.WinMM/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0",
+          "NAudio.Midi": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.WinMM.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "System.Numerics.Tensors/9.0.0": {
+        "runtime": {
+          "lib/net9.0/System.Numerics.Tensors.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.24.52809"
+          }
+        }
+      },
+      "DeckLinkAPI.Interop/1.0.0.0": {
+        "runtime": {
+          "DeckLinkAPI.Interop.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "DecklinkSwitcher/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "LibVLCSharp/3.10.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-6iSrYMk6RU8fyftdXrfR1TW3xpR/WhEmliORuWvAu2N05wECb8k2hykWiU53/1zqx616v/qUlDbJJyqv78MDkQ==",
+      "path": "libvlcsharp/3.10.1",
+      "hashPath": "libvlcsharp.3.10.1.nupkg.sha512"
+    },
+    "NAudio/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-wD5UttLb5Eu/caAYPy/siDg7xf3KVkdJfMLXr+cJfAvxgh6wDnWOBxXfhYNMUiIaQRr2VPDjgPH2QIzBSP6gqw==",
+      "path": "naudio/3.1.0",
+      "hashPath": "naudio.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Asio/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-v+ZgbdCaE/XyhByYNC+xgNdRNWy43GHWYJ+fLrXwjOLXYUToq45G5EGzdqlY//3KsX1zuVn+mU+SBBZ744zK6g==",
+      "path": "naudio.asio/3.1.0",
+      "hashPath": "naudio.asio.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Core/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8Hrd3Uqb2wEB64eZYF+0vl9xBadeSn6JnFDsHuGrw87ucJ+pB7u5NzVpHl8OlCNvIvH+sD9b2h4JOqXBuZGYwg==",
+      "path": "naudio.core/3.1.0",
+      "hashPath": "naudio.core.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Dmo/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XhVjBgIyj6qnZRfeGS2CkL6mffRLnT4WK/hAoNGZsqJK1p+XpWe0nFbUA+6Cmgj18oLoHYk2KouPw/Q94mTCnA==",
+      "path": "naudio.dmo/3.1.0",
+      "hashPath": "naudio.dmo.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Midi/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-McIiQyY5o0Q3QlF5oRm+b0A8IE0SorA/9HvNi88bH3MdSnGp7cM/9sze/zqbS/9PFdKYVRZPtoLwqoAF4BgjeA==",
+      "path": "naudio.midi/3.1.0",
+      "hashPath": "naudio.midi.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Wasapi/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iTG+oBJaiID344yz84PrTiVF98av5SsuOUu7ICskcUd6f5ShHDMskG9sE4XUM05Vdlwy88bMQDDC3e+85Mv8yw==",
+      "path": "naudio.wasapi/3.1.0",
+      "hashPath": "naudio.wasapi.3.1.0.nupkg.sha512"
+    },
+    "NAudio.WinForms/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-oIjQu3bp9QtAB6wAf04pgeDUce+dIrSDcvNp689e/xYStyktG33nY2GwW7d1mS2zDAeA/YhUjY5DkakDWs9+1w==",
+      "path": "naudio.winforms/3.1.0",
+      "hashPath": "naudio.winforms.3.1.0.nupkg.sha512"
+    },
+    "NAudio.WinMM/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2LXIZwBQKxDZP+GvTvC9zrHiF0LQ3lvTi5dqgS175hY/bOtqFlDRRhzEnVv/lLFlQ+a1I/ZQ3m6CclTvztkf6A==",
+      "path": "naudio.winmm/3.1.0",
+      "hashPath": "naudio.winmm.3.1.0.nupkg.sha512"
+    },
+    "System.Numerics.Tensors/9.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hyJB4UlpAi19Xr9AXzu2NuagKC4lPfHObNMEAA0HmqFz2rX7wKgzeYzO/jM/eBHDhnUGFFEjk5cOoJaxqg5J4A==",
+      "path": "system.numerics.tensors/9.0.0",
+      "hashPath": "system.numerics.tensors.9.0.0.nupkg.sha512"
+    },
+    "DeckLinkAPI.Interop/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
