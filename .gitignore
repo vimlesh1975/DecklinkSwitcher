@@ -1,0 +1,47 @@
+# ============================================
+# Visual Studio / Rider / IDE cache & configs
+# ============================================
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# ============================================
+# Build outputs (including full Debug & Release folders)
+# ============================================
+[Bb]in/
+[Oo]bj/
+[Bb]in/[Dd]ebug/
+[Bb]in/[Rr]elease/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+
+# Do NOT ignore root interop DLL required for DeckLink SDK
+!DeckLinkAPI.Interop.dll
+
+# ============================================
+# NuGet & Packages
+# ============================================
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+
+# ============================================
+# Runtime Logs & Diagnostics
+# ============================================
+*.log
+*log.txt
+decklink_log.txt
+decklinkswitcher_log.txt
+
+# ============================================
+# Local User Settings & Environment
+# ============================================
+settings.json
