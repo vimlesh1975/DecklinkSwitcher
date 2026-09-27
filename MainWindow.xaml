@@ -172,6 +172,12 @@
                     <ComboBoxItem Content="Magenta"/>
                 </ComboBox>
             </StackPanel>
+
+            <ScrollViewer Grid.Column="3" Grid.Row="1" Margin="10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <StackPanel Name="PnlDynamicAudio" Orientation="Horizontal" HorizontalAlignment="Left">
+                    <!-- Dynamic microphones inserted here -->
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
         </Grid>
 

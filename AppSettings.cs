@@ -32,6 +32,9 @@ namespace DecklinkSwitcher
         public AudioState AudioStateColorBars { get; set; } = AudioState.AFV;
         public AudioState AudioStateMedia { get; set; } = AudioState.AFV;
         
+        public System.Collections.Generic.Dictionary<string, double> MicLevels { get; set; } = new();
+        public System.Collections.Generic.Dictionary<string, AudioState> MicStates { get; set; } = new();
+        
         public int MatteColorIndex { get; set; } = 4;
         
         public bool SystemAudioMonitorEnabled { get; set; } = false;

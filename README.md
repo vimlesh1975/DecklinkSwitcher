@@ -7,6 +7,7 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 
 *   **Live Video Routing:** Connect up to 4 DeckLink inputs and route them dynamically to a primary DeckLink output.
 *   **Full Audio Mixer:** Includes an integrated digital audio mixer allowing you to set independent levels and mix modes (AFV, ON, OFF) for all 4 inputs, local media, and test tones.
+    *   **Dynamic Local Microphones:** Automatically detects all connected local audio inputs (microphones, USB capture cards, line-in) and dynamically builds a dedicated mixing channel strip for every active device on your PC.
 *   **Live Previews:** Visual previews of all 4 input sources side-by-side. 
 *   **Click-to-Switch:** Easily change the program output by clicking directly on the input video previews or the corresponding input buttons below them.
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output. 

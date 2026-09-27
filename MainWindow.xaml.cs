@@ -24,6 +24,7 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
         
         private VlcMediaSource _mediaSource;
+        private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
         private CancellationTokenSource? _syntheticCts;
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
@@ -135,6 +136,12 @@ namespace DecklinkSwitcher
             settings.AudioState4 = (AudioState)CmbAudioState4.SelectedIndex;
             settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
             settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
+            
+            settings.MicLevels.Clear();
+            foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
+            settings.MicStates.Clear();
+            foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
+            
             settings.Save();
 
             _seekTimer?.Stop();
@@ -260,6 +267,7 @@ namespace DecklinkSwitcher
                 SldInput4Audio.Value = settings.AudioLevel4;
                 SldColorBarsAudio.Value = settings.AudioLevelColorBars;
                 SldMediaAudio.Value = settings.AudioLevelMedia;
+                
                 CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
                 ChkSystemAudioOut.IsChecked = settings.SystemAudioMonitorEnabled;
                 ChkLoopMedia.IsChecked = settings.LoopMediaEnabled;
@@ -269,6 +277,33 @@ namespace DecklinkSwitcher
                 CmbAudioState4.SelectedIndex = (int)settings.AudioState4;
                 CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;
                 CmbAudioStateMedia.SelectedIndex = (int)settings.AudioStateMedia;
+                
+                PnlDynamicAudio.Children.Clear();
+                _activeMics.Clear();
+                var micDevices = LocalAudioInput.GetDevices();
+                foreach (var device in micDevices)
+                {
+                    if (device.DeviceNumber < 0) continue; // Skip 'None'
+                    string key = "Mic_" + device.DeviceNumber;
+                    
+                    double level = 1.0;
+                    if (settings.MicLevels.ContainsKey(key)) level = settings.MicLevels[key];
+                    AudioState state = AudioState.ON;
+                    if (settings.MicStates.ContainsKey(key)) state = settings.MicStates[key];
+                    
+                    DynamicMicLevels[key] = (float)level;
+                    DynamicMicStates[key] = state;
+                    
+                    var pnl = CreateMicPanel(device, key, level, state);
+                    PnlDynamicAudio.Children.Add(pnl);
+                    
+                    var input = new LocalAudioInput(device.DeviceNumber, key);
+                    var barL = (System.Windows.Controls.ProgressBar)pnl.FindName("BarL_" + device.DeviceNumber);
+                    var barR = (System.Windows.Controls.ProgressBar)pnl.FindName("BarR_" + device.DeviceNumber);
+                    input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { if (barL != null) barL.Value = l; if (barR != null) barR.Value = r; }); };
+                    input.Start();
+                    _activeMics.Add(input);
+                }
                 
                 TxtStatus.Text = "Ready to assign.";
                 Log("MainWindow_Loaded completed successfully.");
@@ -563,6 +598,9 @@ namespace DecklinkSwitcher
         public static AudioState StateMedia = AudioState.AFV;
         public static AudioState StateColorBars = AudioState.AFV;
         
+        public static System.Collections.Concurrent.ConcurrentDictionary<string, float> DynamicMicLevels = new();
+        public static System.Collections.Concurrent.ConcurrentDictionary<string, AudioState> DynamicMicStates = new();
+        
         public static System.Collections.Concurrent.ConcurrentDictionary<string, short[]> LatestAudioPackets = new();
 
         private void SldPgmAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -583,7 +621,7 @@ namespace DecklinkSwitcher
             }
         }
         
-        private void SldMediaAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_mediaSource != null) _mediaSource.AudioLevel = (float)e.NewValue; }
+        private void SldMediaAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_mediaSource != null) _mediaSource.AudioLevel = (float)e.NewValue; MediaAudioLevel = (float)e.NewValue; }
 
         private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input1AudioLevel = (float)e.NewValue; if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
         private void SldInput2Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input2AudioLevel = (float)e.NewValue; if (_btn2Input != null) _btn2Input.AudioLevel = (float)e.NewValue; }
@@ -599,6 +637,42 @@ namespace DecklinkSwitcher
             State4 = (AudioState)CmbAudioState4.SelectedIndex;
             StateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
+        }
+
+        private System.Windows.Controls.StackPanel CreateMicPanel(MicDeviceInfo device, string key, double initialLevel, AudioState initialState)
+        {
+            var pnl = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical, Margin = new System.Windows.Thickness(0, 0, 15, 0), VerticalAlignment = System.Windows.VerticalAlignment.Center };
+            var horiz = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, Margin = new System.Windows.Thickness(0, 0, 0, 10) };
+            
+            var barL = new System.Windows.Controls.ProgressBar { Name = "BarL_" + device.DeviceNumber, Orientation = System.Windows.Controls.Orientation.Vertical, Minimum = 0, Maximum = 100, Width = 10, Height = 100, Margin = new System.Windows.Thickness(0, 0, 5, 0), Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 255, 0)), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)) };
+            var barR = new System.Windows.Controls.ProgressBar { Name = "BarR_" + device.DeviceNumber, Orientation = System.Windows.Controls.Orientation.Vertical, Minimum = 0, Maximum = 100, Width = 10, Height = 100, Margin = new System.Windows.Thickness(5, 0, 5, 0), Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 255, 0)), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)) };
+            
+            var border = new System.Windows.Controls.Border { Width = 130, Height = 100, Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(17, 17, 17)), BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)), BorderThickness = new System.Windows.Thickness(1) };
+            var txt = new System.Windows.Controls.TextBlock { Text = "🎙\n" + device.Name, Foreground = System.Windows.Media.Brushes.DarkGray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center, FontWeight = System.Windows.FontWeights.Bold, FontSize = 10, TextAlignment = System.Windows.TextAlignment.Center, TextWrapping = System.Windows.TextWrapping.Wrap };
+            border.Child = txt;
+            
+            var sld = new System.Windows.Controls.Slider { Orientation = System.Windows.Controls.Orientation.Vertical, Height = 100, Minimum = 0, Maximum = 1.5, Value = initialLevel, SmallChange = 0.05, LargeChange = 0.1 };
+            sld.ValueChanged += (s, e) => { DynamicMicLevels[key] = (float)e.NewValue; };
+            
+            horiz.Children.Add(barL);
+            horiz.Children.Add(border);
+            horiz.Children.Add(barR);
+            horiz.Children.Add(sld);
+            
+            var cmb = new System.Windows.Controls.ComboBox { FontSize = 12, Height = 25, Margin = new System.Windows.Thickness(0, 5, 0, 0) };
+            cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "AFV" });
+            cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "ON" });
+            cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "OFF" });
+            cmb.SelectedIndex = (int)initialState;
+            cmb.SelectionChanged += (s, e) => { DynamicMicStates[key] = (AudioState)cmb.SelectedIndex; };
+            
+            pnl.Children.Add(horiz);
+            pnl.Children.Add(cmb);
+            
+            RegisterName(barL.Name, barL);
+            RegisterName(barR.Name, barR);
+            
+            return pnl;
         }
 
         private static double _syntheticAudioPhase = 0;
@@ -646,6 +720,14 @@ namespace DecklinkSwitcher
             mixSource("Input 4", Input4AudioLevel, State4, activeSourceType == 0 && activeInputName == "Input 4");
             mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
             mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
+            foreach (var kvp in DynamicMicLevels)
+            {
+                string key = kvp.Key;
+                float level = kvp.Value;
+                AudioState st = AudioState.ON;
+                if (DynamicMicStates.ContainsKey(key)) st = DynamicMicStates[key];
+                mixSource(key, level, st, false);
+            }
 
             int maxL = 0, maxR = 0;
             IntPtr outBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(totalSamples * 2);
