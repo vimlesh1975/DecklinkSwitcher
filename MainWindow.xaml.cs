@@ -78,7 +78,7 @@ namespace DecklinkSwitcher
                                         DeckLinkDevice.ConvertUYVYToBGRA_Downsampled(vBuf, w, h, rb, (IntPtr)dest, 480, 270, 480 * 4);
                                     }
                                 }
-                                PushPgmToStream(bgraPreview);
+                                
                             }
                             catch { }
                         }
@@ -111,7 +111,7 @@ namespace DecklinkSwitcher
                         if (_activeSourceType == 3)
                         {
                             _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                            PushPgmToStream(buf);
+                            
                         }
                     });
                 };
@@ -142,44 +142,58 @@ namespace DecklinkSwitcher
             this.Closing += MainWindow_Closing;
         }
 
+        public void SaveCurrentSettings()
+        {
+            try
+            {
+                var settings = new AppSettings();
+                
+                // Safe dispatch in case called from non-UI thread
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    settings.WindowWidth = this.Width;
+                    settings.WindowHeight = this.Height;
+                    if (CmbOutput.SelectedItem is DeckLinkDeviceInfo dout) settings.OutputDevice = dout.DisplayName;
+                    if (CmbInput1.SelectedItem is DeckLinkDeviceInfo din1) settings.Input1Device = din1.DisplayName;
+                    if (CmbInput2.SelectedItem is DeckLinkDeviceInfo din2) settings.Input2Device = din2.DisplayName;
+                    if (CmbInput3.SelectedItem is DeckLinkDeviceInfo din3) settings.Input3Device = din3.DisplayName;
+                    if (CmbInput4.SelectedItem is DeckLinkDeviceInfo din4) settings.Input4Device = din4.DisplayName;
+                    settings.AudioLevelPgm = SldPgmAudio.Value;
+                    settings.AudioLevel1 = SldInput1Audio.Value;
+                    settings.AudioLevel2 = SldInput2Audio.Value;
+                    settings.AudioLevel3 = SldInput3Audio.Value;
+                    settings.AudioLevel4 = SldInput4Audio.Value;
+                    settings.AudioLevelColorBars = SldColorBarsAudio.Value;
+                    settings.AudioLevelMedia = SldMediaAudio.Value;
+                    settings.MatteColorIndex = CmbMatteColor.SelectedIndex;
+                    settings.SystemAudioMonitorEnabled = ChkSystemAudioOut.IsChecked == true;
+                    settings.LoopMediaEnabled = ChkLoopMedia.IsChecked == true;
+                    settings.AudioState1 = (AudioState)CmbAudioState1.SelectedIndex;
+                    settings.AudioState2 = (AudioState)CmbAudioState2.SelectedIndex;
+                    settings.AudioState3 = (AudioState)CmbAudioState3.SelectedIndex;
+                    settings.AudioState4 = (AudioState)CmbAudioState4.SelectedIndex;
+                    settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
+                    settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
+                    
+                    settings.MicLevels.Clear();
+                    foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
+                    settings.MicStates.Clear();
+                    foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
+                    
+                    settings.YouTubeStreamKey = TxtStreamKey.Text;
+                });
+                
+                settings.Save();
+            }
+            catch { }
+        }
+
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             Log("Application closing. Releasing DeckLink resources...");
             
             // Save Settings
-            var settings = new AppSettings();
-            settings.WindowWidth = this.Width;
-            settings.WindowHeight = this.Height;
-            if (CmbOutput.SelectedItem is DeckLinkDeviceInfo dout) settings.OutputDevice = dout.DisplayName;
-            if (CmbInput1.SelectedItem is DeckLinkDeviceInfo din1) settings.Input1Device = din1.DisplayName;
-            if (CmbInput2.SelectedItem is DeckLinkDeviceInfo din2) settings.Input2Device = din2.DisplayName;
-            if (CmbInput3.SelectedItem is DeckLinkDeviceInfo din3) settings.Input3Device = din3.DisplayName;
-            if (CmbInput4.SelectedItem is DeckLinkDeviceInfo din4) settings.Input4Device = din4.DisplayName;
-            settings.AudioLevelPgm = SldPgmAudio.Value;
-            settings.AudioLevel1 = SldInput1Audio.Value;
-            settings.AudioLevel2 = SldInput2Audio.Value;
-            settings.AudioLevel3 = SldInput3Audio.Value;
-            settings.AudioLevel4 = SldInput4Audio.Value;
-            settings.AudioLevelColorBars = SldColorBarsAudio.Value;
-            settings.AudioLevelMedia = SldMediaAudio.Value;
-            settings.MatteColorIndex = CmbMatteColor.SelectedIndex;
-            settings.SystemAudioMonitorEnabled = ChkSystemAudioOut.IsChecked == true;
-            settings.LoopMediaEnabled = ChkLoopMedia.IsChecked == true;
-            settings.AudioState1 = (AudioState)CmbAudioState1.SelectedIndex;
-            settings.AudioState2 = (AudioState)CmbAudioState2.SelectedIndex;
-            settings.AudioState3 = (AudioState)CmbAudioState3.SelectedIndex;
-            settings.AudioState4 = (AudioState)CmbAudioState4.SelectedIndex;
-            settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
-            settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
-            
-            settings.MicLevels.Clear();
-            foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
-            settings.MicStates.Clear();
-            foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
-            
-            settings.YouTubeStreamKey = TxtStreamKey.Text;
-            
-            settings.Save();
+            SaveCurrentSettings();
 
             _seekTimer?.Stop();
 
@@ -358,7 +372,7 @@ namespace DecklinkSwitcher
         {
             if (YtStreamer.IsStreaming)
             {
-                StopStreamLoop();
+                
                 YtStreamer.Stop();
                 BtnStream.Content = "START STREAM";
                 BtnStream.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(170, 0, 0));
@@ -383,7 +397,7 @@ namespace DecklinkSwitcher
                 // Seed the latest PGM frame immediately (synchronous) so stream loop has data right away
                 UpdatePgmPreviewSynthetic();
                 YtStreamer.Start(TxtStreamKey.Text, 1920, 1080, 25);
-                StartStreamLoop(25); // Push PGM at 25fps
+                
             }
         }
 
@@ -450,6 +464,8 @@ namespace DecklinkSwitcher
             mtaThread.SetApartmentState(ApartmentState.MTA);
             mtaThread.IsBackground = true;
             mtaThread.Start();
+            
+            SaveCurrentSettings();
         }
 
         private int _activeSourceType = 0; // 0=Device, 1=ColorBars, 2=Matte, 3=Media
@@ -476,6 +492,7 @@ namespace DecklinkSwitcher
         {
             _activeSourceType = 0; ActiveSourceType = 0;
             _activeInput = _btn1Input; ActiveInputName = "Input 1";
+            UpdateProgramSourceFlags();
             if (_btn1Input != null)
             {
                 Log("Switched to Input 1");
@@ -491,6 +508,7 @@ namespace DecklinkSwitcher
         {
             _activeSourceType = 0; ActiveSourceType = 0;
             _activeInput = _btn2Input; ActiveInputName = "Input 2";
+            UpdateProgramSourceFlags();
             if (_btn2Input != null)
             {
                 Log("Switched to Input 2");
@@ -506,6 +524,7 @@ namespace DecklinkSwitcher
         {
             _activeSourceType = 0; ActiveSourceType = 0;
             _activeInput = _btn3Input; ActiveInputName = "Input 3";
+            UpdateProgramSourceFlags();
             if (_btn3Input != null)
             {
                 Log("Switched to Input 3");
@@ -521,6 +540,7 @@ namespace DecklinkSwitcher
         {
             _activeSourceType = 0; ActiveSourceType = 0;
             _activeInput = _btn4Input; ActiveInputName = "Input 4";
+            UpdateProgramSourceFlags();
             if (_btn4Input != null)
             {
                 Log("Switched to Input 4");
@@ -537,9 +557,18 @@ namespace DecklinkSwitcher
         private void Preview3_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput3_Click(null, null);
         private void Preview4_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput4_Click(null, null);
 
+        private void UpdateProgramSourceFlags()
+        {
+            if (_btn1Input != null) _btn1Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn1Input);
+            if (_btn2Input != null) _btn2Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn2Input);
+            if (_btn3Input != null) _btn3Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn3Input);
+            if (_btn4Input != null) _btn4Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn4Input);
+        }
+
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 1; ActiveSourceType = 1; ActiveInputName = "Color Bars";
+            UpdateProgramSourceFlags();
             Log("Switched to Color Bars");
             UpdatePgmPreviewSynthetic();
             double val = 50 * ColorBarsAudioLevel * PgmAudioLevel;
@@ -551,6 +580,7 @@ namespace DecklinkSwitcher
         private void BtnMatte_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 2; ActiveSourceType = 2; ActiveInputName = "Matte";
+            UpdateProgramSourceFlags();
             Log("Switched to Matte");
             UpdatePgmPreviewSynthetic();
             AudioOutputL.Value = 0;
@@ -561,6 +591,7 @@ namespace DecklinkSwitcher
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 3; ActiveSourceType = 3; ActiveInputName = "Media"; Log("Switched to Local Video");
+            UpdateProgramSourceFlags();
         }
         private void PreviewMedia_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMedia_Click(null, null);
 
@@ -647,11 +678,13 @@ namespace DecklinkSwitcher
         private void ChkSystemAudioOut_Checked(object sender, RoutedEventArgs e)
         {
             SystemAudioPlayer.IsEnabled = true;
+            if (IsLoaded) SaveCurrentSettings();
         }
 
         private void ChkSystemAudioOut_Unchecked(object sender, RoutedEventArgs e)
         {
             SystemAudioPlayer.IsEnabled = false;
+            if (IsLoaded) SaveCurrentSettings();
         }
 
         private static float _pgmAudioLevel = 1.0f;
@@ -710,6 +743,7 @@ namespace DecklinkSwitcher
             State4 = (AudioState)CmbAudioState4.SelectedIndex;
             StateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
+            SaveCurrentSettings();
         }
 
         private System.Windows.Controls.StackPanel CreateMicPanel(MicDeviceInfo device, string key, double initialLevel, AudioState initialState)
@@ -737,7 +771,10 @@ namespace DecklinkSwitcher
             cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "ON" });
             cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "OFF" });
             cmb.SelectedIndex = (int)initialState;
-            cmb.SelectionChanged += (s, e) => { DynamicMicStates[key] = (AudioState)cmb.SelectedIndex; };
+            cmb.SelectionChanged += (s, e) => { 
+                DynamicMicStates[key] = (AudioState)cmb.SelectedIndex; 
+                SaveCurrentSettings();
+            };
             
             pnl.Children.Add(horiz);
             pnl.Children.Add(cmb);
@@ -780,7 +817,7 @@ namespace DecklinkSwitcher
                     for (int i = 0; i < toMix; i++)
                     {
                         mixed[i] += (int)(packet[i] * level);
-                        sum += Math.Abs(packet[i]);
+                        sum += Math.Abs((int)packet[i]);
                     }
                     if (sum > 0 && name == "Media") MainWindow.Log($"Mixed Media packet! Length: {packet.Length}, Sum: {sum}");
                     LatestAudioPackets[name] = null; // Consume the packet
@@ -929,7 +966,7 @@ namespace DecklinkSwitcher
             }
 
             // Store directly (no UI thread needed) so stream loop has it immediately
-            PushPgmToStream(pixels);
+            
 
             Application.Current.Dispatcher.BeginInvoke(() => {
                 if (_bmpOutput != null)
@@ -988,19 +1025,19 @@ namespace DecklinkSwitcher
         }
 
 
-        /// <summary>
-        /// Called whenever the PGM output frame is updated (BGRA, 480x270).
-        /// Scales to 1920x1080, converts to UYVY422, and pushes to the YouTube streamer.
-        /// Also pushes silent audio if no real audio is available.
-        /// </summary>
-        /// <summary>
-        /// Called whenever the PGM output changes. Stores latest frame for the streaming loop.
-        /// </summary>
-        private static void PushPgmToStream(byte[] bgraPreview480x270)
+        public static void OutputProgramAudioAndVideo(IntPtr modifiedAudioBuffer, uint audioSampleCount, byte[] uyvyBytes)
         {
-            if (!YtStreamer.IsStreaming) return;
-            byte[] copy = (byte[])bgraPreview480x270.Clone();
-            lock (_pgmLock) { _latestPgmFrame = copy; }
+            if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
+            {
+                SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
+                if (YtStreamer.IsStreaming)
+                {
+                    byte[] audBytes = new byte[audioSampleCount * 4];
+                    System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
+                    YtStreamer.PushAudio(audBytes);
+                    if (uyvyBytes != null) YtStreamer.PushVideo(uyvyBytes);
+                }
+            }
         }
 
         private static byte[] ConvertBgraToUyvy1080(byte[] bgra)
@@ -1035,45 +1072,6 @@ namespace DecklinkSwitcher
         private static readonly int[] _uyvyColLut = BuildColLut();
         private static int[] BuildRowLut() { var t = new int[1080]; for (int y = 0; y < 1080; y++) t[y] = Math.Min((int)(y * 270.0f / 1080f), 269); return t; }
         private static int[] BuildColLut() { var t = new int[1920]; for (int x = 0; x < 1920; x++) t[x] = Math.Min((int)(x * 480.0f / 1920f), 479); return t; }
-
-        private static void StartStreamLoop(int fps)
-        {
-            _streamLoopCts?.Cancel();
-            _streamLoopCts = new CancellationTokenSource();
-            var token = _streamLoopCts.Token;
-            long ticksPerFrame = System.Diagnostics.Stopwatch.Frequency / fps;
-            Task.Run(() =>
-            {
-                Log($"Stream loop started at {fps} fps.");
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                long nextTick = 0;
-                while (!token.IsCancellationRequested && YtStreamer.IsStreaming)
-                {
-                    byte[]? frame; lock (_pgmLock) { frame = _latestPgmFrame; }
-                    if (frame != null)
-                    {
-                        YtStreamer.PushVideo(frame);
-                        // Audio is pushed from MixAudio callbacks - not from here
-                    }
-                    nextTick += ticksPerFrame;
-                    long remaining = nextTick - sw.ElapsedTicks;
-                    if (remaining > 0)
-                    {
-                        int sleepMs = (int)(remaining * 1000 / System.Diagnostics.Stopwatch.Frequency);
-                        if (sleepMs > 1) Thread.Sleep(sleepMs - 1);
-                        // Spin for sub-millisecond precision
-                        while (sw.ElapsedTicks < nextTick) Thread.SpinWait(10);
-                    }
-                }
-                Log("Stream loop stopped.");
-            }, token);
-        }
-
-        private static void StopStreamLoop()
-        {
-            _streamLoopCts?.Cancel();
-            _streamLoopCts = null;
-        }
 
         private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, DeckLinkDeviceInfo in1Info, DeckLinkDeviceInfo in2Info, DeckLinkDeviceInfo in3Info, DeckLinkDeviceInfo in4Info, System.Windows.Media.Imaging.WriteableBitmap bmp1, System.Windows.Media.Imaging.WriteableBitmap bmp2, System.Windows.Media.Imaging.WriteableBitmap bmp3, System.Windows.Media.Imaging.WriteableBitmap bmp4, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
 
@@ -1125,7 +1123,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn1Input)
                     {
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        PushPgmToStream(buf);
+                        
                     }
                 };
                 _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; }); };
@@ -1149,7 +1147,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn2Input)
                     {
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        PushPgmToStream(buf);
+                        
                     }
                 };
                 _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; }); };
@@ -1173,7 +1171,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn3Input)
                     {
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        PushPgmToStream(buf);
+                        
                     }
                 };
                 _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; }); };
@@ -1197,7 +1195,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 0 && _activeInput == _btn4Input)
                     {
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        PushPgmToStream(buf);
+                        
                     }
                 };
                 _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; }); };
@@ -1236,13 +1234,12 @@ namespace DecklinkSwitcher
                                 IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
                                 if (modifiedAudioBuffer != IntPtr.Zero)
                                 {
-                                    SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                                    if (MainWindow.YtStreamer.IsStreaming)
-                                    {
-                                        byte[] audBytes = new byte[audioSampleCount * 4];
-                                        System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                                        MainWindow.YtStreamer.PushAudio(audBytes);
+                                    byte[] uyvyBytes = null;
+                                    lock (MainWindow._pgmLock) 
+                                    { 
+                                        if (_latestPgmFrame != null) uyvyBytes = ConvertBgraToUyvy1080(_latestPgmFrame); 
                                     }
+                                    OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                                     System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                                 }
                             }
@@ -1286,6 +1283,8 @@ namespace DecklinkSwitcher
         private bool _isCapturing = false;
         private bool _isPlaying = false;
         private int _frameCount = 0;
+        
+        public bool IsProgramSource { get; set; } = false;
         public float AudioLevel { get; set; } = 1.0f;
 
         public System.Windows.Media.Imaging.WriteableBitmap PreviewBitmap;
@@ -1415,17 +1414,29 @@ namespace DecklinkSwitcher
             {
                 try 
                 {
-                    _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
+                    byte[] uyvyBytes = null;
+                    if (MainWindow.YtStreamer.IsStreaming)
+                    {
+                        int h = _reusableOutputFrame.GetHeight();
+                        int rowBytes = _reusableOutputFrame.GetRowBytes();
+                        uyvyBytes = new byte[rowBytes * h];
+                        var buf = (IDeckLinkVideoBuffer)_reusableOutputFrame; 
+                        buf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead); 
+                        buf.GetBytes(out IntPtr uyvyPtr); 
+                        System.Runtime.InteropServices.Marshal.Copy(uyvyPtr, uyvyBytes, 0, uyvyBytes.Length); 
+                        buf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
+                        
+                        // Check if it's completely black!
+                        bool isBlack = true;
+                        for(int i = 0; i < 1000 && i < uyvyBytes.Length; i++) { if (uyvyBytes[i] != 0) isBlack = false; }
+                        if (isBlack) MainWindow.Log("WARNING: uyvyBytes is BLANK in Task.Run!");
+                    }
+
+                    try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out uint written);
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                        if (MainWindow.YtStreamer.IsStreaming)
-                        {
-                            byte[] audBytes = new byte[audioSampleCount * 4];
-                            System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                            MainWindow.YtStreamer.PushAudio(audBytes);
-                        }
+                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
                 } 
                 catch (Exception ex) 
@@ -1472,34 +1483,32 @@ namespace DecklinkSwitcher
             {
                 try 
                 {
-                    _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
+                    byte[] uyvyBytes = null;
                     if (MainWindow.YtStreamer.IsStreaming)
                     {
-                        int fw = _reusableOutputFrame.GetWidth();
-                        int fh = _reusableOutputFrame.GetHeight();
-                        int frb = _reusableOutputFrame.GetRowBytes();
-                        var outputBuf = (IDeckLinkVideoBuffer)_reusableOutputFrame;
-                        outputBuf.GetBytes(out IntPtr vidBuf);
-                        int frameSize = fh * frb;
-                        byte[] vidBytes = new byte[frameSize];
-                        System.Runtime.InteropServices.Marshal.Copy(vidBuf, vidBytes, 0, vidBytes.Length);
-                        // Update streamer dimensions if changed
-                        if (MainWindow.YtStreamer.Width != fw || MainWindow.YtStreamer.Height != fh)
-                            MainWindow.YtStreamer.UpdateDimensions(fw, fh);
-                        MainWindow.YtStreamer.PushVideo(vidBytes);
+                        int h = _reusableOutputFrame.GetHeight();
+                        int rowBytes = _reusableOutputFrame.GetRowBytes();
+                        uyvyBytes = new byte[rowBytes * h];
+                        var buf = (IDeckLinkVideoBuffer)_reusableOutputFrame; 
+                        buf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead); 
+                        buf.GetBytes(out IntPtr uyvyPtr); 
+                        System.Runtime.InteropServices.Marshal.Copy(uyvyPtr, uyvyBytes, 0, uyvyBytes.Length); 
+                        buf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
+                        
+                        // Check if it's completely black!
+                        bool isBlack = true;
+                        for(int i = 0; i < 1000 && i < uyvyBytes.Length; i++) { if (uyvyBytes[i] != 0) isBlack = false; }
+                        if (isBlack) MainWindow.Log("WARNING: uyvyBytes is BLANK in Task.Run!");
                     }
+
+                    try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
+
 
                     if (modifiedAudioBuffer != IntPtr.Zero && mixedSampleCount > 0)
                     {
-                        _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, mixedSampleCount, out uint written);
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
                         
-                        if (MainWindow.YtStreamer.IsStreaming)
-                        {
-                            byte[] audBytes = new byte[mixedSampleCount * 4]; // 2 channels, 16-bit
-                            System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                            MainWindow.YtStreamer.PushAudio(audBytes);
-                        }
+                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, mixedSampleCount, uyvyBytes);
                     }
                 } 
                 catch (Exception ex) 
@@ -1592,17 +1601,29 @@ namespace DecklinkSwitcher
             {
                 try 
                 {
-                    _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame);
+                    byte[] uyvyBytes = null;
+                    if (MainWindow.YtStreamer.IsStreaming)
+                    {
+                        int h = _reusableOutputFrame.GetHeight();
+                        int rowBytes = _reusableOutputFrame.GetRowBytes();
+                        uyvyBytes = new byte[rowBytes * h];
+                        var buf = (IDeckLinkVideoBuffer)_reusableOutputFrame; 
+                        buf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead); 
+                        buf.GetBytes(out IntPtr uyvyPtr); 
+                        System.Runtime.InteropServices.Marshal.Copy(uyvyPtr, uyvyBytes, 0, uyvyBytes.Length); 
+                        buf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
+                        
+                        // Check if it's completely black!
+                        bool isBlack = true;
+                        for(int i = 0; i < 1000 && i < uyvyBytes.Length; i++) { if (uyvyBytes[i] != 0) isBlack = false; }
+                        if (isBlack) MainWindow.Log("WARNING: uyvyBytes is BLANK in Task.Run!");
+                    }
+
+                    try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out uint written);
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                        if (MainWindow.YtStreamer.IsStreaming)
-                        {
-                            byte[] audBytes = new byte[audioSampleCount * 4];
-                            System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                            MainWindow.YtStreamer.PushAudio(audBytes);
-                        }
+                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
                 } 
                 catch (Exception ex) 
@@ -1642,7 +1663,11 @@ namespace DecklinkSwitcher
 
                 try 
                 {
-                    if (PreviewBitmap != null && Environment.TickCount - _lastPreviewTicks > 200) // 5 fps
+                    bool shouldUpdatePreview = false;
+                    if (IsProgramSource) shouldUpdatePreview = true;
+                    else if (PreviewBitmap != null && Environment.TickCount - _lastPreviewTicks > 200) shouldUpdatePreview = true;
+
+                    if (shouldUpdatePreview)
                     {
                         _lastPreviewTicks = Environment.TickCount;
                         
@@ -1695,8 +1720,8 @@ namespace DecklinkSwitcher
                                 int maxR = 0;
                                 for (int i = 0; i < sampleCount * 2; i += 2) // 2 channels
                                 {
-                                    int valL = Math.Abs(samples[i]);
-                                    int valR = Math.Abs(samples[i+1]);
+                                    int valL = Math.Abs((int)samples[i]);
+                                    int valR = Math.Abs((int)samples[i+1]);
                                     if (valL > maxL) maxL = valL;
                                     if (valR > maxR) maxR = valR;
                                 }
@@ -1762,3 +1787,8 @@ namespace DecklinkSwitcher
         }
     }
 }
+
+
+
+
+

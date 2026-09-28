@@ -52,8 +52,8 @@ namespace DecklinkSwitcher
                 int maxR = 0;
                 for (int i = 0; i < sampleCount * 2; i += 2)
                 {
-                    int l = Math.Abs(arr[i]);
-                    int r = Math.Abs(arr[i + 1]);
+                    int l = Math.Abs((int)arr[i]);
+                    int r = Math.Abs((int)arr[i + 1]);
                     if (l > maxL) maxL = l;
                     if (r > maxR) maxR = r;
                 }
