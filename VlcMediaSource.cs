@@ -188,7 +188,7 @@ namespace DecklinkSwitcher
                 
                 short[] arr = new short[sampleCount * 2];
                 Marshal.Copy(audioPtr, arr, 0, (int)sampleCount * 2);
-                DecklinkSwitcher.MainWindow.LatestAudioPackets["Media"] = arr;
+                DecklinkSwitcher.MainWindow.PushAudioPacket("Media", arr);
                 
                 int maxL = 0;
                 int maxR = 0;

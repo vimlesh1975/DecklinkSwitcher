@@ -45,7 +45,7 @@ namespace DecklinkSwitcher
                 short[] arr = new short[sampleCount * 2];
                 Buffer.BlockCopy(e.Buffer, 0, arr, 0, e.BytesRecorded);
                 
-                DecklinkSwitcher.MainWindow.LatestAudioPackets[_packetKey] = arr;
+                DecklinkSwitcher.MainWindow.PushAudioPacket(_packetKey, arr);
                 
                 // Calculate UI levels
                 int maxL = 0;

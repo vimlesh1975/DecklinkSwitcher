@@ -724,7 +724,21 @@ namespace DecklinkSwitcher
         public static System.Collections.Concurrent.ConcurrentDictionary<string, float> DynamicMicLevels = new();
         public static System.Collections.Concurrent.ConcurrentDictionary<string, AudioState> DynamicMicStates = new();
         
-        public static System.Collections.Concurrent.ConcurrentDictionary<string, short[]> LatestAudioPackets = new();
+        public static System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentQueue<short>> AudioFifos = new();
+        
+        public static void PushAudioPacket(string name, short[] packet)
+        {
+            var q = AudioFifos.GetOrAdd(name, _ => new System.Collections.Concurrent.ConcurrentQueue<short>());
+            foreach (var sample in packet)
+            {
+                q.Enqueue(sample);
+            }
+            // limit to 1 second of buffer (48000Hz * 2 channels = 96000 samples)
+            while (q.Count > 96000)
+            {
+                q.TryDequeue(out _);
+            }
+        }
 
         private void SldPgmAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
@@ -827,17 +841,18 @@ namespace DecklinkSwitcher
                     return;
                 }
 
-                if (LatestAudioPackets.TryGetValue(name, out short[] packet) && packet != null)
+                if (AudioFifos.TryGetValue(name, out var q))
                 {
-                    int toMix = Math.Min(totalSamples, packet.Length);
                     int sum = 0;
-                    for (int i = 0; i < toMix; i++)
+                    for (int i = 0; i < totalSamples; i++)
                     {
-                        mixed[i] += (int)(packet[i] * level);
-                        sum += Math.Abs((int)packet[i]);
+                        if (q.TryDequeue(out short sample))
+                        {
+                            mixed[i] += (int)(sample * level);
+                            sum += Math.Abs((int)sample);
+                        }
                     }
-                    if (sum > 0 && name == "Media") MainWindow.Log($"Mixed Media packet! Length: {packet.Length}, Sum: {sum}");
-                    LatestAudioPackets[name] = null; // Consume the packet
+                    if (sum > 0 && name == "Media") MainWindow.Log($"Mixed Media from queue! Dequeued up to: {totalSamples}, Sum: {sum}");
                 }
             };
 
@@ -1721,7 +1736,7 @@ namespace DecklinkSwitcher
                         
                         short[] arr = new short[sampleCount * 2];
                         System.Runtime.InteropServices.Marshal.Copy(audioPtr, arr, 0, sampleCount * 2);
-                        MainWindow.LatestAudioPackets[_roleName] = arr;
+                        MainWindow.PushAudioPacket(_roleName, arr);
 
                         if (OnAudioLevelArrived != null && Environment.TickCount - _lastPreviewTicks <= 200) 
                         {
