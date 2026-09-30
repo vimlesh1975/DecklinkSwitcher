@@ -1435,14 +1435,7 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        try {
-                              uint buffered;
-                              _deckLinkOutput.GetBufferedAudioSampleFrameCount(out buffered);
-                              if (buffered < 4800) // 100ms max latency
-                              {
-                                  uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written);
-                              }
-                          } catch { }
+                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
                 } 
@@ -1513,14 +1506,7 @@ namespace DecklinkSwitcher
 
                     if (modifiedAudioBuffer != IntPtr.Zero && mixedSampleCount > 0)
                     {
-                        try {
-                              uint buffered;
-                              _deckLinkOutput.GetBufferedAudioSampleFrameCount(out buffered);
-                              if (buffered < 4800) // 100ms max latency
-                              {
-                                  uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, mixedSampleCount, out written);
-                              }
-                          } catch { }
+                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, mixedSampleCount, out written); } catch { }
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, mixedSampleCount, uyvyBytes);
                     }
                 } 
@@ -1635,14 +1621,7 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        try {
-                              uint buffered;
-                              _deckLinkOutput.GetBufferedAudioSampleFrameCount(out buffered);
-                              if (buffered < 4800) // 100ms max latency
-                              {
-                                  uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written);
-                              }
-                          } catch { }
+                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
                 } 
