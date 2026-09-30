@@ -1435,6 +1435,7 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
+                        try { _deckLinkOutput.ScheduleAudioSamples(modifiedAudioBuffer, audioSampleCount, 0, 0, out _); } catch { }
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
@@ -1506,6 +1507,7 @@ namespace DecklinkSwitcher
 
                     if (modifiedAudioBuffer != IntPtr.Zero && mixedSampleCount > 0)
                     {
+                        try { _deckLinkOutput.ScheduleAudioSamples(modifiedAudioBuffer, mixedSampleCount, 0, 0, out _); } catch { }
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
                         
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, mixedSampleCount, uyvyBytes);
@@ -1622,6 +1624,7 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
+                        try { _deckLinkOutput.ScheduleAudioSamples(modifiedAudioBuffer, audioSampleCount, 0, 0, out _); } catch { }
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
