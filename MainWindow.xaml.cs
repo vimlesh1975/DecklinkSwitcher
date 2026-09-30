@@ -1220,6 +1220,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
+                        bool hardwareSynced = false;
                         if (_activeSourceType == 1 || _activeSourceType == 2)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
@@ -1228,6 +1229,7 @@ namespace DecklinkSwitcher
                             if (_activeOutput != null)
                             {
                                 _activeOutput.ScheduleSyntheticFrame(_activeSourceType == 1);
+                                hardwareSynced = true;
                             }
                             else
                             {
@@ -1245,7 +1247,10 @@ namespace DecklinkSwitcher
                                 }
                             }
                         }
-                        await Task.Delay(40, token);
+                        if (!hardwareSynced)
+                        {
+                            await Task.Delay(40, token);
+                        }
                     }
                     catch (OperationCanceledException) { break; }
                     catch { }
@@ -1597,48 +1602,40 @@ namespace DecklinkSwitcher
             uint audioSampleCount = 1920;
             IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
 
-            System.Threading.Tasks.Task.Run(() => 
+            try 
             {
-                try 
+                byte[] uyvyBytes = null;
+                if (MainWindow.YtStreamer.IsStreaming)
                 {
-                    byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming)
-                    {
-                        int h = _reusableOutputFrame.GetHeight();
-                        int rowBytes = _reusableOutputFrame.GetRowBytes();
-                        uyvyBytes = new byte[rowBytes * h];
-                        var buf = (IDeckLinkVideoBuffer)_reusableOutputFrame; 
-                        buf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead); 
-                        buf.GetBytes(out IntPtr uyvyPtr); 
-                        System.Runtime.InteropServices.Marshal.Copy(uyvyPtr, uyvyBytes, 0, uyvyBytes.Length); 
-                        buf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
-                        
-                        // Check if it's completely black!
-                        bool isBlack = true;
-                        for(int i = 0; i < 1000 && i < uyvyBytes.Length; i++) { if (uyvyBytes[i] != 0) isBlack = false; }
-                        if (isBlack) MainWindow.Log("WARNING: uyvyBytes is BLANK in Task.Run!");
-                    }
+                    int h = _reusableOutputFrame.GetHeight();
+                    int rowBytes = _reusableOutputFrame.GetRowBytes();
+                    uyvyBytes = new byte[rowBytes * h];
+                    var buf = (IDeckLinkVideoBuffer)_reusableOutputFrame; 
+                    buf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead); 
+                    buf.GetBytes(out IntPtr uyvyPtr); 
+                    System.Runtime.InteropServices.Marshal.Copy(uyvyPtr, uyvyBytes, 0, uyvyBytes.Length); 
+                    buf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
+                }
 
-                    try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
-                    if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
-                    {
-                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
-                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
-                    }
-                } 
-                catch (Exception ex) 
+                try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
+                if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                 {
-                    MainWindow.Log($"[{_roleName}] Task.Run DisplaySyntheticVideo/Audio error: {ex.Message}");
+                    try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
+                    MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                 }
-                finally
+            } 
+            catch (Exception ex) 
+            {
+                MainWindow.Log($"[{_roleName}] DisplaySyntheticVideo/Audio error: {ex.Message}");
+            }
+            finally
+            {
+                if (modifiedAudioBuffer != IntPtr.Zero)
                 {
-                    if (modifiedAudioBuffer != IntPtr.Zero)
-                    {
-                        System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
-                    }
-                    Interlocked.Exchange(ref _isDisplaying, 0);
+                    System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                 }
-            });
+                Interlocked.Exchange(ref _isDisplaying, 0);
+            }
         }
 
         void IDeckLinkInputCallback.VideoInputFormatChanged(_BMDVideoInputFormatChangedEvents notificationEvents, IDeckLinkDisplayMode newDisplayMode, _BMDDetectedVideoInputFormatFlags detectedSignalFlags)
