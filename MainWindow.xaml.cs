@@ -151,8 +151,22 @@ namespace DecklinkSwitcher
                 // Safe dispatch in case called from non-UI thread
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    settings.WindowWidth = this.Width;
-                    settings.WindowHeight = this.Height;
+                    if (this.WindowState == System.Windows.WindowState.Maximized)
+                    {
+                        settings.WindowWidth = this.RestoreBounds.Width;
+                        settings.WindowHeight = this.RestoreBounds.Height;
+                        settings.WindowLeft = this.RestoreBounds.Left;
+                        settings.WindowTop = this.RestoreBounds.Top;
+                        settings.WindowMaximized = true;
+                    }
+                    else
+                    {
+                        settings.WindowWidth = this.Width;
+                        settings.WindowHeight = this.Height;
+                        settings.WindowLeft = this.Left;
+                        settings.WindowTop = this.Top;
+                        settings.WindowMaximized = false;
+                    }
                     if (CmbOutput.SelectedItem is DeckLinkDeviceInfo dout) settings.OutputDevice = dout.DisplayName;
                     if (CmbInput1.SelectedItem is DeckLinkDeviceInfo din1) settings.Input1Device = din1.DisplayName;
                     if (CmbInput2.SelectedItem is DeckLinkDeviceInfo din2) settings.Input2Device = din2.DisplayName;
@@ -286,6 +300,9 @@ namespace DecklinkSwitcher
                 
                 if (settings.WindowWidth > 0 && !double.IsNaN(settings.WindowWidth)) this.Width = settings.WindowWidth;
                 if (settings.WindowHeight > 0 && !double.IsNaN(settings.WindowHeight)) this.Height = settings.WindowHeight;
+                if (!double.IsNaN(settings.WindowLeft)) this.Left = settings.WindowLeft;
+                if (!double.IsNaN(settings.WindowTop)) this.Top = settings.WindowTop;
+                if (settings.WindowMaximized) this.WindowState = System.Windows.WindowState.Maximized;
 
                 int FindDeviceIndex(string name, int defaultIndex)
                 {

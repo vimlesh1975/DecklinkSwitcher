@@ -10,6 +10,9 @@ namespace DecklinkSwitcher
     {
         public double WindowWidth { get; set; } = 1200;
         public double WindowHeight { get; set; } = 700;
+        public double WindowLeft { get; set; } = double.NaN;
+        public double WindowTop { get; set; } = double.NaN;
+        public bool WindowMaximized { get; set; } = false;
         
         public string OutputDevice { get; set; } = "";
         public string Input1Device { get; set; } = "";
