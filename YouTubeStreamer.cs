@@ -15,7 +15,7 @@ namespace DecklinkSwitcher
         private NamedPipeServerStream? _audioPipe;
         
         private BlockingCollection<byte[]> _videoQueue = new BlockingCollection<byte[]>(30);
-        private BlockingCollection<byte[]> _audioQueue = new BlockingCollection<byte[]>(100);
+        private BlockingCollection<byte[]> _audioQueue = new BlockingCollection<byte[]>(200);
         
         private CancellationTokenSource? _cts;
         private Task? _videoTask;
@@ -48,7 +48,7 @@ namespace DecklinkSwitcher
             _cts = new CancellationTokenSource();
             
             _videoQueue = new BlockingCollection<byte[]>(30);
-            _audioQueue = new BlockingCollection<byte[]>(100);
+            _audioQueue = new BlockingCollection<byte[]>(200);
 
             // Create named pipes BEFORE launching FFmpeg so it can connect
             string uniqueId = Guid.NewGuid().ToString("N");
@@ -69,8 +69,8 @@ namespace DecklinkSwitcher
             
             // Input is native 1920x1080 UYVY
             string args = $"-y " +
-                          $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -i \"{videoPipePath}\" " +
-                          $"-f s16le -ac 2 -ar 48000 -i \"{audioPipePath}\" " +
+                          $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
+                          $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
                           $"-c:v libx264 -preset ultrafast -b:v 6800k -maxrate 6800k -bufsize 13600k -pix_fmt yuv420p -g {Framerate * 2} " +
                           $"-c:a aac -b:a 128k -f flv \"{rtmpUrl}\"";
 
