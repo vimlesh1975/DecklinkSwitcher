@@ -1435,7 +1435,14 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
+                        byte[] audioCopy = new byte[audioSampleCount * 4];
+                          System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audioCopy, 0, audioCopy.Length);
+                          uint count = audioSampleCount;
+                          System.Threading.Tasks.Task.Run(() => {
+                              System.Runtime.InteropServices.GCHandle handle = System.Runtime.InteropServices.GCHandle.Alloc(audioCopy, System.Runtime.InteropServices.GCHandleType.Pinned);
+                              try { uint written; _deckLinkOutput.WriteAudioSamplesSync(handle.AddrOfPinnedObject(), count, out written); } catch { }
+                              finally { handle.Free(); }
+                          });
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
@@ -1507,7 +1514,14 @@ namespace DecklinkSwitcher
 
                     if (modifiedAudioBuffer != IntPtr.Zero && mixedSampleCount > 0)
                     {
-                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, mixedSampleCount, out written); } catch { }
+                        byte[] audioCopy = new byte[mixedSampleCount * 4];
+                          System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audioCopy, 0, audioCopy.Length);
+                          uint count = mixedSampleCount;
+                          System.Threading.Tasks.Task.Run(() => {
+                              System.Runtime.InteropServices.GCHandle handle = System.Runtime.InteropServices.GCHandle.Alloc(audioCopy, System.Runtime.InteropServices.GCHandleType.Pinned);
+                              try { uint written; _deckLinkOutput.WriteAudioSamplesSync(handle.AddrOfPinnedObject(), count, out written); } catch { }
+                              finally { handle.Free(); }
+                          });
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
                         
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, mixedSampleCount, uyvyBytes);
@@ -1624,7 +1638,14 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
+                        byte[] audioCopy = new byte[audioSampleCount * 4];
+                          System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audioCopy, 0, audioCopy.Length);
+                          uint count = audioSampleCount;
+                          System.Threading.Tasks.Task.Run(() => {
+                              System.Runtime.InteropServices.GCHandle handle = System.Runtime.InteropServices.GCHandle.Alloc(audioCopy, System.Runtime.InteropServices.GCHandleType.Pinned);
+                              try { uint written; _deckLinkOutput.WriteAudioSamplesSync(handle.AddrOfPinnedObject(), count, out written); } catch { }
+                              finally { handle.Free(); }
+                          });
                         SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                         MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                     }
