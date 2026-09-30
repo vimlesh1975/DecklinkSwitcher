@@ -801,7 +801,8 @@ namespace DecklinkSwitcher
                 {
                     for (int i = 0; i < totalSamples; i += 2)
                     {
-                        short sample = (short)(Math.Sin(_syntheticAudioPhase) * 16384 * level);
+                        // Standard -20 dBFS level (approx 3277 amplitude), ignoring the UI slider
+                        short sample = (short)(Math.Sin(_syntheticAudioPhase) * 3277);
                         mixed[i] += sample;
                         mixed[i+1] += sample;
                         _syntheticAudioPhase += 2.0 * Math.PI * 1000.0 / 48000.0;
