@@ -134,24 +134,31 @@ namespace DecklinkSwitcher
             }
         }
 
-        public void PushVideo(byte[] frame)
+        public void PushFrame(byte[] audio, byte[] video)
         {
             if (!IsStreaming) return;
-            _hasRealFrames = true;
-            Interlocked.Exchange(ref _lastVideoPushTick, Environment.TickCount64);
-            // Drop if full to avoid blocking the DeckLink callback thread
-            if (_videoQueue.Count < _videoQueue.BoundedCapacity - 2)
+            
+            if (video != null)
             {
-                try { _videoQueue.TryAdd(frame, 0); } catch { }
+                _hasRealFrames = true;
+                Interlocked.Exchange(ref _lastVideoPushTick, Environment.TickCount64);
             }
-        }
-
-        public void PushAudio(byte[] pcm)
-        {
-            if (!IsStreaming) return;
-            if (_audioQueue.Count < _audioQueue.BoundedCapacity - 2)
+            
+            // Drop BOTH if EITHER queue is getting full, to preserve exact A/V sync!
+            if ((video != null && _videoQueue.Count >= _videoQueue.BoundedCapacity - 2) || 
+                (audio != null && _audioQueue.Count >= _audioQueue.BoundedCapacity - 2))
             {
-                try { _audioQueue.TryAdd(pcm, 0); } catch { }
+                // We are congested. Drop this entire chunk (audio + video)
+                return; 
+            }
+
+            if (video != null)
+            {
+                try { _videoQueue.TryAdd(video, 0); } catch { }
+            }
+            if (audio != null)
+            {
+                try { _audioQueue.TryAdd(audio, 0); } catch { }
             }
         }
 

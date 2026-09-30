@@ -98,7 +98,7 @@ namespace DecklinkSwitcher
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                                    YtStreamer.PushAudio(audBytes);
+                                    YtStreamer.PushFrame(audBytes, null);
                                 }
                                 System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                             }
@@ -1051,8 +1051,7 @@ namespace DecklinkSwitcher
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                    YtStreamer.PushAudio(audBytes);
-                    if (uyvyBytes != null) YtStreamer.PushVideo(uyvyBytes);
+                    YtStreamer.PushFrame(audBytes, uyvyBytes);
                 }
             }
         }
