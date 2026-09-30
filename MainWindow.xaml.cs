@@ -767,12 +767,11 @@ namespace DecklinkSwitcher
             horiz.Children.Add(sld);
             
             var cmb = new System.Windows.Controls.ComboBox { FontSize = 12, Height = 25, Margin = new System.Windows.Thickness(0, 5, 0, 0) };
-            cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "AFV" });
             cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "ON" });
             cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "OFF" });
-            cmb.SelectedIndex = (int)initialState;
+            cmb.SelectedIndex = (initialState == AudioState.OFF) ? 1 : 0;
             cmb.SelectionChanged += (s, e) => { 
-                DynamicMicStates[key] = (AudioState)cmb.SelectedIndex; 
+                DynamicMicStates[key] = (cmb.SelectedIndex == 1) ? AudioState.OFF : AudioState.ON; 
                 SaveCurrentSettings();
             };
             
