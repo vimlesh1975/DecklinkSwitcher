@@ -73,10 +73,36 @@ namespace DecklinkSwitcher
         {
             var list = new System.Collections.Generic.List<MicDeviceInfo>();
             list.Add(new MicDeviceInfo { DeviceNumber = -1, Name = "None" });
+            
+            NAudio.CoreAudioApi.MMDeviceCollection mmDevices = null;
+            try
+            {
+                var enumerator = new NAudio.CoreAudioApi.MMDeviceEnumerator();
+                mmDevices = enumerator.EnumerateAudioEndPoints(NAudio.CoreAudioApi.DataFlow.Capture, NAudio.CoreAudioApi.DeviceState.Active);
+            }
+            catch { }
+
             for (int i = 0; i < WaveIn.DeviceCount; i++)
             {
                 var caps = WaveIn.GetCapabilities(i);
-                list.Add(new MicDeviceInfo { DeviceNumber = i, Name = caps.ProductName });
+                string fullName = caps.ProductName;
+                
+                if (mmDevices != null)
+                {
+                    foreach (var device in mmDevices)
+                    {
+                        string mmName = device.FriendlyName;
+                        string waveName = caps.ProductName;
+                        int len = Math.Min(31, mmName.Length);
+                        if (waveName.StartsWith(mmName.Substring(0, len)) || mmName.StartsWith(waveName))
+                        {
+                            fullName = mmName;
+                            break;
+                        }
+                    }
+                }
+                
+                list.Add(new MicDeviceInfo { DeviceNumber = i, Name = fullName });
             }
             return list;
         }
