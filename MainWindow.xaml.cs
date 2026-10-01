@@ -877,7 +877,7 @@ namespace DecklinkSwitcher
                 DynamicMicStates[key] = (cmb.SelectedIndex == 1) ? AudioState.OFF : AudioState.ON; 
                 SaveCurrentSettings();
             };
-            
+
             pnl.Children.Add(horiz);
             pnl.Children.Add(cmb);
             
