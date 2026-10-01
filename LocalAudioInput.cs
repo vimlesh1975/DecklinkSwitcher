@@ -101,6 +101,10 @@ namespace DecklinkSwitcher
                         }
                     }
                 }
+                if (fullName.IndexOf("DeckLink", StringComparison.OrdinalIgnoreCase) >= 0 || fullName.IndexOf("Blackmagic", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    continue;
+                }
                 
                 list.Add(new MicDeviceInfo { DeviceNumber = i, Name = fullName });
             }
