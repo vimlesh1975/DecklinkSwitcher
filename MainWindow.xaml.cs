@@ -90,7 +90,7 @@ namespace DecklinkSwitcher
                         else
                         {
                             uint mixedSampleCount = aCount > 0 ? aCount : 1920;
-                            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(mixedSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
+                            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(mixedSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName, "media-software-output");
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
@@ -365,7 +365,7 @@ namespace DecklinkSwitcher
                     var pnl = CreateMicPanel(device, key, level, state);
                     PnlDynamicAudio.Children.Add(pnl);
                     
-                    var input = new LocalAudioInput(device.DeviceNumber, key);
+                    var input = new LocalAudioInput(device.DeviceId, key);
                     var barL = (System.Windows.Controls.ProgressBar)pnl.FindName("BarL_" + device.DeviceNumber);
                     var barR = (System.Windows.Controls.ProgressBar)pnl.FindName("BarR_" + device.DeviceNumber);
                     input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { if (barL != null) barL.Value = l; if (barR != null) barR.Value = r; }); };
@@ -724,20 +724,92 @@ namespace DecklinkSwitcher
         public static System.Collections.Concurrent.ConcurrentDictionary<string, float> DynamicMicLevels = new();
         public static System.Collections.Concurrent.ConcurrentDictionary<string, AudioState> DynamicMicStates = new();
         
-        public static System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentQueue<short>> AudioFifos = new();
+        private sealed class AudioFifo
+        {
+            private const int MaximumBufferedSamples = 19200;
+            private readonly Queue<short[]> _packets = new();
+            private readonly object _lock = new();
+            private int _headOffset;
+            private int _count;
+            private long _capturedSamples;
+            private long _mixedSamples;
+            private long _trimmedSamples;
+            private long _underrunSamples;
+
+            public void Enqueue(short[] packet)
+            {
+                lock (_lock)
+                {
+                    _packets.Enqueue(packet);
+                    _count += packet.Length;
+                    _capturedSamples += packet.Length;
+                    TrimTo(MaximumBufferedSamples);
+                }
+            }
+
+            public void MixInto(int[] destination, int sampleCount, float level)
+            {
+                lock (_lock)
+                {
+                    int destinationIndex = 0;
+                    while (destinationIndex < sampleCount && _packets.Count > 0)
+                    {
+                        short[] packet = _packets.Peek();
+                        int packetSamples = Math.Min(sampleCount - destinationIndex, packet.Length - _headOffset);
+                        for (int i = 0; i < packetSamples; i++)
+                        {
+                            destination[destinationIndex + i] += (int)(packet[_headOffset + i] * level);
+                        }
+
+                        destinationIndex += packetSamples;
+                        _headOffset += packetSamples;
+                        _count -= packetSamples;
+                        if (_headOffset == packet.Length)
+                        {
+                            _packets.Dequeue();
+                            _headOffset = 0;
+                        }
+                    }
+
+                    _mixedSamples += destinationIndex;
+                    _underrunSamples += sampleCount - destinationIndex;
+                }
+            }
+
+            public string GetDiagnostics()
+            {
+                lock (_lock)
+                {
+                    double pendingMilliseconds = _count * 1000.0 / 96000.0;
+                    return $"pendingMs={pendingMilliseconds:F0}, captured={_capturedSamples}, mixed={_mixedSamples}, trimmed={_trimmedSamples}, underrun={_underrunSamples}";
+                }
+            }
+
+            private void TrimTo(int maximumCount)
+            {
+                while (_count > maximumCount && _packets.Count > 0)
+                {
+                    short[] packet = _packets.Peek();
+                    int discard = Math.Min(_count - maximumCount, packet.Length - _headOffset);
+                    _headOffset += discard;
+                    _count -= discard;
+                    _trimmedSamples += discard;
+                    if (_headOffset == packet.Length)
+                    {
+                        _packets.Dequeue();
+                        _headOffset = 0;
+                    }
+                }
+            }
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, AudioFifo> AudioFifos = new();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> MixerSampleDemand = new();
         
         public static void PushAudioPacket(string name, short[] packet)
         {
-            var q = AudioFifos.GetOrAdd(name, _ => new System.Collections.Concurrent.ConcurrentQueue<short>());
-            foreach (var sample in packet)
-            {
-                q.Enqueue(sample);
-            }
-            // limit to 1 second of buffer (48000Hz * 2 channels = 96000 samples)
-            while (q.Count > 96000)
-            {
-                q.TryDequeue(out _);
-            }
+            var q = AudioFifos.GetOrAdd(name, _ => new AudioFifo());
+            q.Enqueue(packet);
         }
 
         private void SldPgmAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -817,9 +889,10 @@ namespace DecklinkSwitcher
 
         private static double _syntheticAudioPhase = 0;
 
-        public static IntPtr MixAudio(uint audioSampleCount, int activeSourceType, string activeInputName)
+        public static IntPtr MixAudio(uint audioSampleCount, int activeSourceType, string activeInputName, string caller)
         {
             int totalSamples = (int)audioSampleCount * 2;
+            MixerSampleDemand.AddOrUpdate(caller, totalSamples, (_, current) => current + totalSamples);
             int[] mixed = new int[totalSamples];
 
             Action<string, float, AudioState, bool> mixSource = (name, level, state, isLocalActive) =>
@@ -843,16 +916,7 @@ namespace DecklinkSwitcher
 
                 if (AudioFifos.TryGetValue(name, out var q))
                 {
-                    int sum = 0;
-                    for (int i = 0; i < totalSamples; i++)
-                    {
-                        if (q.TryDequeue(out short sample))
-                        {
-                            mixed[i] += (int)(sample * level);
-                            sum += Math.Abs((int)sample);
-                        }
-                    }
-                    if (sum > 0 && name == "Media") MainWindow.Log($"Mixed Media from queue! Dequeued up to: {totalSamples}, Sum: {sum}");
+                    q.MixInto(mixed, totalSamples, level);
                 }
             };
 
@@ -870,6 +934,8 @@ namespace DecklinkSwitcher
                 if (DynamicMicStates.ContainsKey(key)) st = DynamicMicStates[key];
                 mixSource(key, level, st, false);
             }
+
+            LogAudioDiagnostics();
 
             int maxL = 0, maxR = 0;
             IntPtr outBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(totalSamples * 2);
@@ -912,6 +978,25 @@ namespace DecklinkSwitcher
             });
             
             return outBuffer;
+        }
+
+        private static long _nextAudioDiagnosticsTick;
+
+        private static void LogAudioDiagnostics()
+        {
+            long now = Environment.TickCount64;
+            long next = Interlocked.Read(ref _nextAudioDiagnosticsTick);
+            if (now < next || Interlocked.CompareExchange(ref _nextAudioDiagnosticsTick, now + 2000, next) != next) return;
+
+            foreach (var kvp in AudioFifos)
+            {
+                if (kvp.Key.StartsWith("Mic_", StringComparison.Ordinal))
+                {
+                    Log($"Audio diagnostic {kvp.Key}: {kvp.Value.GetDiagnostics()}");
+                }
+            }
+
+            Log("Mixer demand: " + string.Join(", ", MixerSampleDemand.Select(kvp => $"{kvp.Key}={kvp.Value}")));
         }
 
         private void CmbMatteColor_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -1057,11 +1142,11 @@ namespace DecklinkSwitcher
         }
 
 
-        public static void OutputProgramAudioAndVideo(IntPtr modifiedAudioBuffer, uint audioSampleCount, byte[] uyvyBytes)
+        public static void OutputProgramAudioAndVideo(IntPtr modifiedAudioBuffer, uint audioSampleCount, byte[] uyvyBytes, bool writeSystemAudio = true)
         {
             if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
             {
-                SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
+            if (writeSystemAudio) SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
                 if (YtStreamer.IsStreaming)
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
@@ -1246,11 +1331,12 @@ namespace DecklinkSwitcher
             Task.Run(async () =>
             {
                 double syntheticAudioPhase = 0;
+                long frameIntervalTicks = Stopwatch.Frequency / 25;
+                long nextFrameTick = Stopwatch.GetTimestamp();
                 while (!token.IsCancellationRequested)
                 {
                     try
                     {
-                        bool hardwareSynced = false;
                         if (_activeSourceType == 1 || _activeSourceType == 2)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
@@ -1259,12 +1345,11 @@ namespace DecklinkSwitcher
                             if (_activeOutput != null)
                             {
                                 _activeOutput.ScheduleSyntheticFrame(_activeSourceType == 1);
-                                hardwareSynced = true;
                             }
                             else
                             {
                                 uint audioSampleCount = 1920;
-                                IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
+                                IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName, "synthetic-software-output");
                                 if (modifiedAudioBuffer != IntPtr.Zero)
                                 {
                                     byte[] uyvyBytes = null;
@@ -1277,9 +1362,15 @@ namespace DecklinkSwitcher
                                 }
                             }
                         }
-                        if (!hardwareSynced)
+                        nextFrameTick += frameIntervalTicks;
+                        long remainingTicks = nextFrameTick - Stopwatch.GetTimestamp();
+                        if (remainingTicks > 0)
                         {
-                            await Task.Delay(40, token);
+                            await Task.Delay(TimeSpan.FromSeconds((double)remainingTicks / Stopwatch.Frequency), token);
+                        }
+                        else
+                        {
+                            nextFrameTick = Stopwatch.GetTimestamp();
                         }
                     }
                     catch (OperationCanceledException) { break; }
@@ -1376,6 +1467,8 @@ namespace DecklinkSwitcher
             {
                 _deckLinkOutput.EnableVideoOutput(displayMode, _BMDVideoOutputFlags.bmdVideoOutputFlagDefault);
                 _deckLinkOutput.EnableAudioOutput(_BMDAudioSampleRate.bmdAudioSampleRate48kHz, _BMDAudioSampleType.bmdAudioSampleType16bitInteger, 2, _BMDAudioOutputStreamType.bmdAudioOutputStreamContinuous);
+                _deckLinkAudioTask = Task.Run(DeckLinkAudioOutputWorker);
+                _systemAudioTask = Task.Run(SystemAudioOutputWorker);
                 _isPlaying = true;
             }
             catch (Exception ex)
@@ -1387,12 +1480,78 @@ namespace DecklinkSwitcher
         public void StopPlayback()
         {
             if (!_isPlaying) return;
+            _audioOutputQueue.CompleteAdding();
+            _systemAudioQueue.CompleteAdding();
+            try { _deckLinkAudioTask?.GetAwaiter().GetResult(); } catch { }
+            try { _systemAudioTask?.GetAwaiter().GetResult(); } catch { }
             _deckLinkOutput.DisableVideoOutput();
             _deckLinkOutput.DisableAudioOutput();
             _isPlaying = false;
         }
 
+        private void QueueAudioOutput(IntPtr audioBuffer, uint sampleCount)
+        {
+            if (audioBuffer == IntPtr.Zero || sampleCount == 0 || _audioOutputQueue.IsAddingCompleted) return;
+
+            byte[] data = new byte[checked((int)sampleCount * 4)];
+            System.Runtime.InteropServices.Marshal.Copy(audioBuffer, data, 0, data.Length);
+            var packet = new PendingAudioPacket { Data = data, SampleCount = sampleCount };
+            EnqueueLatest(_audioOutputQueue, packet, ref _deckLinkAudioDrops);
+            EnqueueLatest(_systemAudioQueue, packet, ref _systemAudioDrops);
+
+            long now = Environment.TickCount64;
+            long next = Interlocked.Read(ref _nextOutputDiagnosticsTick);
+            if (now >= next && Interlocked.CompareExchange(ref _nextOutputDiagnosticsTick, now + 2000, next) == next)
+            {
+                MainWindow.Log($"Output audio diagnostic decklinkDepth={_audioOutputQueue.Count}, decklinkDrops={Interlocked.Read(ref _deckLinkAudioDrops)}, monitorDepth={_systemAudioQueue.Count}, monitorDrops={Interlocked.Read(ref _systemAudioDrops)}, monitorBufferedMs={SystemAudioPlayer.BufferedMilliseconds}");
+            }
+        }
+
+        private static void EnqueueLatest(System.Collections.Concurrent.BlockingCollection<PendingAudioPacket> queue, PendingAudioPacket packet, ref long dropCount)
+        {
+            while (!queue.TryAdd(packet))
+            {
+                if (queue.IsAddingCompleted) return;
+                if (queue.TryTake(out _)) Interlocked.Increment(ref dropCount);
+            }
+        }
+
+        private void DeckLinkAudioOutputWorker()
+        {
+            foreach (var packet in _audioOutputQueue.GetConsumingEnumerable())
+            {
+                IntPtr audioBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(packet.Data.Length);
+                try
+                {
+                    System.Runtime.InteropServices.Marshal.Copy(packet.Data, 0, audioBuffer, packet.Data.Length);
+                    try { uint written; _deckLinkOutput.WriteAudioSamplesSync(audioBuffer, packet.SampleCount, out written); } catch { }
+                }
+                finally { System.Runtime.InteropServices.Marshal.FreeCoTaskMem(audioBuffer); }
+            }
+        }
+
+        private void SystemAudioOutputWorker()
+        {
+            foreach (var packet in _systemAudioQueue.GetConsumingEnumerable())
+            {
+                SystemAudioPlayer.WriteAudio(packet.Data, packet.SampleCount);
+            }
+        }
+
         private IDeckLinkMutableVideoFrame _reusableOutputFrame;
+        private sealed class PendingAudioPacket
+        {
+            public byte[] Data { get; init; }
+            public uint SampleCount { get; init; }
+        }
+
+        private readonly System.Collections.Concurrent.BlockingCollection<PendingAudioPacket> _audioOutputQueue = new(4);
+        private readonly System.Collections.Concurrent.BlockingCollection<PendingAudioPacket> _systemAudioQueue = new(4);
+        private static long _nextOutputDiagnosticsTick;
+        private long _deckLinkAudioDrops;
+        private long _systemAudioDrops;
+        private Task _deckLinkAudioTask;
+        private Task _systemAudioTask;
 
         [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
         public static extern IntPtr memcpy(IntPtr dest, IntPtr src, UIntPtr count);
@@ -1411,9 +1570,13 @@ namespace DecklinkSwitcher
                 _deckLinkOutput.CreateVideoFrame(width, height, rowBytes, pixelFormat, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
             }
 
+            uint audioSampleCount = audioPacket != null ? (uint)audioPacket.GetSampleFrameCount() : 1920;
+            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName, "decklink-input-output");
+            QueueAudioOutput(modifiedAudioBuffer, audioSampleCount);
+
             if (Interlocked.CompareExchange(ref _isDisplaying, 1, 0) == 1)
             {
-                // Drop frame, currently displaying
+                if (modifiedAudioBuffer != IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                 return;
             }
 
@@ -1442,10 +1605,6 @@ namespace DecklinkSwitcher
                 inputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
             }
 
-            // Extract audio data
-            uint audioSampleCount = audioPacket != null ? (uint)audioPacket.GetSampleFrameCount() : 1920;
-            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
-
             System.Threading.Tasks.Task.Run(() => 
             {
                 try 
@@ -1471,8 +1630,7 @@ namespace DecklinkSwitcher
                     try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                     if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                     {
-                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
-                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
+                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes, false);
                     }
                 } 
                 catch (Exception ex) 
@@ -1497,7 +1655,15 @@ namespace DecklinkSwitcher
                 _deckLinkOutput.CreateVideoFrame(width, height, rowBytes, _BMDPixelFormat.bmdFormat8BitYUV, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
             }
 
-            if (Interlocked.CompareExchange(ref _isDisplaying, 1, 0) == 1) return;
+            uint mixedSampleCount = audioSampleCount > 0 ? audioSampleCount : 1920;
+            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(mixedSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName, "media-frame-output");
+            QueueAudioOutput(modifiedAudioBuffer, mixedSampleCount);
+
+            if (Interlocked.CompareExchange(ref _isDisplaying, 1, 0) == 1)
+            {
+                if (modifiedAudioBuffer != IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+                return;
+            }
 
             var outputBuf = (IDeckLinkVideoBuffer)_reusableOutputFrame;
             outputBuf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
@@ -1511,9 +1677,6 @@ namespace DecklinkSwitcher
             {
                 outputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessWrite);
             }
-
-            uint mixedSampleCount = audioSampleCount > 0 ? audioSampleCount : 1920;
-            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(mixedSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
 
             System.Threading.Tasks.Task.Run(() => 
             {
@@ -1542,8 +1705,7 @@ namespace DecklinkSwitcher
 
                     if (modifiedAudioBuffer != IntPtr.Zero && mixedSampleCount > 0)
                     {
-                        try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, mixedSampleCount, out written); } catch { }
-                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, mixedSampleCount, uyvyBytes);
+                        MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, mixedSampleCount, uyvyBytes, false);
                     }
                 } 
                 catch (Exception ex) 
@@ -1565,8 +1727,13 @@ namespace DecklinkSwitcher
 
         public void ScheduleSyntheticFrame(bool isColorBar)
         {
+            uint audioSampleCount = 1920;
+            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName, "synthetic-frame-output");
+            QueueAudioOutput(modifiedAudioBuffer, audioSampleCount);
+
             if (Interlocked.CompareExchange(ref _isDisplaying, 1, 0) == 1)
             {
+                if (modifiedAudioBuffer != IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                 return;
             }
 
@@ -1629,9 +1796,6 @@ namespace DecklinkSwitcher
             }
 
             // Audio is now generated in the background loop!
-            uint audioSampleCount = 1920;
-            IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName);
-
             try 
             {
                 byte[] uyvyBytes = null;
@@ -1650,8 +1814,7 @@ namespace DecklinkSwitcher
                 try { _deckLinkOutput.DisplayVideoFrameSync(_reusableOutputFrame); } catch { }
                 if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
                 {
-                    try { uint written; _deckLinkOutput.WriteAudioSamplesSync(modifiedAudioBuffer, audioSampleCount, out written); } catch { }
-                    MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
+                    MainWindow.OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes, false);
                 }
             } 
             catch (Exception ex) 

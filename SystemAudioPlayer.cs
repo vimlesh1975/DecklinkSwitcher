@@ -10,6 +10,10 @@ namespace DecklinkSwitcher
         private static BufferedWaveProvider _bufferedWaveProvider;
         private static bool _isEnabled = false;
 
+        public static int BufferedMilliseconds => _bufferedWaveProvider == null
+            ? 0
+            : (int)(_bufferedWaveProvider.BufferedBytes * 1000.0 / _bufferedWaveProvider.WaveFormat.AverageBytesPerSecond);
+
         public static bool IsEnabled
         {
             get => _isEnabled;
@@ -25,7 +29,7 @@ namespace DecklinkSwitcher
 
         public static void Init()
         {
-            _bufferedWaveProvider = new BufferedWaveProvider(new WaveFormat(48000, 16, 2));
+            _bufferedWaveProvider = new BufferedWaveProvider(new WaveFormat(48000, 16, 2), TimeSpan.FromMilliseconds(200));
             _bufferedWaveProvider.DiscardOnBufferOverflow = true;
 
             _waveOut = new WaveOutEvent();
@@ -49,14 +53,15 @@ namespace DecklinkSwitcher
             int byteCount = (int)sampleCount * 4; // 16-bit 2-channel
             byte[] managedArray = new byte[byteCount];
             Marshal.Copy(buffer, managedArray, 0, byteCount);
-            
-            // To prevent massive delay drift, if we have more than 250ms buffered, clear it.
-            if (_bufferedWaveProvider.BufferedBytes > 48000 * 4 / 2)
-            {
-                _bufferedWaveProvider.ClearBuffer();
-            }
+            WriteAudio(managedArray, sampleCount);
+        }
 
-            _bufferedWaveProvider.AddSamples(managedArray, 0, byteCount);
+        public static void WriteAudio(byte[] data, uint sampleCount)
+        {
+            if (!_isEnabled || _bufferedWaveProvider == null || data == null || sampleCount == 0) return;
+
+            int byteCount = Math.Min(data.Length, checked((int)sampleCount * 4));
+            _bufferedWaveProvider.AddSamples(data, 0, byteCount);
             
             if (_waveOut != null && _waveOut.PlaybackState != PlaybackState.Playing)
             {
