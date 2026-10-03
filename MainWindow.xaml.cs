@@ -1295,6 +1295,9 @@ namespace DecklinkSwitcher
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
                 SwitcherPanel.IsEnabled = true;
+                CmbOutput.IsEnabled = true;
+                InputSelectorsControl.IsEnabled = true;
+                BtnApplySettings.IsEnabled = true;
                 bool hasAnyHardware = _activeOutput != null || DynamicInputs.Count > 0;
                 TxtStatus.Text = hasAnyHardware ? "Running!" : "Running (None selected)";
                 if (_activeInput == null && _activeSourceType == 0)
@@ -1464,8 +1467,8 @@ namespace DecklinkSwitcher
             if (!_isPlaying) return;
             _audioOutputQueue.CompleteAdding();
             _systemAudioQueue.CompleteAdding();
-            try { _deckLinkAudioTask?.GetAwaiter().GetResult(); } catch { }
-            try { _systemAudioTask?.GetAwaiter().GetResult(); } catch { }
+            try { _deckLinkAudioTask?.Wait(200); } catch { }
+            try { _systemAudioTask?.Wait(200); } catch { }
             _deckLinkOutput.DisableVideoOutput();
             _deckLinkOutput.DisableAudioOutput();
             _isPlaying = false;
@@ -1709,6 +1712,11 @@ namespace DecklinkSwitcher
 
         public void ScheduleSyntheticFrame(bool isColorBar)
         {
+            if (_reusableOutputFrame == null)
+            {
+                _deckLinkOutput.CreateVideoFrame(1920, 1080, 1920 * 2, _BMDPixelFormat.bmdFormat8BitYUV, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
+            }
+
             uint audioSampleCount = 1920;
             IntPtr modifiedAudioBuffer = MainWindow.MixAudio(audioSampleCount, MainWindow.ActiveSourceType, MainWindow.ActiveInputName, "synthetic-frame-output");
             QueueAudioOutput(modifiedAudioBuffer, audioSampleCount);
