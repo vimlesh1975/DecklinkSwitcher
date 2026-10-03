@@ -15,25 +15,14 @@ namespace DecklinkSwitcher
         public bool WindowMaximized { get; set; } = false;
         
         public string OutputDevice { get; set; } = "";
-        public string Input1Device { get; set; } = "";
-        public string Input2Device { get; set; } = "";
-        public string Input3Device { get; set; } = "";
-        public string Input4Device { get; set; } = "";
-        
+        public System.Collections.Generic.Dictionary<string, string> InputDevices { get; set; } = new();
+        public System.Collections.Generic.Dictionary<string, double> InputAudioLevels { get; set; } = new();
         public string YouTubeStreamKey { get; set; } = "";
-        
         public double AudioLevelPgm { get; set; } = 1.0;
-        public double AudioLevel1 { get; set; } = 1.0;
-        public double AudioLevel2 { get; set; } = 1.0;
-        public double AudioLevel3 { get; set; } = 1.0;
-        public double AudioLevel4 { get; set; } = 1.0;
         public double AudioLevelColorBars { get; set; } = 1.0;
         public double AudioLevelMedia { get; set; } = 1.0;
         
-        public AudioState AudioState1 { get; set; } = AudioState.AFV;
-        public AudioState AudioState2 { get; set; } = AudioState.AFV;
-        public AudioState AudioState3 { get; set; } = AudioState.AFV;
-        public AudioState AudioState4 { get; set; } = AudioState.AFV;
+        public System.Collections.Generic.Dictionary<string, AudioState> InputAudioStates { get; set; } = new();
         public AudioState AudioStateColorBars { get; set; } = AudioState.AFV;
         public AudioState AudioStateMedia { get; set; } = AudioState.AFV;
         

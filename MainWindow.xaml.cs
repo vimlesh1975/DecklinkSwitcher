@@ -10,14 +10,40 @@ namespace DecklinkSwitcher
 {
     public partial class MainWindow : Window
     {
+        public static System.Collections.ObjectModel.ObservableCollection<DeckLinkInputViewModel> DynamicInputs { get; } = new();
+        public System.Collections.ObjectModel.ObservableCollection<InputSelectionViewModel> InputSelectors { get; } = new();
+
+        public static void SetActiveSource(int type, string name, DeckLinkDevice device)
+        {
+            var window = (MainWindow)Application.Current.MainWindow;
+            window._activeSourceType = type;
+            ActiveSourceType = type;
+            window._activeInput = device;
+            ActiveInputName = name;
+            window.UpdateProgramSourceFlags();
+            
+            if (type == 0)
+            {
+                foreach (var input in DynamicInputs)
+                {
+                    input.BgColor = (input.Device == device && device != null) ? "#d32f2f" : "#2962ff";
+                }
+            }
+            
+            if (device != null || type != 0)
+                Log($"Switched to {name}");
+            else
+            {
+                Log($"Switched to {name} (None)");
+                window.ClearPgmPreview();
+            }
+        }
+
 
         private DeckLinkDevice _activeInput;
         private DeckLinkDevice _activeOutput;
         
-        private DeckLinkDevice _btn1Input;
-        private DeckLinkDevice _btn2Input;
-        private DeckLinkDevice _btn3Input;
-        private DeckLinkDevice _btn4Input;
+
         private System.Windows.Media.Imaging.WriteableBitmap _bmpOutput;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
@@ -168,26 +194,29 @@ namespace DecklinkSwitcher
                         settings.WindowMaximized = false;
                     }
                     if (CmbOutput.SelectedItem is DeckLinkDeviceInfo dout) settings.OutputDevice = dout.DisplayName;
-                    if (CmbInput1.SelectedItem is DeckLinkDeviceInfo din1) settings.Input1Device = din1.DisplayName;
-                    if (CmbInput2.SelectedItem is DeckLinkDeviceInfo din2) settings.Input2Device = din2.DisplayName;
-                    if (CmbInput3.SelectedItem is DeckLinkDeviceInfo din3) settings.Input3Device = din3.DisplayName;
-                    if (CmbInput4.SelectedItem is DeckLinkDeviceInfo din4) settings.Input4Device = din4.DisplayName;
+                    foreach (var selector in InputSelectors)
+                    {
+                        if (selector.SelectedDevice != null)
+                            settings.InputDevices[selector.Label] = selector.SelectedDevice.DisplayName;
+                        else
+                            settings.InputDevices[selector.Label] = "";
+                    }
+                    
                     settings.AudioLevelPgm = SldPgmAudio.Value;
-                    settings.AudioLevel1 = SldInput1Audio.Value;
-                    settings.AudioLevel2 = SldInput2Audio.Value;
-                    settings.AudioLevel3 = SldInput3Audio.Value;
-                    settings.AudioLevel4 = SldInput4Audio.Value;
                     settings.AudioLevelColorBars = SldColorBarsAudio.Value;
                     settings.AudioLevelMedia = SldMediaAudio.Value;
                     settings.MatteColorIndex = CmbMatteColor.SelectedIndex;
                     settings.SystemAudioMonitorEnabled = ChkSystemAudioOut.IsChecked == true;
                     settings.LoopMediaEnabled = ChkLoopMedia.IsChecked == true;
-                    settings.AudioState1 = (AudioState)CmbAudioState1.SelectedIndex;
-                    settings.AudioState2 = (AudioState)CmbAudioState2.SelectedIndex;
-                    settings.AudioState3 = (AudioState)CmbAudioState3.SelectedIndex;
-                    settings.AudioState4 = (AudioState)CmbAudioState4.SelectedIndex;
+                    
                     settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
                     settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
+                    
+                    foreach (var input in DynamicInputs)
+                    {
+                        settings.InputAudioLevels[input.DisplayName] = input.AudioLevel;
+                        settings.InputAudioStates[input.DisplayName] = input.State;
+                    }
                     
                     settings.MicLevels.Clear();
                     foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
@@ -219,10 +248,10 @@ namespace DecklinkSwitcher
             Task.Run(() =>
             {
                 _syntheticCts?.Cancel();
-                if (_btn1Input != null) _btn1Input.StopCapture();
-                if (_btn2Input != null) _btn2Input.StopCapture();
-                if (_btn3Input != null) _btn3Input.StopCapture();
-                if (_btn4Input != null) _btn4Input.StopCapture();
+                foreach (var input in DynamicInputs)
+                {
+                    if (input.Device != null) input.Device.StopCapture();
+                }
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
                 SystemAudioPlayer.Shutdown();
@@ -291,10 +320,6 @@ namespace DecklinkSwitcher
                 }
 
                 CmbOutput.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-                CmbInput1.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-                CmbInput2.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-                CmbInput3.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
-                CmbInput4.ItemsSource = new List<DeckLinkDeviceInfo>(devices);
 
                 var settings = AppSettings.Load();
                 
@@ -314,39 +339,47 @@ namespace DecklinkSwitcher
                 if (physicalCount > 0)
                 {
                     CmbOutput.SelectedIndex = FindDeviceIndex(settings.OutputDevice, 1);
-                    CmbInput1.SelectedIndex = FindDeviceIndex(settings.Input1Device, devices.Count > 2 ? 2 : 0);
-                    CmbInput2.SelectedIndex = FindDeviceIndex(settings.Input2Device, devices.Count > 3 ? 3 : 0);
-                    CmbInput3.SelectedIndex = FindDeviceIndex(settings.Input3Device, devices.Count > 4 ? 4 : 0);
-                    CmbInput4.SelectedIndex = FindDeviceIndex(settings.Input4Device, devices.Count > 5 ? 5 : 0);
                 }
                 else
                 {
                     CmbOutput.SelectedIndex = 0;
-                    CmbInput1.SelectedIndex = 0;
-                    CmbInput2.SelectedIndex = 0;
-                    CmbInput3.SelectedIndex = 0;
-                    CmbInput4.SelectedIndex = 0;
                 }
                 
+                InputSelectorsControl.ItemsSource = InputSelectors;
+                InputSelectors.Clear();
+                int numInputs = Math.Max(0, physicalCount - 1);
+                if (numInputs == 0) numInputs = 1; // Default to at least 1 selector if there are cards
+                
+                var availableDevices = new System.Collections.ObjectModel.ObservableCollection<DeckLinkDeviceInfo>(devices);
+                for (int i = 0; i < numInputs; i++)
+                {
+                    string label = "Input " + (i + 1);
+                    var vm = new InputSelectionViewModel { Label = label, AvailableDevices = availableDevices };
+                    
+                    int defaultIndex = 0;
+                    if (physicalCount > i + 2) defaultIndex = i + 2; // e.g. Input 1 gets device 2, Input 2 gets device 3 (device 1 is output)
+                    
+                    if (settings.InputDevices.ContainsKey(label))
+                    {
+                        vm.SelectedDevice = availableDevices[FindDeviceIndex(settings.InputDevices[label], defaultIndex)];
+                    }
+                    else
+                    {
+                        vm.SelectedDevice = availableDevices[defaultIndex];
+                    }
+                    InputSelectors.Add(vm);
+                }
                 SldPgmAudio.Value = settings.AudioLevelPgm;
-                SldInput1Audio.Value = settings.AudioLevel1;
-                SldInput2Audio.Value = settings.AudioLevel2;
-                SldInput3Audio.Value = settings.AudioLevel3;
-                SldInput4Audio.Value = settings.AudioLevel4;
                 SldColorBarsAudio.Value = settings.AudioLevelColorBars;
                 SldMediaAudio.Value = settings.AudioLevelMedia;
                 
                 CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
                 ChkSystemAudioOut.IsChecked = settings.SystemAudioMonitorEnabled;
                 ChkLoopMedia.IsChecked = settings.LoopMediaEnabled;
-                CmbAudioState1.SelectedIndex = (int)settings.AudioState1;
-                CmbAudioState2.SelectedIndex = (int)settings.AudioState2;
-                CmbAudioState3.SelectedIndex = (int)settings.AudioState3;
-                CmbAudioState4.SelectedIndex = (int)settings.AudioState4;
                 CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;
                 CmbAudioStateMedia.SelectedIndex = (int)settings.AudioStateMedia;
                 
-                PnlDynamicAudio.Children.Clear();
+
                 _activeMics.Clear();
                 var micDevices = LocalAudioInput.GetDevices();
                 foreach (var device in micDevices)
@@ -363,7 +396,10 @@ namespace DecklinkSwitcher
                     DynamicMicStates[key] = state;
                     
                     var pnl = CreateMicPanel(device, key, level, state);
-                    PnlDynamicAudio.Children.Add(pnl);
+                    var wrapper = new System.Windows.Controls.Border();
+                    wrapper.SetResourceReference(System.Windows.FrameworkElement.StyleProperty, "MixerPanel");
+                    wrapper.Child = pnl;
+                    SwitcherPanel.Children.Add(wrapper);
                     
                     var input = new LocalAudioInput(device.DeviceId, key);
                     var barL = (System.Windows.Controls.ProgressBar)pnl.FindName("BarL_" + device.DeviceNumber);
@@ -431,10 +467,7 @@ namespace DecklinkSwitcher
         private void BtnApplySettings_Click(object sender, RoutedEventArgs e)
         {
             var outInfo = CmbOutput.SelectedItem as DeckLinkDeviceInfo;
-            var in1Info = CmbInput1.SelectedItem as DeckLinkDeviceInfo;
-            var in2Info = CmbInput2.SelectedItem as DeckLinkDeviceInfo;
-            var in3Info = CmbInput3.SelectedItem as DeckLinkDeviceInfo;
-            var in4Info = CmbInput4.SelectedItem as DeckLinkDeviceInfo;
+
 
             if (outInfo == null)
             {
@@ -445,39 +478,42 @@ namespace DecklinkSwitcher
             // Stop synthetic timer & existing devices if any
             _syntheticCts?.Cancel();
             if (_activeOutput != null) _activeOutput.StopPlayback();
-            if (_btn1Input != null) _btn1Input.StopCapture();
-            if (_btn2Input != null) _btn2Input.StopCapture();
-            if (_btn3Input != null) _btn3Input.StopCapture();
-            if (_btn4Input != null) _btn4Input.StopCapture();
+            foreach (var input in DynamicInputs)
+            {
+                if (input.Device != null) input.Device.StopCapture();
+            }
             
-            _activeOutput = _btn1Input = _btn2Input = _btn3Input = _btn4Input = null;
+            _activeOutput = null;
+            DynamicInputs.Clear();
             
-            System.Windows.Media.Imaging.WriteableBitmap bmp1 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-            System.Windows.Media.Imaging.WriteableBitmap bmp2 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-            System.Windows.Media.Imaging.WriteableBitmap bmp3 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-            System.Windows.Media.Imaging.WriteableBitmap bmp4 = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            for (int i = SwitcherPanel.Children.Count - 1; i >= 0; i--)
+            {
+                if ((SwitcherPanel.Children[i] as FrameworkElement)?.DataContext is DeckLinkInputViewModel)
+                {
+                    SwitcherPanel.Children.RemoveAt(i);
+                }
+            }
+            
             _bmpOutput = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-
-            Preview1.Source = bmp1;
-            Preview2.Source = bmp2;
-            Preview3.Source = bmp3;
-            Preview4.Source = bmp4;
             PreviewOutput.Source = _bmpOutput;
 
             SwitcherPanel.IsEnabled = false;
             CmbOutput.IsEnabled = false;
-            CmbInput1.IsEnabled = false;
-            CmbInput2.IsEnabled = false;
-            CmbInput3.IsEnabled = false;
-            CmbInput4.IsEnabled = false;
+            InputSelectorsControl.IsEnabled = false;
             BtnApplySettings.IsEnabled = false;
             TxtStatus.Text = "Initializing...";
+            
+            var selectedInputs = new System.Collections.Generic.List<DeckLinkDeviceInfo>();
+            foreach (var selector in InputSelectors)
+            {
+                selectedInputs.Add(selector.SelectedDevice);
+            }
 
             Thread mtaThread = new Thread(() =>
             {
                 try
                 {
-                    InitializeDynamicRouting(outInfo, in1Info, in2Info, in3Info, in4Info, bmp1, bmp2, bmp3, bmp4, _bmpOutput);
+                    InitializeDynamicRouting(outInfo, selectedInputs, _bmpOutput);
                 }
                 catch (Exception ex)
                 {
@@ -511,81 +547,14 @@ namespace DecklinkSwitcher
             AudioOutputR.Value = 0;
         }
 
-        private void BtnInput1_Click(object sender, RoutedEventArgs e)
-        {
-            _activeSourceType = 0; ActiveSourceType = 0;
-            _activeInput = _btn1Input; ActiveInputName = "Input 1";
-            UpdateProgramSourceFlags();
-            if (_btn1Input != null)
-            {
-                Log("Switched to Input 1");
-            }
-            else
-            {
-                Log("Switched to Input 1 (None)");
-                ClearPgmPreview();
-            }
-        }
 
-        private void BtnInput2_Click(object sender, RoutedEventArgs e)
-        {
-            _activeSourceType = 0; ActiveSourceType = 0;
-            _activeInput = _btn2Input; ActiveInputName = "Input 2";
-            UpdateProgramSourceFlags();
-            if (_btn2Input != null)
-            {
-                Log("Switched to Input 2");
-            }
-            else
-            {
-                Log("Switched to Input 2 (None)");
-                ClearPgmPreview();
-            }
-        }
-
-        private void BtnInput3_Click(object sender, RoutedEventArgs e)
-        {
-            _activeSourceType = 0; ActiveSourceType = 0;
-            _activeInput = _btn3Input; ActiveInputName = "Input 3";
-            UpdateProgramSourceFlags();
-            if (_btn3Input != null)
-            {
-                Log("Switched to Input 3");
-            }
-            else
-            {
-                Log("Switched to Input 3 (None)");
-                ClearPgmPreview();
-            }
-        }
-
-        private void BtnInput4_Click(object sender, RoutedEventArgs e)
-        {
-            _activeSourceType = 0; ActiveSourceType = 0;
-            _activeInput = _btn4Input; ActiveInputName = "Input 4";
-            UpdateProgramSourceFlags();
-            if (_btn4Input != null)
-            {
-                Log("Switched to Input 4");
-            }
-            else
-            {
-                Log("Switched to Input 4 (None)");
-                ClearPgmPreview();
-            }
-        }
-
-        private void Preview1_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput1_Click(null, null);
-        private void Preview2_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput2_Click(null, null);
-        private void Preview3_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput3_Click(null, null);
-        private void Preview4_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnInput4_Click(null, null);
 
         private void UpdateProgramSourceFlags()
         {
-            if (_btn1Input != null) _btn1Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn1Input);
-            if (_btn2Input != null) _btn2Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn2Input);
-            if (_btn3Input != null) _btn3Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn3Input);
-            if (_btn4Input != null) _btn4Input.IsProgramSource = (_activeSourceType == 0 && _activeInput == _btn4Input);
+            foreach (var input in DynamicInputs)
+            {
+                if (input.Device != null) input.Device.IsProgramSource = (_activeSourceType == 0 && _activeInput == input.Device);
+            }
         }
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
@@ -715,15 +684,7 @@ namespace DecklinkSwitcher
 
         public static float ColorBarsAudioLevel = 1.0f;
         public static float MediaAudioLevel = 1.0f;
-        public static float Input1AudioLevel = 1.0f;
-        public static float Input2AudioLevel = 1.0f;
-        public static float Input3AudioLevel = 1.0f;
-        public static float Input4AudioLevel = 1.0f;
-        
-        public static AudioState State1 = AudioState.AFV;
-        public static AudioState State2 = AudioState.AFV;
-        public static AudioState State3 = AudioState.AFV;
-        public static AudioState State4 = AudioState.AFV;
+
         public static AudioState StateMedia = AudioState.AFV;
         public static AudioState StateColorBars = AudioState.AFV;
         
@@ -838,18 +799,9 @@ namespace DecklinkSwitcher
         
         private void SldMediaAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (_mediaSource != null) _mediaSource.AudioLevel = (float)e.NewValue; MediaAudioLevel = (float)e.NewValue; }
 
-        private void SldInput1Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input1AudioLevel = (float)e.NewValue; if (_btn1Input != null) _btn1Input.AudioLevel = (float)e.NewValue; }
-        private void SldInput2Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input2AudioLevel = (float)e.NewValue; if (_btn2Input != null) _btn2Input.AudioLevel = (float)e.NewValue; }
-        private void SldInput3Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input3AudioLevel = (float)e.NewValue; if (_btn3Input != null) _btn3Input.AudioLevel = (float)e.NewValue; }
-        private void SldInput4Audio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { Input4AudioLevel = (float)e.NewValue; if (_btn4Input != null) _btn4Input.AudioLevel = (float)e.NewValue; }
-
         private void CmbAudioState_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            State1 = (AudioState)CmbAudioState1.SelectedIndex;
-            State2 = (AudioState)CmbAudioState2.SelectedIndex;
-            State3 = (AudioState)CmbAudioState3.SelectedIndex;
-            State4 = (AudioState)CmbAudioState4.SelectedIndex;
             StateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
             SaveCurrentSettings();
@@ -857,7 +809,7 @@ namespace DecklinkSwitcher
 
         private System.Windows.Controls.StackPanel CreateMicPanel(MicDeviceInfo device, string key, double initialLevel, AudioState initialState)
         {
-            var pnl = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical, Margin = new System.Windows.Thickness(0, 0, 15, 0), VerticalAlignment = System.Windows.VerticalAlignment.Center };
+            var pnl = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical, VerticalAlignment = System.Windows.VerticalAlignment.Center };
             var horiz = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, Margin = new System.Windows.Thickness(0, 0, 0, 10) };
             
             var barL = new System.Windows.Controls.ProgressBar { Name = "BarL_" + device.DeviceNumber, Orientation = System.Windows.Controls.Orientation.Vertical, Minimum = 0, Maximum = 100, Width = 10, Height = 100, Margin = new System.Windows.Thickness(0, 0, 5, 0), Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 255, 0)), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)) };
@@ -926,10 +878,10 @@ namespace DecklinkSwitcher
                 }
             };
 
-            mixSource("Input 1", Input1AudioLevel, State1, activeSourceType == 0 && activeInputName == "Input 1");
-            mixSource("Input 2", Input2AudioLevel, State2, activeSourceType == 0 && activeInputName == "Input 2");
-            mixSource("Input 3", Input3AudioLevel, State3, activeSourceType == 0 && activeInputName == "Input 3");
-            mixSource("Input 4", Input4AudioLevel, State4, activeSourceType == 0 && activeInputName == "Input 4");
+            foreach (var input in DynamicInputs)
+            {
+                mixSource(input.DisplayName, (float)input.AudioLevel, input.State, activeSourceType == 0 && activeInputName == input.DisplayName);
+            }
             mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
             mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
             foreach (var kvp in DynamicMicLevels)
@@ -1195,8 +1147,7 @@ namespace DecklinkSwitcher
         private static int[] BuildRowLut() { var t = new int[1080]; for (int y = 0; y < 1080; y++) t[y] = Math.Min((int)(y * 270.0f / 1080f), 269); return t; }
         private static int[] BuildColLut() { var t = new int[1920]; for (int x = 0; x < 1920; x++) t[x] = Math.Min((int)(x * 480.0f / 1920f), 479); return t; }
 
-        private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, DeckLinkDeviceInfo in1Info, DeckLinkDeviceInfo in2Info, DeckLinkDeviceInfo in3Info, DeckLinkDeviceInfo in4Info, System.Windows.Media.Imaging.WriteableBitmap bmp1, System.Windows.Media.Imaging.WriteableBitmap bmp2, System.Windows.Media.Imaging.WriteableBitmap bmp3, System.Windows.Media.Imaging.WriteableBitmap bmp4, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
-
+        private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, System.Collections.Generic.List<DeckLinkDeviceInfo> selectedInputs, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
         {
             List<IDeckLink> mtaLinks = new List<IDeckLink>();
             try
@@ -1231,104 +1182,61 @@ namespace DecklinkSwitcher
                 _activeOutput = null;
                 Log("No physical output selected (None).");
             }
+            
+            Application.Current.Dispatcher.Invoke(() => DynamicInputs.Clear());
+            _activeInput = null;
 
-            if (in1Info != null && in1Info.Index >= 0 && GetLink(in1Info) is IDeckLink link1)
+            var settings = AppSettings.Load();
+
+            int inputIndex = 1;
+            foreach (var inInfo in selectedInputs)
             {
-                _btn1Input = new DeckLinkDevice(link1, "Input 1");
-                _btn1Input.PreviewBitmap = bmp1;
-                _btn1Input.OnVideoAndAudioArrived = (frame, audio) => 
+                var roleName = "Input " + inputIndex;
+                inputIndex++;
+                
+                var dl = GetLink(inInfo);
+                if (dl == null) continue; // Skip if 'None' or invalid
+                
+                if (outLink != null && dl == outLink) continue; // Skip output device
+
+                DeckLinkInputViewModel vm = null;
+                Application.Current.Dispatcher.Invoke(() => {
+                    vm = new DeckLinkInputViewModel(roleName);
+                    vm.PreviewBitmap = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+                    
+                    if (settings.InputAudioLevels.ContainsKey(roleName)) vm.AudioLevel = settings.InputAudioLevels[roleName];
+                    if (settings.InputAudioStates.ContainsKey(roleName)) vm.AudioStateIndex = (int)settings.InputAudioStates[roleName];
+                    
+                    DynamicInputs.Add(vm);
+                    
+                    var template = (DataTemplate)Application.Current.MainWindow.FindResource("InputTileTemplate");
+                    var tile = (UIElement)template.LoadContent();
+                    if (tile is FrameworkElement fe) fe.DataContext = vm;
+                    
+                    var window = (MainWindow)Application.Current.MainWindow;
+                    window.SwitcherPanel.Children.Insert(DynamicInputs.Count - 1, tile);
+                });
+
+                var inputDev = new DeckLinkDevice(dl, roleName);
+                vm.Device = inputDev;
+                
+                inputDev.PreviewBitmap = vm.PreviewBitmap;
+                inputDev.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeSourceType == 0 && _activeInput == _btn1Input) _activeOutput?.ScheduleFrame(frame, audio, _btn1Input.AudioLevel);
+                    if (_activeSourceType == 0 && _activeInput == inputDev) _activeOutput?.ScheduleFrame(frame, audio, inputDev.AudioLevel);
                 };
-                _btn1Input.OnPreviewBufferUpdated = (buf) => 
+                inputDev.OnPreviewBufferUpdated = (buf) => 
                 { 
-                    if (_activeSourceType == 0 && _activeInput == _btn1Input)
+                    if (_activeSourceType == 0 && _activeInput == inputDev)
                     {
                         bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        
                     }
                 };
-                _btn1Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar1L.Value = l; AudioBar1R.Value = r; }); };
-                _btn1Input.StartCapture();
+                inputDev.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { vm.AudioL = l; vm.AudioR = r; }); };
+                inputDev.StartCapture();
+                
+                if (_activeInput == null) _activeInput = inputDev;
             }
-            else
-            {
-                _btn1Input = null;
-            }
-
-            if (in2Info != null && in2Info.Index >= 0 && GetLink(in2Info) is IDeckLink link2)
-            {
-                _btn2Input = new DeckLinkDevice(link2, "Input 2");
-                _btn2Input.PreviewBitmap = bmp2;
-                _btn2Input.OnVideoAndAudioArrived = (frame, audio) => 
-                {
-                    if (_activeSourceType == 0 && _activeInput == _btn2Input) _activeOutput?.ScheduleFrame(frame, audio, _btn2Input.AudioLevel);
-                };
-                _btn2Input.OnPreviewBufferUpdated = (buf) => 
-                { 
-                    if (_activeSourceType == 0 && _activeInput == _btn2Input)
-                    {
-                        bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        
-                    }
-                };
-                _btn2Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar2L.Value = l; AudioBar2R.Value = r; }); };
-                _btn2Input.StartCapture();
-            }
-            else
-            {
-                _btn2Input = null;
-            }
-
-            if (in3Info != null && in3Info.Index >= 0 && GetLink(in3Info) is IDeckLink link3)
-            {
-                _btn3Input = new DeckLinkDevice(link3, "Input 3");
-                _btn3Input.PreviewBitmap = bmp3;
-                _btn3Input.OnVideoAndAudioArrived = (frame, audio) => 
-                {
-                    if (_activeSourceType == 0 && _activeInput == _btn3Input) _activeOutput?.ScheduleFrame(frame, audio, _btn3Input.AudioLevel);
-                };
-                _btn3Input.OnPreviewBufferUpdated = (buf) => 
-                { 
-                    if (_activeSourceType == 0 && _activeInput == _btn3Input)
-                    {
-                        bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        
-                    }
-                };
-                _btn3Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar3L.Value = l; AudioBar3R.Value = r; }); };
-                _btn3Input.StartCapture();
-            }
-            else
-            {
-                _btn3Input = null;
-            }
-
-            if (in4Info != null && in4Info.Index >= 0 && GetLink(in4Info) is IDeckLink link4)
-            {
-                _btn4Input = new DeckLinkDevice(link4, "Input 4");
-                _btn4Input.PreviewBitmap = bmp4;
-                _btn4Input.OnVideoAndAudioArrived = (frame, audio) => 
-                {
-                    if (_activeSourceType == 0 && _activeInput == _btn4Input) _activeOutput?.ScheduleFrame(frame, audio, _btn4Input.AudioLevel);
-                };
-                _btn4Input.OnPreviewBufferUpdated = (buf) => 
-                { 
-                    if (_activeSourceType == 0 && _activeInput == _btn4Input)
-                    {
-                        bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
-                        
-                    }
-                };
-                _btn4Input.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { AudioBar4L.Value = l; AudioBar4R.Value = r; }); };
-                _btn4Input.StartCapture();
-            }
-            else
-            {
-                _btn4Input = null;
-            }
-
-            _activeInput = _btn1Input ?? _btn2Input ?? _btn3Input ?? _btn4Input;
 
             _syntheticCts?.Cancel();
             _syntheticCts = new CancellationTokenSource();
@@ -1387,18 +1295,86 @@ namespace DecklinkSwitcher
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
                 SwitcherPanel.IsEnabled = true;
-                bool hasAnyHardware = _activeOutput != null || _btn1Input != null || _btn2Input != null || _btn3Input != null || _btn4Input != null;
+                bool hasAnyHardware = _activeOutput != null || DynamicInputs.Count > 0;
                 TxtStatus.Text = hasAnyHardware ? "Running!" : "Running (None selected)";
-                BtnInput1.Content = (in1Info != null && in1Info.Index >= 0) ? in1Info.DisplayName : "Input 1 (None)";
-                BtnInput2.Content = (in2Info != null && in2Info.Index >= 0) ? in2Info.DisplayName : "Input 2 (None)";
-                BtnInput3.Content = (in3Info != null && in3Info.Index >= 0) ? in3Info.DisplayName : "Input 3 (None)";
-                BtnInput4.Content = (in4Info != null && in4Info.Index >= 0) ? in4Info.DisplayName : "Input 4 (None)";
                 if (_activeInput == null && _activeSourceType == 0)
                 {
                     ClearPgmPreview();
                 }
             }));
         }
+    }
+
+    public class InputSelectionViewModel : System.ComponentModel.INotifyPropertyChanged
+    {
+        public string Label { get; set; }
+        public System.Collections.ObjectModel.ObservableCollection<DeckLinkDeviceInfo> AvailableDevices { get; set; }
+        
+        private DeckLinkDeviceInfo _selectedDevice;
+        public DeckLinkDeviceInfo SelectedDevice 
+        { 
+            get => _selectedDevice; 
+            set { _selectedDevice = value; OnPropertyChanged(nameof(SelectedDevice)); }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+    }
+
+    public class DeckLinkInputViewModel : System.ComponentModel.INotifyPropertyChanged
+    {
+        public DeckLinkDevice Device { get; set; }
+        public string DisplayName { get; set; }
+        
+        private double _audioLevel = 1.0;
+        public double AudioLevel 
+        { 
+            get => _audioLevel; 
+            set { _audioLevel = value; OnPropertyChanged(nameof(AudioLevel)); if (Device != null) Device.AudioLevel = (float)value; ((MainWindow)System.Windows.Application.Current.MainWindow).SaveCurrentSettings(); }
+        }
+
+        private int _audioL;
+        public int AudioL { get => _audioL; set { _audioL = value; OnPropertyChanged(nameof(AudioL)); } }
+
+        private int _audioR;
+        public int AudioR { get => _audioR; set { _audioR = value; OnPropertyChanged(nameof(AudioR)); } }
+
+        private System.Windows.Media.Imaging.WriteableBitmap _previewBitmap;
+        public System.Windows.Media.Imaging.WriteableBitmap PreviewBitmap { get => _previewBitmap; set { _previewBitmap = value; OnPropertyChanged(nameof(PreviewBitmap)); } }
+
+        private int _audioStateIndex = 0; // 0=AFV, 1=ON, 2=OFF
+        public int AudioStateIndex 
+        { 
+            get => _audioStateIndex; 
+            set { _audioStateIndex = value; OnPropertyChanged(nameof(AudioStateIndex)); ((MainWindow)System.Windows.Application.Current.MainWindow).SaveCurrentSettings(); }
+        }
+        
+        public AudioState State => (AudioState)_audioStateIndex;
+
+        private string _bgColor = "#2962ff";
+        public string BgColor { get => _bgColor; set { _bgColor = value; OnPropertyChanged(nameof(BgColor)); } }
+
+        public RelayCommand SelectInputCmd { get; }
+
+        public DeckLinkInputViewModel(string name)
+        {
+            DisplayName = name;
+            SelectInputCmd = new RelayCommand(_ => {
+                MainWindow.SetActiveSource(0, DisplayName, Device);
+            });
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+    }
+
+    public class RelayCommand : System.Windows.Input.ICommand
+    {
+        private readonly Action<object> _execute;
+        public RelayCommand(Action<object> execute) { _execute = execute; }
+        public event EventHandler CanExecuteChanged { add { } remove { } }
+        public bool CanExecute(object parameter) => true;
+        public void Execute(object parameter) => _execute(parameter);
     }
 
     public class DeckLinkDeviceInfo
