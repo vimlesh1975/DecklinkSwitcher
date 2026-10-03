@@ -465,6 +465,12 @@ namespace DecklinkSwitcher
             PreviewOutput.Source = _bmpOutput;
 
             SwitcherPanel.IsEnabled = false;
+            CmbOutput.IsEnabled = false;
+            CmbInput1.IsEnabled = false;
+            CmbInput2.IsEnabled = false;
+            CmbInput3.IsEnabled = false;
+            CmbInput4.IsEnabled = false;
+            BtnApplySettings.IsEnabled = false;
             TxtStatus.Text = "Initializing...";
 
             Thread mtaThread = new Thread(() =>
