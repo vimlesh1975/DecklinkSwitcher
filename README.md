@@ -7,7 +7,7 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 
 *   **Live Video Routing:** Connect up to 4 DeckLink inputs and route them dynamically to a primary DeckLink output.
 *   **Full Audio Mixer:** Includes an integrated digital audio mixer allowing you to set independent levels and mix modes (AFV, ON, OFF) for all 4 inputs, local media, and test tones.
-    *   **Dynamic Local Microphones:** Automatically detects all connected local audio inputs (microphones, USB capture cards, line-in) and dynamically builds a dedicated mixing channel strip for every active device on your PC.
+    *   **Dynamic Local Microphones:** Automatically detects all connected local audio inputs (microphones, USB capture cards, line-in) and dynamically builds a dedicated mixing channel strip for every active device on your PC. *Includes robust audio buffering and MMDeviceEnumerator integration for full device name support without truncation.*
 *   **Live Previews:** Visual previews of all 4 input sources side-by-side. 
 *   **Click-to-Switch:** Easily change the program output by clicking directly on the input video previews or the corresponding input buttons below them.
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output. 
@@ -17,7 +17,7 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
     *   **Color Bars + Tone:** Generate an 8-stripe SMPTE-style UYVY color bar pattern with a perfectly synchronized, phase-continuous 1kHz sine wave audio tone for calibrating equipment.
     *   **Matte Color Generator:** Send a full-screen solid matte color directly to the output. Supports on-the-fly switching between Black, White, Red, Green, Blue, Yellow, Cyan, and Magenta.
 *   **System Audio Monitor:** Listen to the active PGM audio output directly through your PC's speakers, even if no DeckLink output hardware is present.
-*   **YouTube Live Streaming:** Built-in direct streaming to YouTube Live via RTMP. Sends a high-quality 1080p25 H.264 stream using a bundled FFmpeg. Features automatic fallback frames to keep the stream alive when no sources are active.
+*   **YouTube Live Streaming:** Built-in direct streaming to YouTube Live via RTMP. Sends a high-quality 1080p25 H.264 stream using a bundled FFmpeg. Features automatic fallback frames to keep the stream alive when no sources are active, and *perfectly synchronized audio/video push queues to prevent A/V drift over long sessions*.
 *   **Persistent Settings:** Your hardware routing, audio mixer states, levels, stream key, and system monitor preferences are continuously saved to `%APPDATA%\DecklinkSwitcher\settings.json` and restored on your next session.
 *   **Robust COM Handling:** Seamlessly interfaces with the Blackmagic DeckLink SDK using Multithreaded Apartment (MTA) threading.
 
@@ -52,3 +52,4 @@ The compiled application and its dependencies will be placed in the `bin/Debug/n
 6. Use the **Local Video** section to load, cue, and play media files.
 7. Use the **Audio Mixer** to adjust volume sliders and define routing rules (AFV - Audio Follows Video, ON, OFF) for each source.
 8. Click the **Color Bars** or **Matte** buttons to utilize the synthetic testing feeds.
+9. **Streaming:** Enter your YouTube Stream Key in the bottom right corner and click **Start Streaming** to broadcast your program output.
