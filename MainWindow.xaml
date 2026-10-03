@@ -1,4 +1,4 @@
-<Window x:Class="DecklinkSwitcher.MainWindow"
+﻿<Window x:Class="DecklinkSwitcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -7,25 +7,25 @@
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
         MinWidth="800" MinHeight="600"
-        Title="DeckLink Switcher" Height="780" Width="1280" Background="#0f0f13" FontFamily="Segoe UI">
+        Title="DeckLink Switcher" Height="780" Width="1280" Background="{DynamicResource WindowBg}" FontFamily="Segoe UI">
     
     <Window.Resources>
         <DataTemplate x:Key="InputTileTemplate">
             <Border Style="{DynamicResource MixerPanel}">
                 <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-                        <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioL, Mode=OneWay}" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
-                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                        <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioL, Mode=OneWay}" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                        <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
                             <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" Height="100" Width="158" Cursor="Hand">
                                 <Image.InputBindings>
                                     <MouseBinding MouseAction="LeftClick" Command="{Binding SelectInputCmd}" />
                                 </Image.InputBindings>
                             </Image>
                         </Border>
-                        <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                        <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         <Slider Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="{Binding AudioLevel, Mode=TwoWay}" SmallChange="0.05" LargeChange="0.1"/>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
                     <ComboBox FontSize="12" Height="26" Margin="0,8,0,0" SelectedIndex="{Binding AudioStateIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="AFV"/>
                         <ComboBoxItem Content="ON"/>
@@ -38,7 +38,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#555" BorderThickness="1.5">
+                        <Border Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource ButtonBorder}" BorderThickness="1.5">
                             <Border.Effect>
                                 <DropShadowEffect Color="Black" BlurRadius="5" ShadowDepth="2" Opacity="0.5"/>
                             </Border.Effect>
@@ -76,12 +76,12 @@
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#252530" Offset="0.0" />
-                        <GradientStop Color="#181820" Offset="1.0" />
+                        <GradientStop Color="{DynamicResource PanelBgColor}" Offset="0.0" />
+                        <GradientStop Color="{DynamicResource PanelBgDarkColor}" Offset="1.0" />
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
-            <Setter Property="BorderBrush" Value="#3a3a45"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}"/>
             <Setter Property="BorderThickness" Value="1.5"/>
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="8"/>
@@ -93,20 +93,34 @@
             </Setter>
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#1e1e24"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="Black"/> <!-- Default text in standard combo box often requires black unless fully restyled -->
-            <Setter Property="BorderBrush" Value="#333"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
         </Style>
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="Black"/>
         </Style>
         <Style TargetType="ProgressBar">
-            <Setter Property="BorderBrush" Value="#222"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="25">
+        <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,25,0">
+            <TextBlock Text="CPU:" Foreground="{DynamicResource TextPrimary}" FontSize="12" FontWeight="Bold" Margin="0,0,5,0" VerticalAlignment="Center"/>
+            <TextBlock Name="TxtCpuUsage" Text="0%" Foreground="#00e676" FontSize="12" FontWeight="Bold" Margin="0,0,15,0" VerticalAlignment="Center" Width="40"/>
+            
+            <TextBlock Text="Dark Mode" Foreground="{DynamicResource TextPrimary}" FontSize="12" FontWeight="Bold" Margin="0,0,5,0" VerticalAlignment="Center"/>
+            <CheckBox Name="ChkDarkMode" IsChecked="True" VerticalAlignment="Center" Checked="ChkDarkMode_Checked" Unchecked="ChkDarkMode_Unchecked" Foreground="{DynamicResource TextPrimary}"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="25">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="250"/>
@@ -122,19 +136,19 @@
             <!-- Output Preview -->
             <Border Grid.Row="0" Style="{StaticResource MixerPanel}" Margin="0,0,0,25">
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                    <TextBlock Text="PROGRAM OUTPUT" FontSize="22" FontWeight="Black" Foreground="#e0e0e0" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                    <TextBlock Text="PROGRAM OUTPUT" FontSize="22" FontWeight="Black" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,15"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="0,0,15,0" Foreground="#00e676" Background="#252530"/>
+                        <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="0,0,15,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         <StackPanel Orientation="Vertical">
-                            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="4" Background="Black" Padding="2">
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource ImageBg}" Padding="2">
                                 <Image Name="PreviewOutput" Stretch="Uniform" Height="270" Width="480"/>
                             </Border>
-                            <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="#aaa" Margin="0,10,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                            <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,10,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
                         </StackPanel>
-                        <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="15,0,0,0" Foreground="#00e676" Background="#252530"/>
+                        <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="15,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         
                         <StackPanel Orientation="Vertical" Margin="25,0,0,0" HorizontalAlignment="Center">
-                            <TextBlock Text="VOL" Foreground="#888" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            <TextBlock Text="VOL" Foreground="{DynamicResource TextMuted}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                             <Slider Name="SldPgmAudio" Orientation="Vertical" Height="250" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldPgmAudio_ValueChanged"/>
                         </StackPanel>
                     </StackPanel>
@@ -149,22 +163,22 @@
                 <Border Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-                            <ProgressBar Name="AudioBarMediaL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
-                            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <ProgressBar Name="AudioBarMediaL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
                                 <Image Name="PreviewMedia" Stretch="Uniform" Height="100" Width="158" MouseDown="PreviewMedia_MouseDown" Cursor="Hand"/>
                             </Border>
-                            <ProgressBar Name="AudioBarMediaR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                            <ProgressBar Name="AudioBarMediaR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Slider Name="SldMediaAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldMediaAudio_ValueChanged"/>
                         </StackPanel>
-                        <Button Name="BtnMedia" Content="Local Video" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMedia_Click" Background="#333344" Foreground="White" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnMedia" Content="Local Video" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMedia_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                            <Button Name="BtnSelectMedia" Content="Select File" FontSize="11" Height="24" Width="65" Click="BtnSelectMedia_Click" Background="#444455" Foreground="White" Margin="0,0,4,0"/>
-                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="24" Width="35" Click="BtnCueMedia_Click" Background="#444455" Foreground="White" Margin="0,0,4,0"/>
-                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="24" Width="45" Click="BtnPauseMedia_Click" Background="#444455" Foreground="White" Margin="0,0,4,0"/>
-                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" Height="24" Width="55" Click="BtnResumeMedia_Click" Background="#444455" Foreground="White"/>
+                            <Button Name="BtnSelectMedia" Content="Select File" FontSize="11" Height="24" Width="65" Click="BtnSelectMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0"/>
+                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="24" Width="35" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0"/>
+                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="24" Width="45" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0"/>
+                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" Height="24" Width="55" Click="BtnResumeMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                            <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="#aaa" Margin="0,0,10,0"/>
+                            <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" Margin="0,0,10,0"/>
                             <Slider Name="SldMediaSeek" Width="140" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.01" 
                                     Thumb.DragStarted="SldMediaSeek_DragStarted" Thumb.DragCompleted="SldMediaSeek_DragCompleted" ValueChanged="SldMediaSeek_ValueChanged"/>
                         </StackPanel>
@@ -179,14 +193,14 @@
                 <Border Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-                            <ProgressBar Name="AudioBarCBL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="#252530"/>
-                            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <ProgressBar Name="AudioBarCBL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
                                 <Image Name="PreviewColorBars" Stretch="Uniform" Height="100" Width="158" MouseDown="PreviewColorBars_MouseDown" Cursor="Hand"/>
                             </Border>
-                            <ProgressBar Name="AudioBarCBR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="#252530"/>
+                            <ProgressBar Name="AudioBarCBR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Slider Name="SldColorBarsAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldColorBarsAudio_ValueChanged"/>
                         </StackPanel>
-                        <Button Name="BtnColorBars" Content="Color Bars" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnColorBars_Click" Background="#333344" Foreground="White" Cursor="Hand"/>
+                        <Button Name="BtnColorBars" Content="Color Bars" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnColorBars_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
                         <ComboBox Name="CmbAudioStateColorBars" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
                             <ComboBoxItem Content="AFV"/>
                             <ComboBoxItem Content="ON"/>
@@ -198,11 +212,11 @@
                 <Border Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-                            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="2" Background="Black">
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
                                 <Image Name="PreviewMatte" Stretch="Uniform" Height="100" Width="158" MouseDown="PreviewMatte_MouseDown" Cursor="Hand"/>
                             </Border>
                         </StackPanel>
-                        <Button Name="BtnMatte" Content="Matte Color" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMatte_Click" Background="#333344" Foreground="White" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnMatte" Content="Matte Color" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMatte_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
                         <ComboBox Name="CmbMatteColor" FontSize="12" Height="26" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
                             <ComboBoxItem Content="Black"/>
                             <ComboBoxItem Content="White"/>
@@ -223,16 +237,16 @@
         <!-- SETTINGS PANEL -->
         <Border Grid.Column="1" Style="{StaticResource MixerPanel}" Margin="25,0,0,0">
             <StackPanel>
-                <TextBlock Text="SETTINGS" FontSize="16" Foreground="#e0e0e0" Margin="0,0,0,20" FontWeight="Black"/>
+                <TextBlock Text="SETTINGS" FontSize="16" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,20" FontWeight="Black"/>
                 
-                <TextBlock Text="Output Device:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                <TextBlock Text="Output Device:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
                 <ComboBox Name="CmbOutput" Height="28" Margin="0,0,0,20" DisplayMemberPath="DisplayName"/>
                 
                 <ItemsControl Name="InputSelectorsControl">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{Binding Label}" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
                                 <ComboBox ItemsSource="{Binding AvailableDevices}" 
                                           SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" 
                                           DisplayMemberPath="DisplayName" Height="28"/>
@@ -241,17 +255,20 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 
-                <Button Name="BtnApplySettings" Content="Apply Settings &amp; Start" Height="36" Background="#0066cc" Foreground="White" FontWeight="Bold" Click="BtnApplySettings_Click" Cursor="Hand" Margin="0,10,0,0"/>
+                <Button Name="BtnApplySettings" Content="Apply Settings &amp; Start" Height="36" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" Click="BtnApplySettings_Click" Cursor="Hand" Margin="0,10,0,0"/>
                 
-                <Rectangle Height="1" Fill="#2a2a35" Margin="0,25,0,20"/>
+                <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,25,0,20"/>
                 
-                <TextBlock Text="YOUTUBE STREAMING" FontSize="14" Foreground="#e0e0e0" Margin="0,0,0,15" FontWeight="Black"/>
-                <TextBlock Text="Stream Key:" Foreground="#aaa" FontSize="11" Margin="0,0,0,4"/>
-                <TextBox Name="TxtStreamKey" Margin="0,0,0,15" Height="28" Background="#1a1a20" Foreground="White" BorderBrush="#333" Padding="4,2"/>
-                <Button Name="BtnStream" Content="START STREAM" Height="40" Background="#d32f2f" Foreground="White" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
+                <TextBlock Text="YOUTUBE STREAMING" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,15" FontWeight="Black"/>
+                <TextBlock Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                <TextBox Name="TxtStreamKey" Margin="0,0,0,15" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
+                <Button Name="BtnStream" Content="START STREAM" Height="40" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
                 
                 <TextBlock Name="TxtStatus" Foreground="#00e676" TextWrapping="Wrap" Margin="0,15,0,0" FontSize="12" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
     </Grid>
+    </Grid>
 </Window>
+
+

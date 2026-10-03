@@ -64,6 +64,8 @@ namespace DecklinkSwitcher
 
         private System.Windows.Threading.DispatcherTimer _seekTimer;
         private bool _isDraggingSeek = false;
+        private TimeSpan _lastTotalProcessorTime;
+        private DateTime _lastCpuTime;
 
         public MainWindow()
         {
@@ -72,6 +74,9 @@ namespace DecklinkSwitcher
             try
             {
                 InitializeComponent();
+                ((App)Application.Current).SetTheme(true);
+                _lastTotalProcessorTime = Process.GetCurrentProcess().TotalProcessorTime;
+                _lastCpuTime = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
@@ -631,6 +636,24 @@ namespace DecklinkSwitcher
 
         private void SeekTimer_Tick(object sender, EventArgs e)
         {
+            try
+            {
+                var currentCpuTime = Process.GetCurrentProcess().TotalProcessorTime;
+                var now = DateTime.UtcNow;
+                var elapsedCpu = (currentCpuTime - _lastTotalProcessorTime).TotalMilliseconds;
+                var elapsedWall = (now - _lastCpuTime).TotalMilliseconds;
+                
+                if (elapsedWall > 0)
+                {
+                    double cpu = elapsedCpu / (Environment.ProcessorCount * elapsedWall) * 100;
+                    TxtCpuUsage.Text = $"{(int)cpu}%";
+                }
+                
+                _lastTotalProcessorTime = currentCpuTime;
+                _lastCpuTime = now;
+            }
+            catch { }
+            
             if (_mediaSource != null && !_isDraggingSeek)
             {
                 float pos = _mediaSource.Position;
@@ -677,6 +700,16 @@ namespace DecklinkSwitcher
         {
             SystemAudioPlayer.IsEnabled = false;
             if (IsLoaded) SaveCurrentSettings();
+        }
+        
+        private void ChkDarkMode_Checked(object sender, RoutedEventArgs e)
+        {
+            if (Application.Current is App app) app.SetTheme(true);
+        }
+
+        private void ChkDarkMode_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (Application.Current is App app) app.SetTheme(false);
         }
 
         private static float _pgmAudioLevel = 1.0f;

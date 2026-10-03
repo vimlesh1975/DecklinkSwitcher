@@ -1,9 +1,31 @@
-﻿<Application x:Class="DecklinkSwitcher.App"
+<Application x:Class="DecklinkSwitcher.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DecklinkSwitcher"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary>
+                    <!-- Dark Theme (Default) -->
+                    <SolidColorBrush x:Key="WindowBg" Color="#0f0f13"/>
+                    <SolidColorBrush x:Key="PanelBg" Color="#252530"/>
+                    <SolidColorBrush x:Key="PanelBgDark" Color="#181820"/>
+                    <SolidColorBrush x:Key="PanelBorder" Color="#3a3a45"/>
+                    <SolidColorBrush x:Key="TextPrimary" Color="#e0e0e0"/>
+                    <SolidColorBrush x:Key="TextInverse" Color="Black"/>
+                    <SolidColorBrush x:Key="TextDim" Color="#aaaaaa"/>
+                    <SolidColorBrush x:Key="TextMuted" Color="#888888"/>
+                    <SolidColorBrush x:Key="ImageBg" Color="Black"/>
+                    <SolidColorBrush x:Key="ControlBg" Color="#1e1e24"/>
+                    <SolidColorBrush x:Key="ControlBorder" Color="#333333"/>
+                    <SolidColorBrush x:Key="ButtonBg" Color="#333344"/>
+                    <SolidColorBrush x:Key="ButtonAltBg" Color="#444455"/>
+                    <SolidColorBrush x:Key="TextBoxBg" Color="#1a1a20"/>
+                    <SolidColorBrush x:Key="DividerBrush" Color="#2a2a35"/>
+                    <SolidColorBrush x:Key="ButtonBorder" Color="#555555"/>
+                </ResourceDictionary>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
