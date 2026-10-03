@@ -42,7 +42,7 @@ namespace DecklinkSwitcher
             {
                 Directory.CreateDirectory(appFolder);
             }
-            return Path.Combine(appFolder, "settings.json");
+            return Path.Combine(appFolder, "decklink_switcher_settings.json");
         }
 
         public static AppSettings Load()
