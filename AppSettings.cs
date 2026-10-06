@@ -22,6 +22,9 @@ namespace DecklinkSwitcher
         public double AudioLevelColorBars { get; set; } = 1.0;
         public double AudioLevelMedia { get; set; } = 1.0;
         
+        public string SelectedRecordingProfile { get; set; } = "MP4 High Quality";
+        public string RecordingDirectory { get; set; } = "";
+        
         public System.Collections.Generic.Dictionary<string, AudioState> InputAudioStates { get; set; } = new();
         public AudioState AudioStateColorBars { get; set; } = AudioState.AFV;
         public AudioState AudioStateMedia { get; set; } = AudioState.AFV;

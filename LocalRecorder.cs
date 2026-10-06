@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DecklinkSwitcher
 {
-    public class YouTubeStreamer
+    public class LocalRecorder
     {
         private Process? _ffmpegProcess;
         private NamedPipeServerStream? _videoPipe;
@@ -22,7 +22,7 @@ namespace DecklinkSwitcher
         private Task? _audioTask;
         private Task? _feedTask;
         
-        public bool IsStreaming { get; private set; }
+        public bool IsRecording { get; private set; }
         
         public Action<string>? OnLog;
         
@@ -34,9 +34,9 @@ namespace DecklinkSwitcher
         private volatile bool _hasRealFrames = false;
         private long _lastVideoPushTick = 0;
         
-        public void Start(string streamKey, int width, int height, double fps)
+        public void Start(RecordingProfileDefinition profile, string outputDirectory, int width, int height, double fps)
         {
-            if (IsStreaming) return;
+            if (IsRecording) return;
             
             Width = width;
             Height = height;
@@ -63,7 +63,12 @@ namespace DecklinkSwitcher
             
             string ffmpegPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
 
-            string rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/" + streamKey;
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            string fileName = $"{profile.FileNameSuffix}_{timestamp}{profile.ContainerExtension}";
+            string outputPath = Path.Combine(outputDirectory, fileName);
+            
+            string videoFilterArg = string.IsNullOrWhiteSpace(profile.VideoFilter) ? "" : $"-vf \"{profile.VideoFilter}\" ";
+            
             string videoPipePath = $"\\\\.\\pipe\\{videoPipeName}";
             string audioPipePath = $"\\\\.\\pipe\\{audioPipeName}";
             
@@ -71,8 +76,7 @@ namespace DecklinkSwitcher
             string args = $"-y " +
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
-                          $"-c:v libx264 -preset ultrafast -b:v 6800k -maxrate 6800k -bufsize 13600k -pix_fmt yuv420p -g {Framerate * 2} " +
-                          $"-c:a aac -b:a 128k -f flv \"{rtmpUrl}\"";
+                          $"{videoFilterArg}{profile.OutputOptions} \"{outputPath}\"";
 
             OnLog?.Invoke($"FFmpeg args: {args}");
 
@@ -94,25 +98,25 @@ namespace DecklinkSwitcher
                 try { code = currentProcess.ExitCode; } catch { }
                 OnLog?.Invoke($"FFmpeg process exited with code {code}");
                 if (_ffmpegProcess == currentProcess) {
-                    IsStreaming = false;
+                    IsRecording = false;
                 }
             };
 
-            try { currentProcess.Start(); currentProcess.BeginErrorReadLine(); } catch (Exception ex) { OnLog?.Invoke("Failed to start FFmpeg: " + ex.Message); IsStreaming = false; return; }
+            try { currentProcess.Start(); currentProcess.BeginErrorReadLine(); } catch (Exception ex) { OnLog?.Invoke("Failed to start FFmpeg: " + ex.Message); IsRecording = false; return; }
             
-            IsStreaming = true;
+            IsRecording = true;
             
             _videoTask = Task.Run(() => VideoPipeWorker(_cts.Token)); _audioTask = Task.Run(() => AudioPipeWorker(_cts.Token));
             // Fallback frame feeder - keeps FFmpeg alive even when no DeckLink frames arrive
             _feedTask = Task.Run(() => FallbackFeeder(_cts.Token));
             
-            OnLog?.Invoke($"Streaming started. Resolution: {Width}x{Height} @ {Framerate}fps -> {rtmpUrl}");
+            OnLog?.Invoke($"Recording started. Resolution: {Width}x{Height} @ {Framerate}fps -> {outputPath}");
         }
         
         public void Stop()
         {
-            if (!IsStreaming) return;
-            IsStreaming = false;
+            if (!IsRecording) return;
+            IsRecording = false;
             _cts?.Cancel();
             
             try { _ffmpegProcess?.Kill(); } catch { }
@@ -136,7 +140,7 @@ namespace DecklinkSwitcher
 
         public void PushFrame(byte[] audio, byte[] video)
         {
-            if (!IsStreaming) return;
+            if (!IsRecording) return;
             
             if (video != null)
             {
@@ -185,7 +189,7 @@ namespace DecklinkSwitcher
             
             OnLog?.Invoke("Fallback feeder started. Will send black frames if no DeckLink signal.");
 
-            while (!token.IsCancellationRequested && IsStreaming)
+            while (!token.IsCancellationRequested && IsRecording)
             {
                 long now = Environment.TickCount64;
                 bool realFrameRecent = _hasRealFrames && (now - Interlocked.Read(ref _lastVideoPushTick)) < 500;

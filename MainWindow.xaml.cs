@@ -53,6 +53,7 @@ namespace DecklinkSwitcher
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
         private CancellationTokenSource? _syntheticCts;
         public static YouTubeStreamer YtStreamer = new YouTubeStreamer();
+        public static LocalRecorder LclRecorder = new LocalRecorder();
         
         // Latest PGM frame (BGRA 480x270) — updated by all PGM sources, read by streaming loop
         private static byte[]? _latestPgmFrame = null;
@@ -125,11 +126,12 @@ namespace DecklinkSwitcher
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
-                                if (YtStreamer.IsStreaming)
+                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording)
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                                    YtStreamer.PushFrame(audBytes, null);
+                                    if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, null);
+                                    if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, null);
                                 }
                                 System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                             }
@@ -226,9 +228,12 @@ namespace DecklinkSwitcher
                     settings.MicLevels.Clear();
                     foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
                     settings.MicStates.Clear();
+                    settings.MicStates.Clear();
                     foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
                     
                     settings.YouTubeStreamKey = TxtStreamKey.Text;
+                    settings.SelectedRecordingProfile = (CmbRecordingProfile.SelectedItem as RecordingProfileDefinition)?.DisplayName ?? "MP4 High Quality";
+                    settings.RecordingDirectory = TxtRecordingDirectory.Text;
                 });
                 
                 settings.Save();
@@ -416,6 +421,47 @@ namespace DecklinkSwitcher
                 
                 TxtStreamKey.Text = settings.YouTubeStreamKey;
                 YtStreamer.OnLog = Log;
+                LclRecorder.OnLog = Log;
+                
+                // Initialize recording profiles
+                var profiles = new[]
+                {
+                    new RecordingProfileDefinition("XDCAM HD422", ".mxf", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -rc_init_occupancy 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a pcm_s16le -ar 48000 -ac 2", null, "XDCAM_HD422"),
+                    new RecordingProfileDefinition("MP4 High Quality", ".mp4", "-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "MP4_High"),
+                    new RecordingProfileDefinition("MP4 Low Bitrate", ".mp4", "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "MP4_Low"),
+                    new RecordingProfileDefinition("TS H.264 High Quality", ".ts", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_High"),
+                    new RecordingProfileDefinition("TS H.264 Low Bitrate", ".ts", "-c:v libx264 -preset veryfast -crf 25 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_Low"),
+                    new RecordingProfileDefinition("TS MPEG-2 4:2:2 50M", ".ts", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a mp2 -b:a 384k -ar 48000 -ac 2", null, "TS_MPEG2_50M"),
+                    new RecordingProfileDefinition("ProRes Proxy (Small)", ".mov", "-c:v prores_ks -profile:v 0 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 400 -c:a pcm_s16le -ar 48000", null, "ProRes_Proxy"),
+                    new RecordingProfileDefinition("ProRes LT (Light)", ".mov", "-c:v prores_ks -profile:v 1 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1000 -c:a pcm_s16le -ar 48000", null, "ProRes_LT"),
+                    new RecordingProfileDefinition("ProRes 422 (Medium)", ".mov", "-c:v prores_ks -profile:v 2 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1600 -c:a pcm_s16le -ar 48000", null, "ProRes_422"),
+                    new RecordingProfileDefinition("ProRes 422 HQ (High)", ".mov", "-c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 2400 -c:a pcm_s16le -ar 48000", null, "ProRes_422_HQ"),
+                    new RecordingProfileDefinition("MP4 4K H.264 (NVENC)", ".mp4", "-c:v h264_nvenc -preset p4 -cq 22 -pix_fmt yuv420p -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_H264_NVENC"),
+                    new RecordingProfileDefinition("MP4 4K HEVC (NVENC)", ".mp4", "-c:v hevc_nvenc -preset p4 -cq 24 -pix_fmt yuv420p -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_HEVC_NVENC"),
+                    new RecordingProfileDefinition("MP4 4K H.264 (CPU)", ".mp4", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_H264_CPU"),
+                    new RecordingProfileDefinition("MP4 4K HEVC (CPU)", ".mp4", "-c:v libx265 -preset veryfast -crf 24 -pix_fmt yuv420p -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_HEVC_CPU"),
+                    new RecordingProfileDefinition("ProRes 4K 422", ".mov", "-c:v prores_ks -profile:v 2 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1600 -c:a pcm_s16le -ar 48000", null, "ProRes_4K_422"),
+                    new RecordingProfileDefinition("ProRes 4K 422 HQ", ".mov", "-c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 2400 -c:a pcm_s16le -ar 48000", null, "ProRes_4K_422_HQ"),
+                    new RecordingProfileDefinition("DNxHD 36 (Proxy)", ".mxf", "-c:v dnxhd -b:v 36M -pix_fmt yuv422p -c:a pcm_s16le -ar 48000", null, "DNxHD_36"),
+                    new RecordingProfileDefinition("DNxHD 120 (Standard)", ".mxf", "-c:v dnxhd -b:v 120M -pix_fmt yuv422p -c:a pcm_s16le -ar 48000", null, "DNxHD_120"),
+                    new RecordingProfileDefinition("DNxHD 185 (High)", ".mxf", "-c:v dnxhd -b:v 185M -pix_fmt yuv422p -c:a pcm_s16le -ar 48000", null, "DNxHD_185"),
+                    new RecordingProfileDefinition("DNxHD 185x (10-bit)", ".mxf", "-c:v dnxhd -b:v 185M -pix_fmt yuv422p10le -c:a pcm_s16le -ar 48000", null, "DNxHD_185x")
+                };
+
+                foreach (var p in profiles)
+                {
+                    CmbRecordingProfile.Items.Add(p);
+                    if (p.DisplayName == settings.SelectedRecordingProfile)
+                    {
+                        CmbRecordingProfile.SelectedItem = p;
+                    }
+                }
+                if (CmbRecordingProfile.SelectedIndex == -1 && CmbRecordingProfile.Items.Count > 0)
+                {
+                    CmbRecordingProfile.SelectedIndex = 0;
+                }
+                
+                TxtRecordingDirectory.Text = settings.RecordingDirectory;
                 
                 TxtStatus.Text = "Ready to assign.";
                 Log("MainWindow_Loaded completed successfully.");
@@ -423,6 +469,45 @@ namespace DecklinkSwitcher
             catch (Exception ex)
             {
                 Log("MainWindow_Loaded error: " + ex.ToString());
+            }
+        }
+        
+        private void BtnBrowseRecordingDir_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog();
+            if (dialog.ShowDialog() == true)
+            {
+                TxtRecordingDirectory.Text = dialog.FolderName;
+                SaveCurrentSettings();
+            }
+        }
+        
+        private void BtnRecord_Click(object sender, RoutedEventArgs e)
+        {
+            if (LclRecorder.IsRecording)
+            {
+                LclRecorder.Stop();
+                BtnRecord.Content = "START RECORDING";
+                BtnRecord.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#d32f2f"));
+                TxtStatus.Text = "Recording stopped.";
+            }
+            else
+            {
+                if (CmbRecordingProfile.SelectedItem is RecordingProfileDefinition profile)
+                {
+                    string dir = TxtRecordingDirectory.Text;
+                    if (string.IsNullOrWhiteSpace(dir)) { System.Windows.MessageBox.Show("Please enter a recording directory."); return; }
+                    if (!System.IO.Directory.Exists(dir))
+                    {
+                        try { System.IO.Directory.CreateDirectory(dir); }
+                        catch { System.Windows.MessageBox.Show("Invalid recording directory."); return; }
+                    }
+                    UpdatePgmPreviewSynthetic();
+                    LclRecorder.Start(profile, dir, 1920, 1080, 25);
+                    BtnRecord.Content = "STOP RECORDING";
+                    BtnRecord.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
+                    TxtStatus.Text = "Recording started...";
+                }
             }
         }
         
@@ -1138,11 +1223,12 @@ namespace DecklinkSwitcher
             if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
             {
             if (writeSystemAudio) SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                if (YtStreamer.IsStreaming)
+                if (YtStreamer.IsStreaming || LclRecorder.IsRecording)
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                    YtStreamer.PushFrame(audBytes, uyvyBytes);
+                    if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
+                    if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
                 }
             }
         }
@@ -1628,7 +1714,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -1701,7 +1787,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -1822,7 +1908,7 @@ namespace DecklinkSwitcher
             try 
             {
                 byte[] uyvyBytes = null;
-                if (MainWindow.YtStreamer.IsStreaming)
+                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording)
                 {
                     int h = _reusableOutputFrame.GetHeight();
                     int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -1997,6 +2083,29 @@ namespace DecklinkSwitcher
                     destRow[destOffset + 3] = 255;
                 }
             }
+        }
+    }
+    
+    public class RecordingProfileDefinition
+    {
+        public string DisplayName { get; }
+        public string ContainerExtension { get; }
+        public string OutputOptions { get; }
+        public string VideoFilter { get; }
+        public string FileNameSuffix { get; }
+
+        public RecordingProfileDefinition(string displayName, string containerExtension, string outputOptions, string videoFilter = null, string fileNameSuffix = null)
+        {
+            DisplayName = displayName;
+            ContainerExtension = containerExtension;
+            OutputOptions = outputOptions;
+            VideoFilter = videoFilter;
+            FileNameSuffix = string.IsNullOrWhiteSpace(fileNameSuffix) ? displayName : fileNameSuffix;
+        }
+
+        public override string ToString()
+        {
+            return DisplayName;
         }
     }
 }
