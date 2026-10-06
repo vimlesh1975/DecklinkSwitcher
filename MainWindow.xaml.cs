@@ -65,8 +65,7 @@ namespace DecklinkSwitcher
 
         private System.Windows.Threading.DispatcherTimer _seekTimer;
         private bool _isDraggingSeek = false;
-        private TimeSpan _lastTotalProcessorTime;
-        private DateTime _lastCpuTime;
+        private System.Diagnostics.PerformanceCounter _cpuCounter;
 
         public MainWindow()
         {
@@ -76,8 +75,8 @@ namespace DecklinkSwitcher
             {
                 InitializeComponent();
                 ((App)Application.Current).SetTheme(true);
-                _lastTotalProcessorTime = Process.GetCurrentProcess().TotalProcessorTime;
-                _lastCpuTime = DateTime.UtcNow;
+                _cpuCounter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
+                _cpuCounter.NextValue();
             }
             catch (Exception ex)
             {
@@ -723,19 +722,11 @@ namespace DecklinkSwitcher
         {
             try
             {
-                var currentCpuTime = Process.GetCurrentProcess().TotalProcessorTime;
-                var now = DateTime.UtcNow;
-                var elapsedCpu = (currentCpuTime - _lastTotalProcessorTime).TotalMilliseconds;
-                var elapsedWall = (now - _lastCpuTime).TotalMilliseconds;
-                
-                if (elapsedWall > 0)
+                if (_cpuCounter != null)
                 {
-                    double cpu = elapsedCpu / (Environment.ProcessorCount * elapsedWall) * 100;
+                    float cpu = _cpuCounter.NextValue();
                     TxtCpuUsage.Text = $"{(int)cpu}%";
                 }
-                
-                _lastTotalProcessorTime = currentCpuTime;
-                _lastCpuTime = now;
             }
             catch { }
             
