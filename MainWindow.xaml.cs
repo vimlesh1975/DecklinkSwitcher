@@ -75,8 +75,19 @@ namespace DecklinkSwitcher
             {
                 InitializeComponent();
                 ((App)Application.Current).SetTheme(true);
-                _cpuCounter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
-                _cpuCounter.NextValue();
+                Task.Run(() => 
+                {
+                    try
+                    {
+                        var counter = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
+                        counter.NextValue();
+                        _cpuCounter = counter;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log("PerformanceCounter init error: " + ex.ToString());
+                    }
+                });
             }
             catch (Exception ex)
             {
