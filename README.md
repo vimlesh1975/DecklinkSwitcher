@@ -18,6 +18,7 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
     *   **Matte Color Generator:** Send a full-screen solid matte color directly to the output. Supports on-the-fly switching between Black, White, Red, Green, Blue, Yellow, Cyan, and Magenta.
 *   **System Audio Monitor:** Listen to the active PGM audio output directly through your PC's speakers, even if no DeckLink output hardware is present.
 *   **YouTube Live Streaming:** Built-in direct streaming to YouTube Live via RTMP. Sends a high-quality 1080p25 H.264 stream using a bundled FFmpeg. Features automatic fallback frames to keep the stream alive when no sources are active, and *perfectly synchronized audio/video push queues to prevent A/V drift over long sessions*.
+*   **Local Recording:** High-quality local recording of the program output. Saves to standard video files directly to your disk using the bundled FFmpeg. Includes the same A/V sync reliability and automatic fallback frames as the streaming engine.
 *   **Persistent Settings:** Your hardware routing, audio mixer states, levels, stream key, and system monitor preferences are continuously saved to `%APPDATA%\DecklinkSwitcher\decklink_switcher_settings.json` and restored on your next session.
 *   **Robust COM Handling:** Seamlessly interfaces with the Blackmagic DeckLink SDK using Multithreaded Apartment (MTA) threading.
 
@@ -53,3 +54,4 @@ The compiled application and its dependencies will be placed in the `bin/Debug/n
 7. Use the **Audio Mixer** to adjust volume sliders and define routing rules (AFV - Audio Follows Video, ON, OFF) for each source.
 8. Click the **Color Bars** or **Matte** buttons to utilize the synthetic testing feeds.
 9. **Streaming:** Enter your YouTube Stream Key in the bottom right corner and click **Start Streaming** to broadcast your program output.
+10. **Recording:** Select a recording profile and output directory, then click **Start Recording** to save your program output to disk.
