@@ -83,6 +83,7 @@ namespace DecklinkSwitcher
             currentProcess.StartInfo.UseShellExecute = false;
             currentProcess.StartInfo.CreateNoWindow = true;
             currentProcess.StartInfo.RedirectStandardError = true;
+            currentProcess.StartInfo.RedirectStandardInput = true;
             
             currentProcess.ErrorDataReceived += (s, e) => {
                 if (e.Data != null) OnLog?.Invoke("FFmpeg: " + e.Data);
@@ -112,10 +113,21 @@ namespace DecklinkSwitcher
         public void Stop()
         {
             if (!IsStreaming) return;
+            
+            try 
+            { 
+                if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
+                {
+                    try { _ffmpegProcess.StandardInput.WriteLine("q"); } catch { }
+                    _ffmpegProcess.WaitForExit(3000);
+                    if (!_ffmpegProcess.HasExited) _ffmpegProcess.Kill();
+                }
+            } 
+            catch { }
+
             IsStreaming = false;
             _cts?.Cancel();
             
-            try { _ffmpegProcess?.Kill(); } catch { }
             try { _videoPipe?.Dispose(); } catch { }
             try { _audioPipe?.Dispose(); } catch { }
             _videoPipe = null;
