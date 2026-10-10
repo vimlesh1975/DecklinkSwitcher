@@ -1,11 +1,11 @@
 # DeckLink Switcher
 ![DeckLink Switcher](image.png)
 
-A lightweight and efficient WPF application designed for Blackmagic DeckLink devices. It serves as an intuitive 4-input video switcher with built-in test signals, local media playback, and a fully featured software audio mixer.
+A lightweight and efficient WPF application designed for Blackmagic DeckLink devices. It serves as an intuitive many-input video switcher with built-in test signals, local media playback, and a fully featured software audio mixer.
 
 ## Features
 
-*   **Live Video Routing:** Connect up to 4 DeckLink inputs and route them dynamically to a primary DeckLink output.
+*   **Live Video Routing:** Connect to many DeckLink inputs and route them dynamically to a primary DeckLink output.
 *   **Full Audio Mixer:** Includes an integrated digital audio mixer allowing you to set independent levels and mix modes (AFV, ON, OFF) for all 4 inputs, local media, and test tones.
     *   **Dynamic Local Microphones:** Automatically detects all connected local audio inputs (microphones, USB capture cards, line-in) and dynamically builds a dedicated mixing channel strip for every active device on your PC. *Includes robust audio buffering and MMDeviceEnumerator integration for full device name support without truncation.*
 *   **Live Previews:** Visual previews of all 4 input sources side-by-side. 
@@ -13,12 +13,17 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output. 
     *   **Image Support:** Also supports routing static images (JPG, PNG, BMP) seamlessly into the broadcast.
     *   **Loop Mode:** Features a toggleable gapless playback loop for continuous playback of a selected file.
+*   **Desktop Screen Capture:**
+    *   Capture any connected computer monitor natively via GDI+ and seamlessly route it to the broadcast output alongside cameras.
+    *   **Multi-Monitor Support:** Automatically detects all connected displays. Select which screen to capture directly from the UI dropdown.
+    *   **Proportional Letterboxing & Anti-Aliasing:** Preserves text crispness by intelligently letterboxing non-standard monitor resolutions into the 1080p frame and implementing 4:2:2 chroma-smoothing to eliminate edge-fringing on UI elements.
+    *   **Background Offloading:** Capture loops are highly optimized and decoupled from the main thread using `unsafe` raw pointers to ensure zero audio desync or UI lockups.
 *   **Synthetic Sources:**
     *   **Color Bars + Tone:** Generate an 8-stripe SMPTE-style UYVY color bar pattern with a perfectly synchronized, phase-continuous 1kHz sine wave audio tone for calibrating equipment.
     *   **Matte Color Generator:** Send a full-screen solid matte color directly to the output. Supports on-the-fly switching between Black, White, Red, Green, Blue, Yellow, Cyan, and Magenta.
 *   **System Audio Monitor:** Listen to the active PGM audio output directly through your PC's speakers, even if no DeckLink output hardware is present.
 *   **YouTube Live Streaming:** Built-in direct streaming to YouTube Live via RTMP. Sends a high-quality 1080p25 H.264 stream using a bundled FFmpeg. Features automatic fallback frames to keep the stream alive when no sources are active, and *perfectly synchronized audio/video push queues to prevent A/V drift over long sessions*.
-*   **Local Recording:** High-quality local recording of the program output. Saves to standard video files directly to your disk using the bundled FFmpeg. Includes the same A/V sync reliability and automatic fallback frames as the streaming engine.
+*   **Local Recording:** High-quality local recording of the program output. Saves to standard video files directly to your disk using the bundled FFmpeg (e.g. `MP4_High_ddMMyyyy_HHmmss.mp4`). Includes multiple configurable encoding profiles (H.264, MPEG-2, ProRes) explicitly tuned for broadcast. Includes the same A/V sync reliability and automatic fallback frames as the streaming engine.
 *   **Persistent Settings:** Your hardware routing, audio mixer states, levels, stream key, and system monitor preferences are continuously saved to `%APPDATA%\DecklinkSwitcher\decklink_switcher_settings.json` and restored on your next session.
 *   **Robust COM Handling:** Seamlessly interfaces with the Blackmagic DeckLink SDK using Multithreaded Apartment (MTA) threading.
 

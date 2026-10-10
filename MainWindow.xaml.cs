@@ -48,6 +48,7 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpDesktop;
         
         private VlcMediaSource _mediaSource;
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
@@ -56,8 +57,8 @@ namespace DecklinkSwitcher
         public static LocalRecorder LclRecorder = new LocalRecorder();
         
         // Latest PGM frame (BGRA 480x270) — updated by all PGM sources, read by streaming loop
-        private static byte[]? _latestPgmFrame = null;
-        private static readonly object _pgmLock = new object();
+        internal static byte[]? _latestPgmFrame = null;
+        internal static readonly object _pgmLock = new object();
         private static CancellationTokenSource? _streamLoopCts;
 
 
@@ -97,9 +98,11 @@ namespace DecklinkSwitcher
             _bmpColorBars = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMedia = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpDesktop = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
+            PreviewDesktop.Source = _bmpDesktop;
             
             try
             {
@@ -280,53 +283,65 @@ namespace DecklinkSwitcher
             });
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
-                Log("Window loaded. Discovering DeckLink devices...");
+                StartDesktopCaptureLoop();
+                Log("Window loaded. Discovering hardware...");
                 
                 UpdateMiniPreviewsSynthetic();
+                
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                for (int i = 0; i < screens.Length; i++)
+                {
+                    CmbScreens.Items.Add($"Screen {i + 1} ({screens[i].Bounds.Width}x{screens[i].Bounds.Height})");
+                }
+                if (CmbScreens.Items.Count > 0) CmbScreens.SelectedIndex = 0;
                 
                 List<DeckLinkDeviceInfo> devices = new List<DeckLinkDeviceInfo>();
                 devices.Add(new DeckLinkDeviceInfo { DisplayName = "None", Index = -1 });
 
-                Log("Creating DeckLinkIterator...");
-                IDeckLinkIterator deckLinkIterator = null;
-                try
-                {
-                    deckLinkIterator = new CDeckLinkIterator();
-                    Log("DeckLinkIterator created successfully.");
-                }
-                catch (Exception ex)
-                {
-                    Log("Failed to create DeckLinkIterator: " + ex.ToString());
-                }
-
+                Log("Discovering devices in background...");
                 int physicalCount = 0;
-                if (deckLinkIterator != null)
+                var micDevices = new System.Collections.Generic.List<MicDeviceInfo>();
+                
+                await Task.Run(() => 
                 {
-                    while (true)
+                    IDeckLinkIterator deckLinkIterator = null;
+                    try
                     {
-                        try
-                        {
-                            deckLinkIterator.Next(out IDeckLink deckLink);
-                            if (deckLink == null) break;
+                        deckLinkIterator = new CDeckLinkIterator();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log("Failed to create DeckLinkIterator: " + ex.ToString());
+                    }
 
-                            deckLink.GetModelName(out string modelName);
-                            // Differentiate Duo ports by adding a unique identifier or just listing them
-                            // Since the API returns multiple identical "DeckLink Duo 2" names, we can append an index
-                            string uniqueName = $"{modelName} (Port {physicalCount + 1})";
-                            devices.Add(new DeckLinkDeviceInfo { DisplayName = uniqueName, Index = physicalCount });
-                            physicalCount++;
-                        }
-                        catch (Exception ex)
+                    if (deckLinkIterator != null)
+                    {
+                        while (true)
                         {
-                            Log("Error enumerating DeckLink device: " + ex.Message);
-                            break;
+                            try
+                            {
+                                deckLinkIterator.Next(out IDeckLink deckLink);
+                                if (deckLink == null) break;
+
+                                deckLink.GetModelName(out string modelName);
+                                string uniqueName = $"{modelName} (Port {physicalCount + 1})";
+                                devices.Add(new DeckLinkDeviceInfo { DisplayName = uniqueName, Index = physicalCount });
+                                physicalCount++;
+                            }
+                            catch (Exception ex)
+                            {
+                                Log("Error enumerating DeckLink device: " + ex.Message);
+                                break;
+                            }
                         }
                     }
-                }
+                    
+                    micDevices.AddRange(LocalAudioInput.GetDevices());
+                });
 
                 if (physicalCount == 0)
                 {
@@ -401,7 +416,6 @@ namespace DecklinkSwitcher
                 
 
                 _activeMics.Clear();
-                var micDevices = LocalAudioInput.GetDevices();
                 foreach (var device in micDevices)
                 {
                     if (device.DeviceNumber < 0) continue; // Skip 'None'
@@ -437,10 +451,10 @@ namespace DecklinkSwitcher
                 var profiles = new[]
                 {
                     new RecordingProfileDefinition("XDCAM HD422", ".mxf", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -rc_init_occupancy 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a pcm_s16le -ar 48000 -ac 2", null, "XDCAM_HD422"),
-                    new RecordingProfileDefinition("MP4 High Quality", ".mp4", "-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "MP4_High"),
-                    new RecordingProfileDefinition("MP4 Low Bitrate", ".mp4", "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "MP4_Low"),
-                    new RecordingProfileDefinition("TS H.264 High Quality", ".ts", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_High"),
-                    new RecordingProfileDefinition("TS H.264 Low Bitrate", ".ts", "-c:v libx264 -preset veryfast -crf 25 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto:deint=all,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_Low"),
+                    new RecordingProfileDefinition("MP4 High Quality", ".mp4", "-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "MP4_High"),
+                    new RecordingProfileDefinition("MP4 Low Bitrate", ".mp4", "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "MP4_Low"),
+                    new RecordingProfileDefinition("TS H.264 High Quality", ".ts", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_High"),
+                    new RecordingProfileDefinition("TS H.264 Low Bitrate", ".ts", "-c:v libx264 -preset veryfast -crf 25 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_Low"),
                     new RecordingProfileDefinition("TS MPEG-2 4:2:2 50M", ".ts", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a mp2 -b:a 384k -ar 48000 -ac 2", null, "TS_MPEG2_50M"),
                     new RecordingProfileDefinition("ProRes Proxy (Small)", ".mov", "-c:v prores_ks -profile:v 0 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 400 -c:a pcm_s16le -ar 48000", null, "ProRes_Proxy"),
                     new RecordingProfileDefinition("ProRes LT (Light)", ".mov", "-c:v prores_ks -profile:v 1 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1000 -c:a pcm_s16le -ar 48000", null, "ProRes_LT"),
@@ -686,6 +700,18 @@ namespace DecklinkSwitcher
             UpdateProgramSourceFlags();
         }
         private void PreviewMedia_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMedia_Click(null, null);
+
+        private void CmbScreens_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            _selectedScreenIndex = CmbScreens.SelectedIndex;
+        }
+
+        private void BtnDesktop_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 4; ActiveSourceType = 4; ActiveInputName = "Desktop"; Log("Switched to Desktop Capture");
+            UpdateProgramSourceFlags();
+        }
+        private void PreviewDesktop_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnDesktop_Click(null, null);
 
         private string _lastMediaFile = "";
 
@@ -1133,6 +1159,11 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
+            else if (_activeSourceType == 4) // Desktop Capture
+            {
+                // Handled continuously by background capture thread to prevent audio timing stutter
+                return;
+            }
             else if (_activeSourceType == 1) // Color Bars
             {
                 byte[,] colors = new byte[8, 3] {
@@ -1169,6 +1200,77 @@ namespace DecklinkSwitcher
                     _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), pixels, 480 * 4, 0);
                 }
             });
+        }
+
+        private static int _selectedScreenIndex = 0;
+        private static System.Drawing.Bitmap _desktopScreenBmp = null;
+        private static System.Drawing.Graphics _desktopScreenG = null;
+        private static System.Drawing.Bitmap _desktop1080Bmp = null;
+        private static System.Drawing.Graphics _desktop1080G = null;
+        private static System.Drawing.Bitmap _desktop480Bmp = null;
+        private static System.Drawing.Graphics _desktop480G = null;
+        private static byte[] _desktop1080Buffer = new byte[1920 * 1080 * 4];
+
+        private static void UpdateDesktopCaptureBuffers(byte[] previewPixels480)
+        {
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            int idx = _selectedScreenIndex >= 0 && _selectedScreenIndex < screens.Length ? _selectedScreenIndex : 0;
+            var screen = screens[idx];
+            
+            int screenWidth = screen.Bounds.Width;
+            int screenHeight = screen.Bounds.Height;
+            
+            if (_desktopScreenBmp == null || _desktopScreenBmp.Width != screenWidth || _desktopScreenBmp.Height != screenHeight)
+            {
+                _desktopScreenG?.Dispose();
+                _desktopScreenBmp?.Dispose();
+                _desktopScreenBmp = new System.Drawing.Bitmap(screenWidth, screenHeight);
+                _desktopScreenG = System.Drawing.Graphics.FromImage(_desktopScreenBmp);
+                
+                _desktop1080G?.Dispose();
+                _desktop1080Bmp?.Dispose();
+                _desktop1080Bmp = new System.Drawing.Bitmap(1920, 1080);
+                _desktop1080G = System.Drawing.Graphics.FromImage(_desktop1080Bmp);
+                _desktop1080G.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                _desktop1080G.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+                _desktop1080G.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
+                
+                _desktop480G?.Dispose();
+                _desktop480Bmp?.Dispose();
+                _desktop480Bmp = new System.Drawing.Bitmap(480, 270);
+                _desktop480G = System.Drawing.Graphics.FromImage(_desktop480Bmp);
+            }
+            
+            // Capture
+            _desktopScreenG.CopyFromScreen(screen.Bounds.X, screen.Bounds.Y, 0, 0, _desktopScreenBmp.Size, System.Drawing.CopyPixelOperation.SourceCopy);
+            
+            // Draw to 1080p
+            if (screenWidth == 1920 && screenHeight == 1080)
+            {
+                var dataScreen = _desktopScreenBmp.LockBits(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                System.Runtime.InteropServices.Marshal.Copy(dataScreen.Scan0, _desktop1080Buffer, 0, _desktop1080Buffer.Length);
+                _desktopScreenBmp.UnlockBits(dataScreen);
+            }
+            else
+            {
+                _desktop1080G.Clear(System.Drawing.Color.Black);
+                float scale = Math.Min(1920f / screenWidth, 1080f / screenHeight);
+                int drawW = (int)(screenWidth * scale);
+                int drawH = (int)(screenHeight * scale);
+                int drawX = (1920 - drawW) / 2;
+                int drawY = (1080 - drawH) / 2;
+                _desktop1080G.DrawImage(_desktopScreenBmp, drawX, drawY, drawW, drawH);
+                
+                var data1080 = _desktop1080Bmp.LockBits(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                System.Runtime.InteropServices.Marshal.Copy(data1080.Scan0, _desktop1080Buffer, 0, _desktop1080Buffer.Length);
+                _desktop1080Bmp.UnlockBits(data1080);
+            }
+            
+            // Draw to 480p
+            _desktop480G.DrawImage(_desktopScreenBmp, 0, 0, 480, 270);
+            var data480 = _desktop480Bmp.LockBits(new System.Drawing.Rectangle(0, 0, 480, 270), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            System.Runtime.InteropServices.Marshal.Copy(data480.Scan0, previewPixels480, 0, previewPixels480.Length);
+            _desktop480Bmp.UnlockBits(data480);
         }
 
         private void UpdateMiniPreviewsSynthetic()
@@ -1213,6 +1315,9 @@ namespace DecklinkSwitcher
                 mPixels[i] = b; mPixels[i+1] = g; mPixels[i+2] = r; mPixels[i+3] = 255;
             }
 
+            // Desktop (Type 4)
+            // Desktop preview is updated independently by background thread.
+
             Application.Current.Dispatcher.BeginInvoke(() => {
                 if (_bmpColorBars != null) _bmpColorBars.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), cbPixels, 480 * 4, 0);
                 if (_bmpMatte != null) _bmpMatte.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), mPixels, 480 * 4, 0);
@@ -1235,11 +1340,11 @@ namespace DecklinkSwitcher
             }
         }
 
-        private static byte[] ConvertBgraToUyvy1080(byte[] bgra)
+        internal static byte[] ConvertBgraToUyvy1080(byte[] bgra)
         {
             const int srcW = 480, dstW = 1920, dstH = 1080;
             byte[] uyvy = new byte[dstH * dstW * 2];
-            for (int y = 0; y < dstH; y++)
+            Parallel.For(0, dstH, y =>
             {
                 int srcY = _uyvyRowLut[y];
                 int dstRow = y * dstW * 2;
@@ -1258,8 +1363,91 @@ namespace DecklinkSwitcher
                     int d = dstRow + x*2;
                     uyvy[d]=(byte)U1; uyvy[d+1]=(byte)Y1; uyvy[d+2]=(byte)V1; uyvy[d+3]=(byte)Y2;
                 }
+            });
+            return uyvy;
+        }
+
+        internal static unsafe byte[] ConvertBgra1080ToUyvy1080(byte[] bgra)
+        {
+            int dstW = 1920, dstH = 1080;
+            byte[] uyvy = new byte[dstH * dstW * 2];
+            fixed (byte* pBgra = bgra)
+            fixed (byte* pUyvy = uyvy)
+            {
+                IntPtr ptrBgra = (IntPtr)pBgra;
+                IntPtr ptrUyvy = (IntPtr)pUyvy;
+                Parallel.For(0, dstH, y =>
+                {
+                    byte* srcBase = (byte*)ptrBgra;
+                    byte* dstBase = (byte*)ptrUyvy;
+                    int rowOffset = y * dstW * 4;
+                    int dstRow = y * dstW * 2;
+                    byte* srcRow = srcBase + rowOffset;
+                    byte* dstRowPtr = dstBase + dstRow;
+                    for (int x = 0; x < dstW; x += 2)
+                    {
+                        byte b1 = srcRow[x * 4];
+                        byte g1 = srcRow[x * 4 + 1];
+                        byte r1 = srcRow[x * 4 + 2];
+                        
+                        byte b2 = srcRow[x * 4 + 4];
+                        byte g2 = srcRow[x * 4 + 5];
+                        byte r2 = srcRow[x * 4 + 6];
+                        
+                        int rAvg = (r1 + r2) >> 1;
+                        int gAvg = (g1 + g2) >> 1;
+                        int bAvg = (b1 + b2) >> 1;
+
+                        int Y1 = ((66 * r1 + 129 * g1 + 25 * b1 + 128) >> 8) + 16;
+                        int U1 = ((-38 * rAvg - 74 * gAvg + 112 * bAvg + 128) >> 8) + 128;
+                        int V1 = ((112 * rAvg - 94 * gAvg - 18 * bAvg + 128) >> 8) + 128;
+                        int Y2 = ((66 * r2 + 129 * g2 + 25 * b2 + 128) >> 8) + 16;
+
+                        if (Y1 < 16) Y1 = 16; else if (Y1 > 235) Y1 = 235;
+                        if (Y2 < 16) Y2 = 16; else if (Y2 > 235) Y2 = 235;
+                        if (U1 < 16) U1 = 16; else if (U1 > 240) U1 = 240;
+                        if (V1 < 16) V1 = 16; else if (V1 > 240) V1 = 240;
+
+                        dstRowPtr[x * 2] = (byte)U1;
+                        dstRowPtr[x * 2 + 1] = (byte)Y1;
+                        dstRowPtr[x * 2 + 2] = (byte)V1;
+                        dstRowPtr[x * 2 + 3] = (byte)Y2;
+                    }
+                });
             }
             return uyvy;
+        }
+
+        private void StartDesktopCaptureLoop()
+        {
+            Task.Run(async () =>
+            {
+                byte[] previewPixels = new byte[480 * 270 * 4];
+                while (true)
+                {
+                    try
+                    {
+                        if (_activeSourceType == 4)
+                        {
+                            UpdateDesktopCaptureBuffers(previewPixels);
+                            lock (_pgmLock)
+                            {
+                                if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                                    _latestPgmFrame = new byte[1920 * 1080 * 4];
+                                if (_desktop1080Buffer != null)
+                                    Array.Copy(_desktop1080Buffer, _latestPgmFrame, _latestPgmFrame.Length);
+                            }
+                            
+                            Application.Current.Dispatcher.BeginInvoke(() => {
+                                if (_bmpOutput != null) _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), previewPixels, 480 * 4, 0);
+                                if (_bmpDesktop != null) _bmpDesktop.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), previewPixels, 480 * 4, 0);
+                            });
+                        }
+                    }
+                    catch { }
+                    await Task.Delay(40);
+                }
+            });
         }
 
         // Pre-computed lookup tables for fast BGRA->UYVY scaling 480x270 -> 1920x1080
@@ -1372,14 +1560,14 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
                             UpdatePgmPreviewSynthetic();
 
                             if (_activeOutput != null)
                             {
-                                _activeOutput.ScheduleSyntheticFrame(_activeSourceType == 1);
+                                _activeOutput.ScheduleSyntheticFrame(_activeSourceType);
                             }
                             else
                             {
@@ -1390,7 +1578,8 @@ namespace DecklinkSwitcher
                                     byte[] uyvyBytes = null;
                                     lock (MainWindow._pgmLock) 
                                     { 
-                                        if (_latestPgmFrame != null) uyvyBytes = ConvertBgraToUyvy1080(_latestPgmFrame); 
+                                        if (_latestPgmFrame != null && _latestPgmFrame.Length == 1920 * 1080 * 4) uyvyBytes = ConvertBgra1080ToUyvy1080(_latestPgmFrame);
+                                        else if (_latestPgmFrame != null) uyvyBytes = ConvertBgraToUyvy1080(_latestPgmFrame); 
                                     }
                                     OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                                     System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
@@ -1831,7 +2020,7 @@ namespace DecklinkSwitcher
 
         private double _audioPhase = 0;
 
-        public void ScheduleSyntheticFrame(bool isColorBar)
+        public void ScheduleSyntheticFrame(int sourceType)
         {
             if (_reusableOutputFrame == null)
             {
@@ -1860,7 +2049,7 @@ namespace DecklinkSwitcher
                 unsafe
                 {
                     byte* ptr = (byte*)outputBuffer.ToPointer();
-                    if (!isColorBar)
+                    if (sourceType == 2) // Matte
                     {
                         // Matte Color (UYVY)
                         for (int i = 0; i < height * rowBytes; i += 4)
@@ -1871,7 +2060,7 @@ namespace DecklinkSwitcher
                             ptr[i + 3] = MainWindow.MatteY; // Y
                         }
                     }
-                    else
+                    else if (sourceType == 1) // Color Bars
                     {
                         // 8 color bars
                         byte[,] colors = new byte[8, 4] {
@@ -1897,6 +2086,21 @@ namespace DecklinkSwitcher
                                 rowPtr[offset + 2] = colors[barIndex, 2];
                                 rowPtr[offset + 3] = colors[barIndex, 3];
                             }
+                        }
+                    }
+                    else if (sourceType == 4) // Desktop Capture
+                    {
+                        byte[] deskUyvy = null;
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow._latestPgmFrame != null)
+                            {
+                                deskUyvy = MainWindow.ConvertBgra1080ToUyvy1080(MainWindow._latestPgmFrame);
+                            }
+                        }
+                        if (deskUyvy != null)
+                        {
+                            System.Runtime.InteropServices.Marshal.Copy(deskUyvy, 0, outputBuffer, deskUyvy.Length);
                         }
                     }
                 }

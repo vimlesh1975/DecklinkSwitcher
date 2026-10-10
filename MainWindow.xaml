@@ -7,7 +7,8 @@
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
         MinWidth="800" MinHeight="600"
-        Title="DeckLink Switcher" Height="780" Width="1280" Background="{DynamicResource WindowBg}" FontFamily="Segoe UI">
+        Title="DeckLink Switcher" Height="780" Width="1280" Background="{DynamicResource WindowBg}" FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType" UseLayoutRounding="True" SnapsToDevicePixels="True">
     
     <Window.Resources>
         <DataTemplate x:Key="InputTileTemplate">
@@ -226,6 +227,20 @@
                             <ComboBoxItem Content="Yellow"/>
                             <ComboBoxItem Content="Cyan"/>
                             <ComboBoxItem Content="Magenta"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
+
+                <Border Style="{StaticResource MixerPanel}">
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
+                                <Image Name="PreviewDesktop" Stretch="Uniform" Height="100" Width="158" MouseDown="PreviewDesktop_MouseDown" Cursor="Hand"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Name="BtnDesktop" Content="Desktop Capture" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnDesktop_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <ComboBox Name="CmbScreens" FontSize="12" Height="26" SelectionChanged="CmbScreens_SelectionChanged">
                         </ComboBox>
                     </StackPanel>
                 </Border>

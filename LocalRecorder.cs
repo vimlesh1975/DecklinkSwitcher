@@ -63,7 +63,7 @@ namespace DecklinkSwitcher
             
             string ffmpegPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
 
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            string timestamp = DateTime.Now.ToString("ddMMyyyy_HHmmss");
             string fileName = $"{profile.FileNameSuffix}_{timestamp}{profile.ContainerExtension}";
             string outputPath = Path.Combine(outputDirectory, fileName);
             
