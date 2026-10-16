@@ -9,12 +9,34 @@
     ".NETCoreApp,Version=v10.0/win-x64": {
       "DecklinkSwitcher/1.0.0": {
         "dependencies": {
+          "FlashCap": "1.12.0",
           "LibVLCSharp": "3.10.1",
           "NAudio": "3.1.0",
           "DeckLinkAPI.Interop": "1.0.0.0"
         },
         "runtime": {
           "DecklinkSwitcher.dll": {}
+        }
+      },
+      "FlashCap/1.12.0": {
+        "dependencies": {
+          "FlashCap.Core": "1.12.0"
+        },
+        "runtime": {
+          "lib/net10.0/FlashCap.dll": {
+            "assemblyVersion": "1.12.0.0",
+            "fileVersion": "2026.8.24.34791",
+            "localPath": "FlashCap.dll"
+          }
+        }
+      },
+      "FlashCap.Core/1.12.0": {
+        "runtime": {
+          "lib/net10.0/FlashCap.Core.dll": {
+            "assemblyVersion": "1.12.0.0",
+            "fileVersion": "2026.8.24.34791",
+            "localPath": "FlashCap.Core.dll"
+          }
         }
       },
       "LibVLCSharp/3.10.1": {
@@ -153,6 +175,20 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "FlashCap/1.12.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bT3D8eSvG4trCErOHXUX4BNAUMfV1Ghri8DINN0CIopjSyi0jgIxV1K0sZegO/gg3PK7xJ03CuY3tWACn0WAbA==",
+      "path": "flashcap/1.12.0",
+      "hashPath": "flashcap.1.12.0.nupkg.sha512"
+    },
+    "FlashCap.Core/1.12.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-6LiaQSgB9lPa+pLSghbIM2FouS5N+vZC+bbLJ3xqRvzYwdJn4XjgEMrOhbYlNbnIpyQdEaL/pbeZyR4K6Y1hcg==",
+      "path": "flashcap.core/1.12.0",
+      "hashPath": "flashcap.core.1.12.0.nupkg.sha512"
     },
     "LibVLCSharp/3.10.1": {
       "type": "package",

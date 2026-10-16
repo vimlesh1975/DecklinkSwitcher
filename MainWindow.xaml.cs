@@ -11,6 +11,8 @@ namespace DecklinkSwitcher
     public partial class MainWindow : Window
     {
         public static System.Collections.ObjectModel.ObservableCollection<DeckLinkInputViewModel> DynamicInputs { get; } = new();
+        public static System.Collections.ObjectModel.ObservableCollection<ScreenInputViewModel> DynamicScreens { get; } = new();
+        public static System.Collections.ObjectModel.ObservableCollection<WebcamInputViewModel> DynamicWebcams { get; } = new();
         public System.Collections.ObjectModel.ObservableCollection<InputSelectionViewModel> InputSelectors { get; } = new();
 
         public static void SetActiveSource(int type, string name, DeckLinkDevice device)
@@ -19,6 +21,8 @@ namespace DecklinkSwitcher
             window._activeSourceType = type;
             ActiveSourceType = type;
             window._activeInput = device;
+            window._activeScreen = null;
+            window._activeWebcam = null;
             ActiveInputName = name;
             window.UpdateProgramSourceFlags();
             
@@ -48,7 +52,8 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
-        private System.Windows.Media.Imaging.WriteableBitmap _bmpDesktop;
+        private ScreenInputViewModel? _activeScreen;
+        private WebcamInputViewModel? _activeWebcam;
         
         private VlcMediaSource _mediaSource;
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
@@ -98,11 +103,9 @@ namespace DecklinkSwitcher
             _bmpColorBars = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMedia = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-            _bmpDesktop = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
-            PreviewDesktop.Source = _bmpDesktop;
             
             try
             {
@@ -237,6 +240,14 @@ namespace DecklinkSwitcher
                         settings.InputAudioLevels[input.DisplayName] = input.AudioLevel;
                         settings.InputAudioStates[input.DisplayName] = input.State;
                     }
+
+                    for (int i = 0; i < DynamicWebcams.Count; i++)
+                    {
+                        var cam = DynamicWebcams[i];
+                        string key = "Webcam_" + i;
+                        settings.MicLevels[key] = cam.AudioLevel;
+                        settings.MicStates[key] = cam.State;
+                    }
                     
                     settings.MicLevels.Clear();
                     foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
@@ -275,6 +286,14 @@ namespace DecklinkSwitcher
                 {
                     if (input.Device != null) input.Device.StopCapture();
                 }
+                foreach (var cam in DynamicWebcams)
+                {
+                    cam.Source?.Dispose();
+                }
+                foreach (var scr in DynamicScreens)
+                {
+                    scr.Context?.Dispose();
+                }
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
                 SystemAudioPlayer.Shutdown();
@@ -293,11 +312,24 @@ namespace DecklinkSwitcher
                 UpdateMiniPreviewsSynthetic();
                 
                 var screens = System.Windows.Forms.Screen.AllScreens;
+                DynamicScreens.Clear();
                 for (int i = 0; i < screens.Length; i++)
                 {
-                    CmbScreens.Items.Add($"Screen {i + 1} ({screens[i].Bounds.Width}x{screens[i].Bounds.Height})");
+                    var scr = screens[i];
+                    string name = screens.Length == 1 ? "Desktop" : $"Screen {i + 1}";
+                    var vm = new ScreenInputViewModel(i, name, scr);
+                    vm.PreviewBitmap = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+                    DynamicScreens.Add(vm);
+
+                    var template = (DataTemplate)FindResource("ScreenTileTemplate");
+                    var tile = (UIElement)template.LoadContent();
+                    if (tile is FrameworkElement fe) fe.DataContext = vm;
+                    SwitcherPanel.Children.Add(tile);
                 }
-                if (CmbScreens.Items.Count > 0) CmbScreens.SelectedIndex = 0;
+                if (DynamicScreens.Count > 0 && _activeScreen == null)
+                {
+                    _activeScreen = DynamicScreens[0];
+                }
                 
                 List<DeckLinkDeviceInfo> devices = new List<DeckLinkDeviceInfo>();
                 devices.Add(new DeckLinkDeviceInfo { DisplayName = "None", Index = -1 });
@@ -305,6 +337,7 @@ namespace DecklinkSwitcher
                 Log("Discovering devices in background...");
                 int physicalCount = 0;
                 var micDevices = new System.Collections.Generic.List<MicDeviceInfo>();
+                var webcamDevices = new System.Collections.Generic.List<WebcamDeviceInfo>();
                 
                 await Task.Run(() => 
                 {
@@ -341,6 +374,7 @@ namespace DecklinkSwitcher
                     }
                     
                     micDevices.AddRange(LocalAudioInput.GetDevices());
+                    webcamDevices.AddRange(WebcamSource.GetDevices());
                 });
 
                 if (physicalCount == 0)
@@ -380,6 +414,8 @@ namespace DecklinkSwitcher
                     CmbOutput.SelectedIndex = 0;
                 }
                 
+                CmbOutput.SelectionChanged += (s, e) => { if (IsLoaded) BtnApplySettings.IsEnabled = true; };
+                
                 InputSelectorsControl.ItemsSource = InputSelectors;
                 InputSelectors.Clear();
                 int numInputs = Math.Max(0, physicalCount - 1);
@@ -402,6 +438,7 @@ namespace DecklinkSwitcher
                     {
                         vm.SelectedDevice = availableDevices[defaultIndex];
                     }
+                    vm.PropertyChanged += (s, e) => { if (IsLoaded && e.PropertyName == nameof(InputSelectionViewModel.SelectedDevice)) BtnApplySettings.IsEnabled = true; };
                     InputSelectors.Add(vm);
                 }
                 SldPgmAudio.Value = settings.AudioLevelPgm;
@@ -414,11 +451,88 @@ namespace DecklinkSwitcher
                 CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;
                 CmbAudioStateMedia.SelectedIndex = (int)settings.AudioStateMedia;
                 
+                // Dynamic Webcams
+                DynamicWebcams.Clear();
+                var linkedMicDeviceIds = new System.Collections.Generic.HashSet<string>();
+
+                for (int i = 0; i < webcamDevices.Count; i++)
+                {
+                    var devInfo = webcamDevices[i];
+                    string displayName = webcamDevices.Count == 1 ? "Webcam" : $"Webcam {i + 1}";
+                    var vm = new WebcamInputViewModel(displayName, devInfo.Name, i);
+                    vm.PreviewBitmap = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+
+                    string levelKey = "Webcam_" + i;
+                    if (settings.MicLevels.ContainsKey(levelKey)) vm.AudioLevel = settings.MicLevels[levelKey];
+                    if (settings.MicStates.ContainsKey(levelKey)) vm.AudioStateIndex = (int)settings.MicStates[levelKey];
+
+                    var src = new WebcamSource();
+                    vm.Source = src;
+
+                    src.OnPreviewBufferUpdated = (buf) =>
+                    {
+                        Application.Current.Dispatcher.BeginInvoke(() =>
+                        {
+                            vm.PreviewBitmap.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                            if (_activeSourceType == 5 && _activeWebcam == vm && _bmpOutput != null)
+                            {
+                                _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                            }
+                        });
+                    };
+
+                    src.OnPgmBufferUpdated = (buf1080) =>
+                    {
+                        if (_activeSourceType == 5 && _activeWebcam == vm)
+                        {
+                            lock (_pgmLock)
+                            {
+                                if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                                    _latestPgmFrame = new byte[1920 * 1080 * 4];
+                                Array.Copy(buf1080, _latestPgmFrame, _latestPgmFrame.Length);
+                            }
+                        }
+                    };
+
+                    src.OnAudioLevelArrived = (l, r) =>
+                    {
+                        Application.Current.Dispatcher.BeginInvoke(() =>
+                        {
+                            vm.AudioL = (int)l;
+                            vm.AudioR = (int)r;
+                        });
+                    };
+
+                    if (devInfo.Descriptor != null)
+                    {
+                        _ = src.StartAsync(devInfo.Descriptor);
+                    }
+
+                    string? linkedMic = FindWebcamAudioDevice(devInfo.Name, micDevices);
+                    if (!string.IsNullOrEmpty(linkedMic))
+                    {
+                        linkedMicDeviceIds.Add(linkedMic);
+                        src.StartAudio(linkedMic, displayName);
+                    }
+
+                    DynamicWebcams.Add(vm);
+
+                    var template = (DataTemplate)FindResource("WebcamTileTemplate");
+                    var tile = (UIElement)template.LoadContent();
+                    if (tile is FrameworkElement fe) fe.DataContext = vm;
+                    SwitcherPanel.Children.Add(tile);
+                }
+
+                if (DynamicWebcams.Count > 0 && _activeWebcam == null)
+                {
+                    _activeWebcam = DynamicWebcams[0];
+                }
 
                 _activeMics.Clear();
                 foreach (var device in micDevices)
                 {
                     if (device.DeviceNumber < 0) continue; // Skip 'None'
+                    if (linkedMicDeviceIds.Contains(device.DeviceId)) continue; // Managed directly on Webcam tile
                     string key = "Mic_" + device.DeviceNumber;
                     
                     double level = 1.0;
@@ -580,12 +694,14 @@ namespace DecklinkSwitcher
 
         private void BtnApplySettings_Click(object sender, RoutedEventArgs e)
         {
+            BtnApplySettings.IsEnabled = false;
             var outInfo = CmbOutput.SelectedItem as DeckLinkDeviceInfo;
 
 
             if (outInfo == null)
             {
                 TxtStatus.Text = "Please select an Output option (or None).";
+                BtnApplySettings.IsEnabled = true;
                 return;
             }
 
@@ -632,6 +748,11 @@ namespace DecklinkSwitcher
                 catch (Exception ex)
                 {
                     Log($"MTA Init Error: {ex.Message}");
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        BtnApplySettings.IsEnabled = true;
+                        TxtStatus.Text = "Error: " + ex.Message;
+                    }));
                 }
             });
             mtaThread.SetApartmentState(ApartmentState.MTA);
@@ -668,12 +789,30 @@ namespace DecklinkSwitcher
             foreach (var input in DynamicInputs)
             {
                 if (input.Device != null) input.Device.IsProgramSource = (_activeSourceType == 0 && _activeInput == input.Device);
+                input.BgColor = (_activeSourceType == 0 && input.Device == _activeInput && _activeInput != null) ? "#d32f2f" : "#2962ff";
             }
+
+            foreach (var scr in DynamicScreens)
+            {
+                scr.BgColor = (_activeSourceType == 4 && _activeScreen == scr) ? "#d32f2f" : "#2962ff";
+            }
+            foreach (var cam in DynamicWebcams)
+            {
+                cam.BgColor = (_activeSourceType == 5 && _activeWebcam == cam) ? "#d32f2f" : "#2962ff";
+            }
+
+            var defaultBrush = (System.Windows.Media.Brush)FindResource("ButtonBg");
+            var activeBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xd3, 0x2f, 0x2f));
+
+            if (BtnColorBars != null) BtnColorBars.Background = (_activeSourceType == 1) ? activeBrush : defaultBrush;
+            if (BtnMatte != null) BtnMatte.Background = (_activeSourceType == 2) ? activeBrush : defaultBrush;
+            if (BtnMedia != null) BtnMedia.Background = (_activeSourceType == 3) ? activeBrush : defaultBrush;
         }
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 1; ActiveSourceType = 1; ActiveInputName = "Color Bars";
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
             Log("Switched to Color Bars");
             UpdatePgmPreviewSynthetic();
@@ -686,6 +825,7 @@ namespace DecklinkSwitcher
         private void BtnMatte_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 2; ActiveSourceType = 2; ActiveInputName = "Matte";
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
             Log("Switched to Matte");
             UpdatePgmPreviewSynthetic();
@@ -697,21 +837,114 @@ namespace DecklinkSwitcher
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
         {
             _activeSourceType = 3; ActiveSourceType = 3; ActiveInputName = "Media"; Log("Switched to Local Video");
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
         }
         private void PreviewMedia_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMedia_Click(null, null);
 
-        private void CmbScreens_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        public void SwitchToScreen(ScreenInputViewModel vm)
         {
-            _selectedScreenIndex = CmbScreens.SelectedIndex;
+            _activeSourceType = 4;
+            ActiveSourceType = 4;
+            _activeScreen = vm;
+            _activeWebcam = null;
+            _activeInput = null;
+            ActiveInputName = vm.DisplayName;
+            Log($"Switched to {vm.DisplayName}");
+            UpdateProgramSourceFlags();
+
+            if (vm.Context != null && vm.Context.Prev480Buffer != null && _bmpOutput != null)
+            {
+                _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), vm.Context.Prev480Buffer, 480 * 4, 0);
+            }
+            if (vm.Context != null && vm.Context.Pgm1080Buffer != null)
+            {
+                lock (_pgmLock)
+                {
+                    if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                        _latestPgmFrame = new byte[1920 * 1080 * 4];
+                    Array.Copy(vm.Context.Pgm1080Buffer, _latestPgmFrame, _latestPgmFrame.Length);
+                }
+            }
         }
 
-        private void BtnDesktop_Click(object sender, RoutedEventArgs e)
+        public void SwitchToWebcam(WebcamInputViewModel vm)
         {
-            _activeSourceType = 4; ActiveSourceType = 4; ActiveInputName = "Desktop"; Log("Switched to Desktop Capture");
+            _activeSourceType = 5;
+            ActiveSourceType = 5;
+            _activeWebcam = vm;
+            _activeScreen = null;
+            _activeInput = null;
+            ActiveInputName = vm.DisplayName;
+            Log($"Switched to {vm.DisplayName}");
             UpdateProgramSourceFlags();
+
+            if (vm.Source != null)
+            {
+                var preview = vm.Source.GetLatestPreviewPixels();
+                if (preview != null && _bmpOutput != null)
+                {
+                    _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), preview, 480 * 4, 0);
+                }
+                var pgm = vm.Source.GetLatestPgmPixels();
+                if (pgm != null)
+                {
+                    lock (_pgmLock)
+                    {
+                        if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                            _latestPgmFrame = new byte[1920 * 1080 * 4];
+                        Array.Copy(pgm, _latestPgmFrame, _latestPgmFrame.Length);
+                    }
+                }
+            }
         }
-        private void PreviewDesktop_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnDesktop_Click(null, null);
+
+        private string? FindWebcamAudioDevice(string webcamName, System.Collections.Generic.List<MicDeviceInfo>? availableMics = null)
+        {
+            try
+            {
+                var mics = availableMics ?? LocalAudioInput.GetDevices();
+                MicDeviceInfo? bestMatch = mics.FirstOrDefault(d => 
+                    d.DeviceNumber >= 0 && 
+                    !string.IsNullOrEmpty(d.Name) && 
+                    (d.Name.IndexOf(webcamName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     webcamName.IndexOf(d.Name, StringComparison.OrdinalIgnoreCase) >= 0));
+
+                if (bestMatch == null)
+                {
+                    string[] tokens = webcamName.Split(new[] { ' ', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var token in tokens)
+                    {
+                        if (token.Length >= 3 && !token.Equals("camera", StringComparison.OrdinalIgnoreCase))
+                        {
+                            bestMatch = mics.FirstOrDefault(d => d.DeviceNumber >= 0 && d.Name.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0);
+                            if (bestMatch != null) break;
+                        }
+                    }
+                }
+
+                if (bestMatch == null)
+                {
+                    bestMatch = mics.FirstOrDefault(d => d.DeviceNumber >= 0 && d.Name.IndexOf("USB", StringComparison.OrdinalIgnoreCase) >= 0);
+                }
+
+                if (bestMatch != null)
+                {
+                    Log($"[Webcam] Linked audio device {bestMatch.Name} to {webcamName}");
+                    return bestMatch.DeviceId;
+                }
+                else
+                {
+                    Log($"[Webcam] No matching microphone found for {webcamName}");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"[Webcam] Audio link error: {ex.Message}");
+                return null;
+            }
+        }
 
         private string _lastMediaFile = "";
 
@@ -830,9 +1063,11 @@ namespace DecklinkSwitcher
 
         public static float ColorBarsAudioLevel = 1.0f;
         public static float MediaAudioLevel = 1.0f;
+        public static float WebcamAudioLevel = 1.0f;
 
         public static AudioState StateMedia = AudioState.AFV;
         public static AudioState StateColorBars = AudioState.AFV;
+        public static AudioState StateWebcam = AudioState.AFV;
         
         public static System.Collections.Concurrent.ConcurrentDictionary<string, float> DynamicMicLevels = new();
         public static System.Collections.Concurrent.ConcurrentDictionary<string, AudioState> DynamicMicStates = new();
@@ -1030,6 +1265,10 @@ namespace DecklinkSwitcher
             }
             mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
             mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
+            foreach (var cam in DynamicWebcams)
+            {
+                mixSource(cam.DisplayName, (float)cam.AudioLevel, cam.State, activeSourceType == 5 && activeInputName == cam.DisplayName);
+            }
             foreach (var kvp in DynamicMicLevels)
             {
                 string key = kvp.Key;
@@ -1159,7 +1398,7 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
-            else if (_activeSourceType == 4) // Desktop Capture
+            else if (_activeSourceType == 4 || _activeSourceType == 5) // Desktop Capture or Webcam
             {
                 // Handled continuously by background capture thread to prevent audio timing stutter
                 return;
@@ -1202,76 +1441,6 @@ namespace DecklinkSwitcher
             });
         }
 
-        private static int _selectedScreenIndex = 0;
-        private static System.Drawing.Bitmap _desktopScreenBmp = null;
-        private static System.Drawing.Graphics _desktopScreenG = null;
-        private static System.Drawing.Bitmap _desktop1080Bmp = null;
-        private static System.Drawing.Graphics _desktop1080G = null;
-        private static System.Drawing.Bitmap _desktop480Bmp = null;
-        private static System.Drawing.Graphics _desktop480G = null;
-        private static byte[] _desktop1080Buffer = new byte[1920 * 1080 * 4];
-
-        private static void UpdateDesktopCaptureBuffers(byte[] previewPixels480)
-        {
-            var screens = System.Windows.Forms.Screen.AllScreens;
-            int idx = _selectedScreenIndex >= 0 && _selectedScreenIndex < screens.Length ? _selectedScreenIndex : 0;
-            var screen = screens[idx];
-            
-            int screenWidth = screen.Bounds.Width;
-            int screenHeight = screen.Bounds.Height;
-            
-            if (_desktopScreenBmp == null || _desktopScreenBmp.Width != screenWidth || _desktopScreenBmp.Height != screenHeight)
-            {
-                _desktopScreenG?.Dispose();
-                _desktopScreenBmp?.Dispose();
-                _desktopScreenBmp = new System.Drawing.Bitmap(screenWidth, screenHeight);
-                _desktopScreenG = System.Drawing.Graphics.FromImage(_desktopScreenBmp);
-                
-                _desktop1080G?.Dispose();
-                _desktop1080Bmp?.Dispose();
-                _desktop1080Bmp = new System.Drawing.Bitmap(1920, 1080);
-                _desktop1080G = System.Drawing.Graphics.FromImage(_desktop1080Bmp);
-                _desktop1080G.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                _desktop1080G.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
-                _desktop1080G.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
-                
-                _desktop480G?.Dispose();
-                _desktop480Bmp?.Dispose();
-                _desktop480Bmp = new System.Drawing.Bitmap(480, 270);
-                _desktop480G = System.Drawing.Graphics.FromImage(_desktop480Bmp);
-            }
-            
-            // Capture
-            _desktopScreenG.CopyFromScreen(screen.Bounds.X, screen.Bounds.Y, 0, 0, _desktopScreenBmp.Size, System.Drawing.CopyPixelOperation.SourceCopy);
-            
-            // Draw to 1080p
-            if (screenWidth == 1920 && screenHeight == 1080)
-            {
-                var dataScreen = _desktopScreenBmp.LockBits(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                System.Runtime.InteropServices.Marshal.Copy(dataScreen.Scan0, _desktop1080Buffer, 0, _desktop1080Buffer.Length);
-                _desktopScreenBmp.UnlockBits(dataScreen);
-            }
-            else
-            {
-                _desktop1080G.Clear(System.Drawing.Color.Black);
-                float scale = Math.Min(1920f / screenWidth, 1080f / screenHeight);
-                int drawW = (int)(screenWidth * scale);
-                int drawH = (int)(screenHeight * scale);
-                int drawX = (1920 - drawW) / 2;
-                int drawY = (1080 - drawH) / 2;
-                _desktop1080G.DrawImage(_desktopScreenBmp, drawX, drawY, drawW, drawH);
-                
-                var data1080 = _desktop1080Bmp.LockBits(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                System.Runtime.InteropServices.Marshal.Copy(data1080.Scan0, _desktop1080Buffer, 0, _desktop1080Buffer.Length);
-                _desktop1080Bmp.UnlockBits(data1080);
-            }
-            
-            // Draw to 480p
-            _desktop480G.DrawImage(_desktopScreenBmp, 0, 0, 480, 270);
-            var data480 = _desktop480Bmp.LockBits(new System.Drawing.Rectangle(0, 0, 480, 270), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            System.Runtime.InteropServices.Marshal.Copy(data480.Scan0, previewPixels480, 0, previewPixels480.Length);
-            _desktop480Bmp.UnlockBits(data480);
-        }
 
         private void UpdateMiniPreviewsSynthetic()
         {
@@ -1422,26 +1591,89 @@ namespace DecklinkSwitcher
         {
             Task.Run(async () =>
             {
-                byte[] previewPixels = new byte[480 * 270 * 4];
                 while (true)
                 {
                     try
                     {
-                        if (_activeSourceType == 4)
+                        for (int i = 0; i < DynamicScreens.Count; i++)
                         {
-                            UpdateDesktopCaptureBuffers(previewPixels);
-                            lock (_pgmLock)
+                            var vm = DynamicScreens[i];
+                            var screen = vm.Screen;
+                            var ctx = vm.Context;
+                            int screenWidth = screen.Bounds.Width;
+                            int screenHeight = screen.Bounds.Height;
+
+                            if (ctx.ScreenBmp == null || ctx.ScreenBmp.Width != screenWidth || ctx.ScreenBmp.Height != screenHeight)
                             {
-                                if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
-                                    _latestPgmFrame = new byte[1920 * 1080 * 4];
-                                if (_desktop1080Buffer != null)
-                                    Array.Copy(_desktop1080Buffer, _latestPgmFrame, _latestPgmFrame.Length);
+                                ctx.Dispose();
+                                ctx.ScreenBmp = new System.Drawing.Bitmap(screenWidth, screenHeight);
+                                ctx.ScreenG = System.Drawing.Graphics.FromImage(ctx.ScreenBmp);
+
+                                ctx.Prev480Bmp = new System.Drawing.Bitmap(480, 270);
+                                ctx.Prev480G = System.Drawing.Graphics.FromImage(ctx.Prev480Bmp);
+                                ctx.Prev480G.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
+
+                                ctx.Pgm1080Bmp = new System.Drawing.Bitmap(1920, 1080);
+                                ctx.Pgm1080G = System.Drawing.Graphics.FromImage(ctx.Pgm1080Bmp);
+                                ctx.Pgm1080G.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                             }
-                            
+
+                            // Capture screen
+                            ctx.ScreenG.CopyFromScreen(screen.Bounds.X, screen.Bounds.Y, 0, 0, ctx.ScreenBmp.Size, System.Drawing.CopyPixelOperation.SourceCopy);
+
+                            // Draw preview (480x270)
+                            ctx.Prev480G.Clear(System.Drawing.Color.Black);
+                            float prevScale = Math.Min(480f / screenWidth, 270f / screenHeight);
+                            int pDrawW = (int)(screenWidth * prevScale);
+                            int pDrawH = (int)(screenHeight * prevScale);
+                            int pDrawX = (480 - pDrawW) / 2;
+                            int pDrawY = (270 - pDrawH) / 2;
+                            ctx.Prev480G.DrawImage(ctx.ScreenBmp, pDrawX, pDrawY, pDrawW, pDrawH);
+
+                            var data480 = ctx.Prev480Bmp.LockBits(new System.Drawing.Rectangle(0, 0, 480, 270), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                            System.Runtime.InteropServices.Marshal.Copy(data480.Scan0, ctx.Prev480Buffer, 0, ctx.Prev480Buffer.Length);
+                            ctx.Prev480Bmp.UnlockBits(data480);
+
                             Application.Current.Dispatcher.BeginInvoke(() => {
-                                if (_bmpOutput != null) _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), previewPixels, 480 * 4, 0);
-                                if (_bmpDesktop != null) _bmpDesktop.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), previewPixels, 480 * 4, 0);
+                                vm.PreviewBitmap?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), ctx.Prev480Buffer, 480 * 4, 0);
                             });
+
+                            // If this screen is currently active on Program Output
+                            if (_activeSourceType == 4 && _activeScreen == vm)
+                            {
+                                if (screenWidth == 1920 && screenHeight == 1080)
+                                {
+                                    var dataScreen = ctx.ScreenBmp.LockBits(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                                    System.Runtime.InteropServices.Marshal.Copy(dataScreen.Scan0, ctx.Pgm1080Buffer, 0, ctx.Pgm1080Buffer.Length);
+                                    ctx.ScreenBmp.UnlockBits(dataScreen);
+                                }
+                                else
+                                {
+                                    ctx.Pgm1080G.Clear(System.Drawing.Color.Black);
+                                    float pgmScale = Math.Min(1920f / screenWidth, 1080f / screenHeight);
+                                    int gDrawW = (int)(screenWidth * pgmScale);
+                                    int gDrawH = (int)(screenHeight * pgmScale);
+                                    int gDrawX = (1920 - gDrawW) / 2;
+                                    int gDrawY = (1080 - gDrawH) / 2;
+                                    ctx.Pgm1080G.DrawImage(ctx.ScreenBmp, gDrawX, gDrawY, gDrawW, gDrawH);
+
+                                    var data1080 = ctx.Pgm1080Bmp.LockBits(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                                    System.Runtime.InteropServices.Marshal.Copy(data1080.Scan0, ctx.Pgm1080Buffer, 0, ctx.Pgm1080Buffer.Length);
+                                    ctx.Pgm1080Bmp.UnlockBits(data1080);
+                                }
+
+                                lock (_pgmLock)
+                                {
+                                    if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                                        _latestPgmFrame = new byte[1920 * 1080 * 4];
+                                    Array.Copy(ctx.Pgm1080Buffer, _latestPgmFrame, _latestPgmFrame.Length);
+                                }
+
+                                Application.Current.Dispatcher.BeginInvoke(() => {
+                                    if (_bmpOutput != null)
+                                        _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), ctx.Prev480Buffer, 480 * 4, 0);
+                                });
+                            }
                         }
                     }
                     catch { }
@@ -1560,7 +1792,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
                             UpdatePgmPreviewSynthetic();
@@ -1607,7 +1839,7 @@ namespace DecklinkSwitcher
                 SwitcherPanel.IsEnabled = true;
                 CmbOutput.IsEnabled = true;
                 InputSelectorsControl.IsEnabled = true;
-                BtnApplySettings.IsEnabled = true;
+                BtnApplySettings.IsEnabled = false;
                 bool hasAnyHardware = _activeOutput != null || DynamicInputs.Count > 0;
                 TxtStatus.Text = hasAnyHardware ? "Running!" : "Running (None selected)";
                 if (_activeInput == null && _activeSourceType == 0)
@@ -1688,6 +1920,136 @@ namespace DecklinkSwitcher
         public event EventHandler CanExecuteChanged { add { } remove { } }
         public bool CanExecute(object parameter) => true;
         public void Execute(object parameter) => _execute(parameter);
+    }
+
+    public class ScreenCaptureContext : IDisposable
+    {
+        public System.Drawing.Bitmap? ScreenBmp;
+        public System.Drawing.Graphics? ScreenG;
+        public System.Drawing.Bitmap? Prev480Bmp;
+        public System.Drawing.Graphics? Prev480G;
+        public byte[] Prev480Buffer = new byte[480 * 270 * 4];
+        public System.Drawing.Bitmap? Pgm1080Bmp;
+        public System.Drawing.Graphics? Pgm1080G;
+        public byte[] Pgm1080Buffer = new byte[1920 * 1080 * 4];
+
+        public void Dispose()
+        {
+            ScreenG?.Dispose();
+            ScreenBmp?.Dispose();
+            Prev480G?.Dispose();
+            Prev480Bmp?.Dispose();
+            Pgm1080G?.Dispose();
+            Pgm1080Bmp?.Dispose();
+        }
+    }
+
+    public class ScreenInputViewModel : System.ComponentModel.INotifyPropertyChanged
+    {
+        public int ScreenIndex { get; set; }
+        public string DisplayName { get; set; }
+        public System.Windows.Forms.Screen Screen { get; set; }
+        public ScreenCaptureContext Context { get; } = new ScreenCaptureContext();
+
+        private System.Windows.Media.Imaging.WriteableBitmap _previewBitmap;
+        public System.Windows.Media.Imaging.WriteableBitmap PreviewBitmap 
+        { 
+            get => _previewBitmap; 
+            set { _previewBitmap = value; OnPropertyChanged(nameof(PreviewBitmap)); } 
+        }
+
+        private string _bgColor = "#2962ff";
+        public string BgColor 
+        { 
+            get => _bgColor; 
+            set { _bgColor = value; OnPropertyChanged(nameof(BgColor)); } 
+        }
+
+        public RelayCommand SelectInputCmd { get; }
+
+        public ScreenInputViewModel(int index, string displayName, System.Windows.Forms.Screen screen)
+        {
+            ScreenIndex = index;
+            DisplayName = displayName;
+            Screen = screen;
+            SelectInputCmd = new RelayCommand(_ => {
+                var mw = (MainWindow)System.Windows.Application.Current.MainWindow;
+                mw.SwitchToScreen(this);
+            });
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+    }
+
+    public class WebcamInputViewModel : System.ComponentModel.INotifyPropertyChanged
+    {
+        public WebcamSource Source { get; set; }
+        public string DisplayName { get; set; }
+        public string DeviceName { get; set; }
+        public int WebcamIndex { get; set; }
+
+        private double _audioLevel = 1.0;
+        public double AudioLevel 
+        { 
+            get => _audioLevel; 
+            set 
+            { 
+                _audioLevel = value; 
+                OnPropertyChanged(nameof(AudioLevel)); 
+                ((MainWindow)System.Windows.Application.Current.MainWindow).SaveCurrentSettings(); 
+            }
+        }
+
+        private int _audioL;
+        public int AudioL { get => _audioL; set { _audioL = value; OnPropertyChanged(nameof(AudioL)); } }
+
+        private int _audioR;
+        public int AudioR { get => _audioR; set { _audioR = value; OnPropertyChanged(nameof(AudioR)); } }
+
+        private System.Windows.Media.Imaging.WriteableBitmap _previewBitmap;
+        public System.Windows.Media.Imaging.WriteableBitmap PreviewBitmap 
+        { 
+            get => _previewBitmap; 
+            set { _previewBitmap = value; OnPropertyChanged(nameof(PreviewBitmap)); } 
+        }
+
+        private int _audioStateIndex = 0; // 0=AFV, 1=ON, 2=OFF
+        public int AudioStateIndex 
+        { 
+            get => _audioStateIndex; 
+            set 
+            { 
+                _audioStateIndex = value; 
+                OnPropertyChanged(nameof(AudioStateIndex)); 
+                ((MainWindow)System.Windows.Application.Current.MainWindow).SaveCurrentSettings(); 
+            }
+        }
+
+        public AudioState State => (AudioState)_audioStateIndex;
+
+        private string _bgColor = "#2962ff";
+        public string BgColor 
+        { 
+            get => _bgColor; 
+            set { _bgColor = value; OnPropertyChanged(nameof(BgColor)); } 
+        }
+
+        public RelayCommand SelectInputCmd { get; }
+
+        public WebcamInputViewModel(string displayName, string deviceName, int index)
+        {
+            DisplayName = displayName;
+            DeviceName = deviceName;
+            WebcamIndex = index;
+            SelectInputCmd = new RelayCommand(_ => {
+                var mw = (MainWindow)System.Windows.Application.Current.MainWindow;
+                mw.SwitchToWebcam(this);
+            });
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
     }
 
     public class DeckLinkDeviceInfo
@@ -2088,7 +2450,7 @@ namespace DecklinkSwitcher
                             }
                         }
                     }
-                    else if (sourceType == 4) // Desktop Capture
+                    else if (sourceType == 4 || sourceType == 5) // Desktop Capture or Webcam
                     {
                         byte[] deskUyvy = null;
                         lock (MainWindow._pgmLock)

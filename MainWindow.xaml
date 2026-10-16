@@ -35,6 +35,49 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
+
+        <DataTemplate x:Key="ScreenTileTemplate">
+            <Border Style="{DynamicResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
+                            <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" Height="100" Width="158" Cursor="Hand">
+                                <Image.InputBindings>
+                                    <MouseBinding MouseAction="LeftClick" Command="{Binding SelectInputCmd}" />
+                                </Image.InputBindings>
+                            </Image>
+                        </Border>
+                    </StackPanel>
+                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="WebcamTileTemplate">
+            <Border Style="{DynamicResource MixerPanel}">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioL, Mode=OneWay}" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                        <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
+                            <Image Source="{Binding PreviewBitmap}" Stretch="Uniform" Height="100" Width="158" Cursor="Hand">
+                                <Image.InputBindings>
+                                    <MouseBinding MouseAction="LeftClick" Command="{Binding SelectInputCmd}" />
+                                </Image.InputBindings>
+                            </Image>
+                        </Border>
+                        <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                        <Slider Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="{Binding AudioLevel, Mode=TwoWay}" SmallChange="0.05" LargeChange="0.1"/>
+                    </StackPanel>
+                    <Button Content="{Binding DisplayName}" ToolTip="{Binding DeviceName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                    <ComboBox FontSize="12" Height="26" Margin="0,8,0,0" SelectedIndex="{Binding AudioStateIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="AFV"/>
+                        <ComboBoxItem Content="ON"/>
+                        <ComboBoxItem Content="OFF"/>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
         <Style TargetType="Button">
             <Setter Property="Template">
                 <Setter.Value>
@@ -230,21 +273,6 @@
                         </ComboBox>
                     </StackPanel>
                 </Border>
-
-
-                <Border Style="{StaticResource MixerPanel}">
-                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
-                                <Image Name="PreviewDesktop" Stretch="Uniform" Height="100" Width="158" MouseDown="PreviewDesktop_MouseDown" Cursor="Hand"/>
-                            </Border>
-                        </StackPanel>
-                        <Button Name="BtnDesktop" Content="Desktop Capture" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnDesktop_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
-                        <ComboBox Name="CmbScreens" FontSize="12" Height="26" SelectionChanged="CmbScreens_SelectionChanged">
-                        </ComboBox>
-                    </StackPanel>
-                </Border>
-
 
             </WrapPanel>
         </Grid>

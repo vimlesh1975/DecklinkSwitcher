@@ -25,6 +25,10 @@ namespace DecklinkSwitcher
         public string SelectedRecordingProfile { get; set; } = "MP4 High Quality";
         public string RecordingDirectory { get; set; } = "";
         
+        public string SelectedWebcam { get; set; } = "";
+        public double AudioLevelWebcam { get; set; } = 1.0;
+        public AudioState AudioStateWebcam { get; set; } = AudioState.AFV;
+        
         public System.Collections.Generic.Dictionary<string, AudioState> InputAudioStates { get; set; } = new();
         public AudioState AudioStateColorBars { get; set; } = AudioState.AFV;
         public AudioState AudioStateMedia { get; set; } = AudioState.AFV;

@@ -13,6 +13,11 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output. 
     *   **Image Support:** Also supports routing static images (JPG, PNG, BMP) seamlessly into the broadcast.
     *   **Loop Mode:** Features a toggleable gapless playback loop for continuous playback of a selected file.
+*   **Webcam Source:**
+    *   Capture any connected USB webcam, virtual camera (e.g. OBS Virtual Camera), or HDMI USB capture dongle directly into the switcher.
+    *   **Live Preview & Camera Selector:** Dedicated preview tile with live video monitoring and an on-the-fly camera selection dropdown.
+    *   **Proportional 1080p Scaling & Letterboxing:** Automatically scales and letterboxes arbitrary webcam resolutions (e.g. 720p, 480p, 4:3, 16:9) cleanly into the 1080p broadcast frame.
+    *   **Integrated AFV Audio:** Automatically links to the webcam's microphone with full support for Audio-Follows-Video (AFV), dedicated volume slider, and stereo VU meters.
 *   **Desktop Screen Capture:**
     *   Capture any connected computer monitor natively via GDI+ and seamlessly route it to the broadcast output alongside cameras.
     *   **Multi-Monitor Support:** Automatically detects all connected displays. Select which screen to capture directly from the UI dropdown.
