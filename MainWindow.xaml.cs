@@ -54,6 +54,9 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
         private ScreenInputViewModel? _activeScreen;
         private WebcamInputViewModel? _activeWebcam;
+        private SystemAudioSource _systemAudioSource = new();
+        public static float SystemAudioLevel = 1.0f;
+        public static AudioState StateSystemAudio = AudioState.AFV;
         
         private VlcMediaSource _mediaSource;
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
@@ -234,6 +237,11 @@ namespace DecklinkSwitcher
                     
                     settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
                     settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
+                    if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
+                    if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
+                        settings.AudioStateSystemAudio = (AudioState)CmbAudioStateSystemAudio.SelectedIndex;
+                    if (CmbSystemAudioDevice != null && CmbSystemAudioDevice.SelectedItem is RenderDeviceInfo rdi)
+                        settings.SelectedSystemAudioDevice = rdi.DeviceId;
                     
                     foreach (var input in DynamicInputs)
                     {
@@ -296,6 +304,7 @@ namespace DecklinkSwitcher
                 }
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
+                _systemAudioSource?.Dispose();
                 SystemAudioPlayer.Shutdown();
                 Log("Resources released.");
                 Environment.Exit(0);
@@ -450,6 +459,38 @@ namespace DecklinkSwitcher
                 ChkLoopMedia.IsChecked = settings.LoopMediaEnabled;
                 CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;
                 CmbAudioStateMedia.SelectedIndex = (int)settings.AudioStateMedia;
+
+                // System Audio Setup
+                var renderDevices = SystemAudioSource.GetRenderDevices();
+                CmbSystemAudioDevice.ItemsSource = renderDevices;
+                int sysDevIdx = renderDevices.FindIndex(d => d.DeviceId == settings.SelectedSystemAudioDevice);
+                CmbSystemAudioDevice.SelectedIndex = sysDevIdx >= 0 ? sysDevIdx : 0;
+
+                SldSystemAudio.Value = settings.AudioLevelSystemAudio;
+                SystemAudioLevel = (float)settings.AudioLevelSystemAudio;
+                CmbAudioStateSystemAudio.SelectedIndex = (int)settings.AudioStateSystemAudio;
+                StateSystemAudio = settings.AudioStateSystemAudio;
+
+                _systemAudioSource.OnAudioLevelArrived = (l, r) =>
+                {
+                    Application.Current.Dispatcher.BeginInvoke(() =>
+                    {
+                        double levelL = l * SystemAudioLevel;
+                        double levelR = r * SystemAudioLevel;
+                        AudioBarSysL.Value = levelL;
+                        AudioBarSysR.Value = levelR;
+
+                        bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
+                        if (isSysAudioActive && _activeSourceType == 4)
+                        {
+                            AudioOutputL.Value = levelL * PgmAudioLevel;
+                            AudioOutputR.Value = levelR * PgmAudioLevel;
+                        }
+                    });
+                };
+
+                string? initSysDevId = (CmbSystemAudioDevice.SelectedItem as RenderDeviceInfo)?.DeviceId;
+                _systemAudioSource.Start(initSysDevId);
                 
                 // Dynamic Webcams
                 DynamicWebcams.Clear();
@@ -807,6 +848,9 @@ namespace DecklinkSwitcher
             if (BtnColorBars != null) BtnColorBars.Background = (_activeSourceType == 1) ? activeBrush : defaultBrush;
             if (BtnMatte != null) BtnMatte.Background = (_activeSourceType == 2) ? activeBrush : defaultBrush;
             if (BtnMedia != null) BtnMedia.Background = (_activeSourceType == 3) ? activeBrush : defaultBrush;
+
+            bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
+            if (BtnSystemAudio != null) BtnSystemAudio.Background = isSysAudioActive ? activeBrush : defaultBrush;
         }
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
@@ -1188,6 +1232,36 @@ namespace DecklinkSwitcher
             SaveCurrentSettings();
         }
 
+        private void SldSystemAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            SystemAudioLevel = (float)e.NewValue;
+            SaveCurrentSettings();
+        }
+
+        private void CmbAudioStateSystemAudio_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            StateSystemAudio = (AudioState)CmbAudioStateSystemAudio.SelectedIndex;
+            UpdateProgramSourceFlags();
+            SaveCurrentSettings();
+        }
+
+        private void BtnSystemAudio_Click(object sender, RoutedEventArgs e)
+        {
+            if (CmbAudioStateSystemAudio.SelectedIndex == 1)
+                CmbAudioStateSystemAudio.SelectedIndex = 2; // ON -> OFF
+            else
+                CmbAudioStateSystemAudio.SelectedIndex = 1; // OFF/AFV -> ON
+        }
+
+        private void CmbSystemAudioDevice_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            string? devId = (CmbSystemAudioDevice.SelectedItem as RenderDeviceInfo)?.DeviceId;
+            _systemAudioSource.Start(devId);
+            SaveCurrentSettings();
+        }
+
         private System.Windows.Controls.StackPanel CreateMicPanel(MicDeviceInfo device, string key, double initialLevel, AudioState initialState)
         {
             var pnl = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical, VerticalAlignment = System.Windows.VerticalAlignment.Center };
@@ -1269,6 +1343,7 @@ namespace DecklinkSwitcher
             {
                 mixSource(cam.DisplayName, (float)cam.AudioLevel, cam.State, activeSourceType == 5 && activeInputName == cam.DisplayName);
             }
+            mixSource("System Audio", SystemAudioLevel, StateSystemAudio, activeSourceType == 4);
             foreach (var kvp in DynamicMicLevels)
             {
                 string key = kvp.Key;

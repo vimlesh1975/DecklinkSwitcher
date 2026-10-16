@@ -274,6 +274,29 @@
                     </StackPanel>
                 </Border>
 
+                <Border Style="{StaticResource MixerPanel}">
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <ProgressBar Name="AudioBarSysL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Width="158" Height="100">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4">
+                                    <TextBlock Text="🔊" FontSize="26" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Loopback Capture" FontSize="10" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <ComboBox Name="CmbSystemAudioDevice" Width="144" Height="24" FontSize="10" DisplayMemberPath="Name" SelectionChanged="CmbSystemAudioDevice_SelectionChanged"/>
+                                </StackPanel>
+                            </Border>
+                            <ProgressBar Name="AudioBarSysR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Slider Name="SldSystemAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldSystemAudio_ValueChanged"/>
+                        </StackPanel>
+                        <Button Name="BtnSystemAudio" Content="System Audio" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnSystemAudio_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <ComboBox Name="CmbAudioStateSystemAudio" FontSize="12" Height="26" SelectionChanged="CmbAudioStateSystemAudio_SelectionChanged">
+                            <ComboBoxItem Content="AFV"/>
+                            <ComboBoxItem Content="ON"/>
+                            <ComboBoxItem Content="OFF"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
             </WrapPanel>
         </Grid>
 

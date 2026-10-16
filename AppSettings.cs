@@ -32,6 +32,9 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.Dictionary<string, AudioState> InputAudioStates { get; set; } = new();
         public AudioState AudioStateColorBars { get; set; } = AudioState.AFV;
         public AudioState AudioStateMedia { get; set; } = AudioState.AFV;
+        public double AudioLevelSystemAudio { get; set; } = 1.0;
+        public AudioState AudioStateSystemAudio { get; set; } = AudioState.AFV;
+        public string SelectedSystemAudioDevice { get; set; } = "";
         
         public System.Collections.Generic.Dictionary<string, double> MicLevels { get; set; } = new();
         public System.Collections.Generic.Dictionary<string, AudioState> MicStates { get; set; } = new();
