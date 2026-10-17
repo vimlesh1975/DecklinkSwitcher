@@ -249,6 +249,8 @@ namespace DecklinkSwitcher
                             settings.InputDevices[selector.Label] = selector.SelectedDevice.DisplayName;
                         else
                             settings.InputDevices[selector.Label] = "";
+
+                        settings.InputVideoFormats[selector.Label] = selector.SelectedFormat;
                     }
                     
                     settings.AudioLevelPgm = SldPgmAudio.Value;
@@ -476,7 +478,16 @@ namespace DecklinkSwitcher
                     {
                         vm.SelectedDevice = availableDevices[defaultIndex];
                     }
-                    vm.PropertyChanged += (s, e) => { if (IsLoaded && e.PropertyName == nameof(InputSelectionViewModel.SelectedDevice)) BtnApplySettings.IsEnabled = true; };
+
+                    if (settings.InputVideoFormats.ContainsKey(label) && vm.AvailableFormats.Contains(settings.InputVideoFormats[label]))
+                    {
+                        vm.SelectedFormat = settings.InputVideoFormats[label];
+                    }
+
+                    vm.PropertyChanged += (s, e) => { 
+                        if (IsLoaded && (e.PropertyName == nameof(InputSelectionViewModel.SelectedDevice) || e.PropertyName == nameof(InputSelectionViewModel.SelectedFormat))) 
+                            BtnApplySettings.IsEnabled = true; 
+                    };
                     InputSelectors.Add(vm);
                 }
                 SldPgmAudio.Value = settings.AudioLevelPgm;
@@ -845,10 +856,10 @@ namespace DecklinkSwitcher
             BtnApplySettings.IsEnabled = false;
             TxtStatus.Text = "Initializing...";
             
-            var selectedInputs = new System.Collections.Generic.List<DeckLinkDeviceInfo>();
+            var selectedInputs = new System.Collections.Generic.List<SelectedInputConfig>();
             foreach (var selector in InputSelectors)
             {
-                selectedInputs.Add(selector.SelectedDevice);
+                selectedInputs.Add(new SelectedInputConfig { Device = selector.SelectedDevice, Format = selector.SelectedFormat });
             }
 
             Thread mtaThread = new Thread(() =>
@@ -2122,7 +2133,74 @@ namespace DecklinkSwitcher
         private static int[] BuildRowLut() { var t = new int[1080]; for (int y = 0; y < 1080; y++) t[y] = Math.Min((int)(y * 270.0f / 1080f), 269); return t; }
         private static int[] BuildColLut() { var t = new int[1920]; for (int x = 0; x < 1920; x++) t[x] = Math.Min((int)(x * 480.0f / 1920f), 479); return t; }
 
-        private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, System.Collections.Generic.List<DeckLinkDeviceInfo> selectedInputs, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
+        public static _BMDDisplayMode ParseDisplayMode(string formatStr)
+        {
+            if (string.IsNullOrEmpty(formatStr)) return _BMDDisplayMode.bmdModeHD1080i50;
+            if (formatStr.Contains("PAL")) return _BMDDisplayMode.bmdModePAL;
+            if (formatStr.Contains("1080p")) return _BMDDisplayMode.bmdModeHD1080p25;
+            if (formatStr.Contains("720p")) return _BMDDisplayMode.bmdModeHD720p50;
+            return _BMDDisplayMode.bmdModeHD1080i50;
+        }
+
+        private static byte[]? _softwareDeckLinkUyvyBuffer;
+        private static readonly object _softwareDeckLinkLock = new object();
+
+        private static void ScheduleSoftwareDeckLinkFrame(IDeckLinkVideoInputFrame inputFrame, IDeckLinkAudioInputPacket audioPacket, float inputVolume)
+        {
+            int width = inputFrame.GetWidth();
+            int height = inputFrame.GetHeight();
+            int rowBytes = inputFrame.GetRowBytes();
+
+            uint audioSampleCount = audioPacket != null ? (uint)audioPacket.GetSampleFrameCount() : 1920;
+            IntPtr modifiedAudioBuffer = MixAudio(audioSampleCount, ActiveSourceType, ActiveInputName, "software-decklink-output");
+
+            byte[]? uyvyBytes = null;
+            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning)
+            {
+                lock (_softwareDeckLinkLock)
+                {
+                    if (_softwareDeckLinkUyvyBuffer == null || _softwareDeckLinkUyvyBuffer.Length != 1920 * 1080 * 2)
+                    {
+                        _softwareDeckLinkUyvyBuffer = new byte[1920 * 1080 * 2];
+                    }
+
+                    var inputBuf = (IDeckLinkVideoBuffer)inputFrame;
+                    inputBuf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
+                    try
+                    {
+                        inputBuf.GetBytes(out IntPtr inputBuffer);
+                        unsafe
+                        {
+                            fixed (byte* dest = _softwareDeckLinkUyvyBuffer)
+                            {
+                                if (width == 1920 && height == 1080)
+                                {
+                                    DeckLinkDevice.memcpy((IntPtr)dest, inputBuffer, new UIntPtr(1920 * 1080 * 2));
+                                }
+                                else
+                                {
+                                    DeckLinkDevice.ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, rowBytes, dest, 1920 * 2);
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        inputBuf.EndAccess(_BMDBufferAccessFlags.bmdBufferAccessRead);
+                    }
+
+                    uyvyBytes = (byte[])_softwareDeckLinkUyvyBuffer.Clone();
+                }
+            }
+
+            if (modifiedAudioBuffer != IntPtr.Zero)
+            {
+                OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes, true);
+                System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
+            }
+        }
+
+        private void InitializeDynamicRouting(DeckLinkDeviceInfo outInfo, System.Collections.Generic.List<SelectedInputConfig> selectedInputs, System.Windows.Media.Imaging.WriteableBitmap bmpOutput)
         {
             List<IDeckLink> mtaLinks = new List<IDeckLink>();
             try
@@ -2164,12 +2242,12 @@ namespace DecklinkSwitcher
             var settings = AppSettings.Load();
 
             int inputIndex = 1;
-            foreach (var inInfo in selectedInputs)
+            foreach (var inCfg in selectedInputs)
             {
                 var roleName = "Input " + inputIndex;
                 inputIndex++;
                 
-                var dl = GetLink(inInfo);
+                var dl = GetLink(inCfg.Device);
                 if (dl == null) continue; // Skip if 'None' or invalid
                 
                 if (outLink != null && dl == outLink) continue; // Skip output device
@@ -2198,7 +2276,17 @@ namespace DecklinkSwitcher
                 inputDev.PreviewBitmap = vm.PreviewBitmap;
                 inputDev.OnVideoAndAudioArrived = (frame, audio) => 
                 {
-                    if (_activeSourceType == 0 && _activeInput == inputDev) _activeOutput?.ScheduleFrame(frame, audio, inputDev.AudioLevel);
+                    if (_activeSourceType == 0 && _activeInput == inputDev)
+                    {
+                        if (_activeOutput != null)
+                        {
+                            _activeOutput.ScheduleFrame(frame, audio, inputDev.AudioLevel);
+                        }
+                        else
+                        {
+                            ScheduleSoftwareDeckLinkFrame(frame, audio, inputDev.AudioLevel);
+                        }
+                    }
                 };
                 inputDev.OnPreviewBufferUpdated = (buf) => 
                 { 
@@ -2208,7 +2296,11 @@ namespace DecklinkSwitcher
                     }
                 };
                 inputDev.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { vm.AudioL = l; vm.AudioR = r; }); };
-                inputDev.StartCapture();
+
+                string formatStr = inCfg.Format ?? "Auto (Detect)";
+                bool autoDetect = formatStr.StartsWith("Auto");
+                _BMDDisplayMode mode = ParseDisplayMode(formatStr);
+                inputDev.StartCapture(mode, autoDetect);
                 
                 if (_activeInput == null) _activeInput = inputDev;
             }
@@ -2291,6 +2383,12 @@ namespace DecklinkSwitcher
         }
     }
 
+    public class SelectedInputConfig
+    {
+        public DeckLinkDeviceInfo Device { get; set; }
+        public string Format { get; set; } = "Auto (Detect)";
+    }
+
     public class InputSelectionViewModel : System.ComponentModel.INotifyPropertyChanged
     {
         public string Label { get; set; }
@@ -2303,7 +2401,23 @@ namespace DecklinkSwitcher
             set { _selectedDevice = value; OnPropertyChanged(nameof(SelectedDevice)); }
         }
 
-        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        public System.Collections.ObjectModel.ObservableCollection<string> AvailableFormats { get; set; } = new()
+        {
+            "Auto (Detect)",
+            "1080i 50",
+            "PAL (576i 50)",
+            "1080p 25",
+            "720p 50"
+        };
+
+        private string _selectedFormat = "Auto (Detect)";
+        public string SelectedFormat
+        {
+            get => _selectedFormat; 
+            set { _selectedFormat = value; OnPropertyChanged(nameof(SelectedFormat)); }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
     }
 
@@ -2528,15 +2642,93 @@ namespace DecklinkSwitcher
             _deckLinkOutput = (IDeckLinkOutput)_deckLink;
         }
 
-        public void StartCapture(_BMDDisplayMode displayMode = _BMDDisplayMode.bmdModeHD1080i50)
+        private _BMDDisplayMode _currentDisplayMode = _BMDDisplayMode.bmdModeHD1080i50;
+        public _BMDDisplayMode CurrentDisplayMode => _currentDisplayMode;
+
+        private static readonly int[] _palTo1080XMap = BuildPalTo1080XMap();
+
+        private static int[] BuildPalTo1080XMap()
+        {
+            int[] map = new int[960];
+            for (int mp = 0; mp < 960; mp++)
+            {
+                int x = mp * 2;
+                int srcX = (int)((long)x * 720 / 1920);
+                if (srcX > 718) srcX = 718;
+                map[mp] = (srcX / 2) * 4;
+            }
+            return map;
+        }
+
+        public static unsafe void ScalePalUyvyTo1080Uyvy(byte* src, int srcRowBytes, byte* dest, int destRowBytes)
+        {
+            Parallel.For(0, 1080, y =>
+            {
+                int srcY = (y * 576) / 1080;
+                byte* srcLine = src + (srcY * srcRowBytes);
+                byte* destLine = dest + (y * destRowBytes);
+
+                fixed (int* xMap = _palTo1080XMap)
+                {
+                    uint* dest32 = (uint*)destLine;
+                    for (int mp = 0; mp < 960; mp++)
+                    {
+                        dest32[mp] = *(uint*)(srcLine + xMap[mp]);
+                    }
+                }
+            });
+        }
+
+        public static unsafe void ScaleUyvyTo1080Uyvy(byte* src, int srcW, int srcH, int srcRowBytes, byte* dest, int destRowBytes)
+        {
+            if (srcW == 720 && srcH == 576)
+            {
+                ScalePalUyvyTo1080Uyvy(src, srcRowBytes, dest, destRowBytes);
+                return;
+            }
+
+            Parallel.For(0, 1080, y =>
+            {
+                int srcY = (y * srcH) / 1080;
+                if (srcY >= srcH) srcY = srcH - 1;
+                byte* srcLine = src + (srcY * srcRowBytes);
+                byte* destLine = dest + (y * destRowBytes);
+
+                uint* dest32 = (uint*)destLine;
+                for (int mp = 0; mp < 960; mp++)
+                {
+                    int x = mp * 2;
+                    int srcX = (int)((long)x * srcW / 1920);
+                    if (srcX >= srcW - 1) srcX = srcW - 2;
+                    dest32[mp] = *(uint*)(srcLine + (srcX / 2) * 4);
+                }
+            });
+        }
+
+        public void StartCapture(_BMDDisplayMode displayMode = _BMDDisplayMode.bmdModeHD1080i50, bool enableFormatDetection = true)
         {
             if (_isCapturing) return;
 
-            MainWindow.Log($"[{_roleName}] Starting capture with mode: {displayMode}");
+            _currentDisplayMode = displayMode;
+            MainWindow.Log($"[{_roleName}] Starting capture with mode: {displayMode}, autoDetect: {enableFormatDetection}");
             try
             {
                 _deckLinkInput.SetCallback(this);
-                _deckLinkInput.EnableVideoInput(displayMode, _BMDPixelFormat.bmdFormat8BitYUV, _BMDVideoInputFlags.bmdVideoInputFlagDefault);
+
+                var flags = enableFormatDetection
+                    ? _BMDVideoInputFlags.bmdVideoInputEnableFormatDetection
+                    : _BMDVideoInputFlags.bmdVideoInputFlagDefault;
+
+                try
+                {
+                    _deckLinkInput.EnableVideoInput(displayMode, _BMDPixelFormat.bmdFormat8BitYUV, flags);
+                }
+                catch (Exception ex)
+                {
+                    MainWindow.Log($"[{_roleName}] EnableVideoInput with flags {flags} failed: {ex.Message}. Falling back to default flag...");
+                    _deckLinkInput.EnableVideoInput(displayMode, _BMDPixelFormat.bmdFormat8BitYUV, _BMDVideoInputFlags.bmdVideoInputFlagDefault);
+                }
+
                 _deckLinkInput.EnableAudioInput(_BMDAudioSampleRate.bmdAudioSampleRate48kHz, _BMDAudioSampleType.bmdAudioSampleType16bitInteger, 2);
                 _deckLinkInput.StartStreams();
                 _isCapturing = true;
@@ -2665,7 +2857,7 @@ namespace DecklinkSwitcher
 
             if (_reusableOutputFrame == null)
             {
-                _deckLinkOutput.CreateVideoFrame(width, height, rowBytes, pixelFormat, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
+                _deckLinkOutput.CreateVideoFrame(1920, 1080, 1920 * 2, _BMDPixelFormat.bmdFormat8BitYUV, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
             }
 
             uint audioSampleCount = audioPacket != null ? (uint)audioPacket.GetSampleFrameCount() : 1920;
@@ -2690,8 +2882,18 @@ namespace DecklinkSwitcher
                     inputBuf.GetBytes(out IntPtr inputBuffer);
                     outputBuf.GetBytes(out IntPtr outputBuffer);
 
-                    UIntPtr size = new UIntPtr((uint)(height * rowBytes));
-                    memcpy(outputBuffer, inputBuffer, size);
+                    if (width == 1920 && height == 1080)
+                    {
+                        UIntPtr size = new UIntPtr(1920 * 1080 * 2);
+                        memcpy(outputBuffer, inputBuffer, size);
+                    }
+                    else
+                    {
+                        unsafe
+                        {
+                            ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, rowBytes, (byte*)outputBuffer, 1920 * 2);
+                        }
+                    }
                 }
                 finally
                 {
@@ -2711,8 +2913,8 @@ namespace DecklinkSwitcher
                     if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
                     {
                         int h = _reusableOutputFrame.GetHeight();
-                        int rowBytes = _reusableOutputFrame.GetRowBytes();
-                        uyvyBytes = new byte[rowBytes * h];
+                        int outRowBytes = _reusableOutputFrame.GetRowBytes();
+                        uyvyBytes = new byte[outRowBytes * h];
                         var buf = (IDeckLinkVideoBuffer)_reusableOutputFrame; 
                         buf.StartAccess(_BMDBufferAccessFlags.bmdBufferAccessRead); 
                         buf.GetBytes(out IntPtr uyvyPtr); 
@@ -2750,7 +2952,7 @@ namespace DecklinkSwitcher
         {
             if (_reusableOutputFrame == null)
             {
-                _deckLinkOutput.CreateVideoFrame(width, height, rowBytes, _BMDPixelFormat.bmdFormat8BitYUV, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
+                _deckLinkOutput.CreateVideoFrame(1920, 1080, 1920 * 2, _BMDPixelFormat.bmdFormat8BitYUV, _BMDFrameFlags.bmdFrameFlagDefault, out _reusableOutputFrame);
             }
 
             uint mixedSampleCount = audioSampleCount > 0 ? audioSampleCount : 1920;
@@ -2768,8 +2970,18 @@ namespace DecklinkSwitcher
             try
             {
                 outputBuf.GetBytes(out IntPtr outputBuffer);
-                UIntPtr size = new UIntPtr((uint)(height * rowBytes));
-                memcpy(outputBuffer, inputBuffer, size);
+                if (width == 1920 && height == 1080)
+                {
+                    UIntPtr size = new UIntPtr(1920 * 1080 * 2);
+                    memcpy(outputBuffer, inputBuffer, size);
+                }
+                else
+                {
+                    unsafe
+                    {
+                        ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, rowBytes, (byte*)outputBuffer, 1920 * 2);
+                    }
+                }
             }
             finally
             {
@@ -2951,7 +3163,29 @@ namespace DecklinkSwitcher
 
         void IDeckLinkInputCallback.VideoInputFormatChanged(_BMDVideoInputFormatChangedEvents notificationEvents, IDeckLinkDisplayMode newDisplayMode, _BMDDetectedVideoInputFormatFlags detectedSignalFlags)
         {
-            MainWindow.Log($"[{_roleName}] Format changed detected.");
+            try
+            {
+                if (newDisplayMode == null) return;
+
+                _BMDDisplayMode mode = newDisplayMode.GetDisplayMode();
+                newDisplayMode.GetName(out string modeName);
+                MainWindow.Log($"[{_roleName}] Video input format change detected: {modeName} ({mode})");
+
+                if ((notificationEvents & _BMDVideoInputFormatChangedEvents.bmdVideoInputDisplayModeChanged) != 0 && mode != _currentDisplayMode)
+                {
+                    MainWindow.Log($"[{_roleName}] Renegotiating input stream to {modeName}...");
+                    _deckLinkInput.PauseStreams();
+                    _deckLinkInput.EnableVideoInput(mode, _BMDPixelFormat.bmdFormat8BitYUV, _BMDVideoInputFlags.bmdVideoInputEnableFormatDetection);
+                    _deckLinkInput.FlushStreams();
+                    _deckLinkInput.StartStreams();
+                    _currentDisplayMode = mode;
+                    MainWindow.Log($"[{_roleName}] Successfully updated stream format to {modeName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MainWindow.Log($"[{_roleName}] VideoInputFormatChanged error: {ex.Message}");
+            }
         }
 
         void IDeckLinkInputCallback.VideoInputFrameArrived(IDeckLinkVideoInputFrame videoFrame, IDeckLinkAudioInputPacket audioPacket)

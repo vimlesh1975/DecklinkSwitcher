@@ -314,11 +314,21 @@
                     <ItemsControl Name="InputSelectorsControl">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="0,0,0,10">
+                                <StackPanel Margin="0,0,0,12">
                                     <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
                                     <ComboBox ItemsSource="{Binding AvailableDevices}" 
                                               SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" 
                                               DisplayMemberPath="DisplayName" Height="28"/>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Format:" Foreground="{DynamicResource TextDim}" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableFormats}" 
+                                                  SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" 
+                                                  Height="24" FontSize="11"/>
+                                    </Grid>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
