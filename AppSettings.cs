@@ -18,6 +18,7 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.Dictionary<string, string> InputDevices { get; set; } = new();
         public System.Collections.Generic.Dictionary<string, double> InputAudioLevels { get; set; } = new();
         public string YouTubeStreamKey { get; set; } = "";
+        public string NdiStreamName { get; set; } = "DeckLink Switcher - Program";
         public double AudioLevelPgm { get; set; } = 1.0;
         public double AudioLevelColorBars { get; set; } = 1.0;
         public double AudioLevelMedia { get; set; } = 1.0;

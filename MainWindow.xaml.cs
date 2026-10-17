@@ -63,6 +63,7 @@ namespace DecklinkSwitcher
         private CancellationTokenSource? _syntheticCts;
         public static YouTubeStreamer YtStreamer = new YouTubeStreamer();
         public static LocalRecorder LclRecorder = new LocalRecorder();
+        public static NdiSender NdiOut = new NdiSender();
         
         // Latest PGM frame (BGRA 480x270) — updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
@@ -145,12 +146,13 @@ namespace DecklinkSwitcher
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
-                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording)
+                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning)
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
                                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, null);
                                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, null);
+                                    if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, null);
                                 }
                                 System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                             }
@@ -601,6 +603,8 @@ namespace DecklinkSwitcher
                 TxtStreamKey.Text = settings.YouTubeStreamKey;
                 YtStreamer.OnLog = Log;
                 LclRecorder.OnLog = Log;
+                NdiOut.OnLog = Log;
+                TxtNdiName.Text = string.IsNullOrWhiteSpace(settings.NdiStreamName) ? "DeckLink Switcher - Program" : settings.NdiStreamName;
                 
                 // Initialize recording profiles
                 var profiles = new[]
@@ -720,6 +724,43 @@ namespace DecklinkSwitcher
                 UpdatePgmPreviewSynthetic();
                 YtStreamer.Start(TxtStreamKey.Text, 1920, 1080, 25);
                 
+            }
+        }
+
+        private void BtnNdi_Click(object sender, RoutedEventArgs e)
+        {
+            if (NdiOut.IsRunning)
+            {
+                NdiOut.Stop();
+                BtnNdi.Content = "START NDI";
+                BtnNdi.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 102, 204));
+                TxtStatus.Text = "NDI output stopped.";
+            }
+            else
+            {
+                string streamName = TxtNdiName.Text.Trim();
+                if (string.IsNullOrWhiteSpace(streamName))
+                {
+                    streamName = "DeckLink Switcher - Program";
+                    TxtNdiName.Text = streamName;
+                }
+
+                var settings = AppSettings.Load();
+                settings.NdiStreamName = streamName;
+                settings.Save();
+
+                UpdatePgmPreviewSynthetic();
+                bool started = NdiOut.Start(streamName, 1920, 1080, 25);
+                if (started)
+                {
+                    BtnNdi.Content = "STOP NDI";
+                    BtnNdi.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
+                    TxtStatus.Text = $"NDI output started: {streamName}";
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show("Failed to initialize NDI output. Ensure Processing.NDI.Lib.x64.dll is present.", "NDI Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
@@ -1574,12 +1615,13 @@ namespace DecklinkSwitcher
             if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
             {
             if (writeSystemAudio) SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                if (YtStreamer.IsStreaming || LclRecorder.IsRecording)
+                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning)
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
+                    if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
                 }
             }
         }
@@ -1922,6 +1964,12 @@ namespace DecklinkSwitcher
                     ClearPgmPreview();
                 }
             }));
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            try { NdiOut.Stop(); } catch { }
+            base.OnClosed(e);
         }
     }
 
@@ -2342,7 +2390,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -2415,7 +2463,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -2551,7 +2599,7 @@ namespace DecklinkSwitcher
             try 
             {
                 byte[] uyvyBytes = null;
-                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording)
+                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
                 {
                     int h = _reusableOutputFrame.GetHeight();
                     int rowBytes = _reusableOutputFrame.GetRowBytes();
