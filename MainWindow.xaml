@@ -200,12 +200,12 @@
             </Border>
 
             <!-- SWITCHER SCROLL VIEWER -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" PanningMode="VerticalOnly" CanContentScroll="False">
-                <WrapPanel Name="SwitcherPanel" IsEnabled="False" Orientation="Horizontal" HorizontalAlignment="Center">
+            <ScrollViewer Grid.Row="1" Name="SwitcherScrollViewer" AllowDrop="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" PanningMode="VerticalOnly" CanContentScroll="False">
+                <WrapPanel Name="SwitcherPanel" IsEnabled="False" Orientation="Horizontal" HorizontalAlignment="Center" AllowDrop="True">
 
 
             <!-- Special Sources -->
-                <Border Style="{StaticResource MixerPanel}">
+                <Border Name="TileMedia" Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
                             <ProgressBar Name="AudioBarMediaL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
@@ -235,7 +235,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource MixerPanel}">
+                <Border Name="TileColorBars" Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
                             <ProgressBar Name="AudioBarCBL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
@@ -254,7 +254,7 @@
                     </StackPanel>
                 </Border>
                 
-                <Border Style="{StaticResource MixerPanel}">
+                <Border Name="TileMatte" Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
                             <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
@@ -275,7 +275,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{StaticResource MixerPanel}">
+                <Border Name="TileSystemAudio" Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
                             <ProgressBar Name="AudioBarSysL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>

@@ -44,6 +44,7 @@ namespace DecklinkSwitcher
         
         public bool SystemAudioMonitorEnabled { get; set; } = false;
         public bool LoopMediaEnabled { get; set; } = false;
+        public System.Collections.Generic.List<string> SourceOrder { get; set; } = new();
         
         private static string GetSettingsPath()
         {

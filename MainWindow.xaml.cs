@@ -77,6 +77,13 @@ namespace DecklinkSwitcher
         private bool _isDraggingSeek = false;
         private System.Diagnostics.PerformanceCounter _cpuCounter;
 
+        private System.Windows.Point _dragStartPoint;
+        private FrameworkElement? _potentialDragTile;
+        private FrameworkElement? _draggedTile;
+        private bool _isDragging = false;
+        private System.Windows.Threading.DispatcherTimer _autoScrollTimer;
+        private double _scrollDelta = 0;
+
         public MainWindow()
         {
             Log("=========================================");
@@ -192,6 +199,20 @@ namespace DecklinkSwitcher
             _seekTimer.Tick += SeekTimer_Tick;
             _seekTimer.Start();
 
+            SwitcherScrollViewer.PreviewMouseLeftButtonDown += SwitcherPanel_PreviewMouseLeftButtonDown;
+            SwitcherScrollViewer.PreviewMouseMove += SwitcherPanel_PreviewMouseMove;
+            SwitcherScrollViewer.PreviewMouseLeftButtonUp += SwitcherPanel_PreviewMouseLeftButtonUp;
+
+            SwitcherPanel.DragOver += SwitcherPanel_DragOver;
+            SwitcherPanel.Drop += SwitcherPanel_Drop;
+            SwitcherPanel.GiveFeedback += SwitcherPanel_GiveFeedback;
+
+            SwitcherScrollViewer.DragOver += SwitcherPanel_DragOver;
+            SwitcherScrollViewer.Drop += SwitcherPanel_Drop;
+
+            _autoScrollTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
+            _autoScrollTimer.Tick += AutoScrollTimer_Tick;
+
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
         }
@@ -200,7 +221,7 @@ namespace DecklinkSwitcher
         {
             try
             {
-                var settings = new AppSettings();
+                var settings = AppSettings.Load();
                 
                 // Safe dispatch in case called from non-UI thread
                 Application.Current.Dispatcher.Invoke(() =>
@@ -268,6 +289,12 @@ namespace DecklinkSwitcher
                     settings.YouTubeStreamKey = TxtStreamKey.Text;
                     settings.SelectedRecordingProfile = (CmbRecordingProfile.SelectedItem as RecordingProfileDefinition)?.DisplayName ?? "MP4 High Quality";
                     settings.RecordingDirectory = TxtRecordingDirectory.Text;
+
+                    settings.SourceOrder = SwitcherPanel.Children
+                        .OfType<FrameworkElement>()
+                        .Select(GetTileIdentifier)
+                        .Where(id => !string.IsNullOrEmpty(id))
+                        .ToList();
                 });
                 
                 settings.Save();
@@ -588,6 +615,7 @@ namespace DecklinkSwitcher
                     
                     var pnl = CreateMicPanel(device, key, level, state);
                     var wrapper = new System.Windows.Controls.Border();
+                    wrapper.Tag = key;
                     wrapper.SetResourceReference(System.Windows.FrameworkElement.StyleProperty, "MixerPanel");
                     wrapper.Child = pnl;
                     SwitcherPanel.Children.Add(wrapper);
@@ -646,6 +674,8 @@ namespace DecklinkSwitcher
                 
                 TxtRecordingDirectory.Text = settings.RecordingDirectory;
                 
+                ApplySavedSourceOrder();
+
                 TxtStatus.Text = "Ready to assign.";
                 Log("MainWindow_Loaded completed successfully.");
             }
@@ -1341,6 +1371,293 @@ namespace DecklinkSwitcher
             return pnl;
         }
 
+        #region Source Tile Drag & Drop and Reordering
+
+        private DependencyObject? GetParentSafe(DependencyObject obj)
+        {
+            if (obj is System.Windows.Media.Visual || obj is System.Windows.Media.Media3D.Visual3D)
+            {
+                return System.Windows.Media.VisualTreeHelper.GetParent(obj);
+            }
+            return System.Windows.LogicalTreeHelper.GetParent(obj);
+        }
+
+        private bool IsInteractiveElement(DependencyObject? obj)
+        {
+            while (obj != null && obj != SwitcherPanel && obj != SwitcherScrollViewer)
+            {
+                if (obj is System.Windows.Controls.Primitives.Thumb ||
+                    obj is System.Windows.Controls.Primitives.Track ||
+                    obj is System.Windows.Controls.Primitives.RepeatButton ||
+                    obj is System.Windows.Controls.Slider ||
+                    obj is System.Windows.Controls.Primitives.ScrollBar ||
+                    obj is System.Windows.Controls.ComboBox ||
+                    obj is System.Windows.Controls.ComboBoxItem ||
+                    obj is System.Windows.Controls.CheckBox ||
+                    obj is System.Windows.Controls.TextBox ||
+                    obj is System.Windows.Controls.Button)
+                {
+                    return true;
+                }
+                obj = GetParentSafe(obj);
+            }
+            return false;
+        }
+
+        private FrameworkElement? GetSourceTileFromElement(DependencyObject? obj)
+        {
+            while (obj != null && obj != SwitcherPanel && obj != SwitcherScrollViewer)
+            {
+                if (obj is FrameworkElement fe && SwitcherPanel.Children.Contains(fe))
+                {
+                    return fe;
+                }
+                obj = GetParentSafe(obj);
+            }
+            return null;
+        }
+
+        private string GetTileIdentifier(FrameworkElement fe)
+        {
+            if (fe == TileMedia) return "TileMedia";
+            if (fe == TileColorBars) return "TileColorBars";
+            if (fe == TileMatte) return "TileMatte";
+            if (fe == TileSystemAudio) return "TileSystemAudio";
+
+            if (fe.DataContext is DeckLinkInputViewModel dl) return "DeckLink:" + dl.DisplayName;
+            if (fe.DataContext is ScreenInputViewModel scr) return "Screen:" + scr.DisplayName;
+            if (fe.DataContext is WebcamInputViewModel cam) return "Webcam:" + cam.DisplayName;
+
+            if (fe.Tag is string tag && !string.IsNullOrEmpty(tag)) return "Tag:" + tag;
+            if (!string.IsNullOrEmpty(fe.Name)) return fe.Name;
+
+            return fe.GetType().Name + "_" + fe.GetHashCode();
+        }
+
+        private void SwitcherPanel_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (IsInteractiveElement(e.OriginalSource as DependencyObject))
+            {
+                _potentialDragTile = null;
+                return;
+            }
+
+            var tile = GetSourceTileFromElement(e.OriginalSource as DependencyObject);
+            if (tile != null)
+            {
+                _dragStartPoint = e.GetPosition(SwitcherPanel);
+                _potentialDragTile = tile;
+            }
+            else
+            {
+                _potentialDragTile = null;
+            }
+        }
+
+        private void SwitcherPanel_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (_potentialDragTile != null && e.LeftButton == System.Windows.Input.MouseButtonState.Pressed && !_isDragging)
+            {
+                System.Windows.Point pos = e.GetPosition(SwitcherPanel);
+                Vector diff = _dragStartPoint - pos;
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _isDragging = true;
+                    _draggedTile = _potentialDragTile;
+                    _potentialDragTile = null;
+
+                    _draggedTile.Opacity = 0.55;
+
+                    try
+                    {
+                        DataObject dragData = new DataObject("DeckLinkSwitcherSourceTile", _draggedTile);
+                        DragDrop.DoDragDrop(SwitcherPanel, dragData, DragDropEffects.Move);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log("DragDrop error: " + ex.Message);
+                    }
+                    finally
+                    {
+                        _autoScrollTimer.Stop();
+                        _scrollDelta = 0;
+                        if (_draggedTile != null)
+                        {
+                            _draggedTile.Opacity = 1.0;
+                            _draggedTile = null;
+                        }
+                        _isDragging = false;
+                        SaveSourceOrder();
+                    }
+                }
+            }
+        }
+
+        private void SwitcherPanel_PreviewMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            _potentialDragTile = null;
+        }
+
+        private void SwitcherPanel_GiveFeedback(object sender, GiveFeedbackEventArgs e)
+        {
+            e.UseDefaultCursors = false;
+            System.Windows.Input.Mouse.SetCursor(System.Windows.Input.Cursors.SizeAll);
+            e.Handled = true;
+        }
+
+        private void SwitcherPanel_DragOver(object sender, DragEventArgs e)
+        {
+            if (_draggedTile == null) return;
+
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+
+            // Auto-scrolling near top/bottom edges of SwitcherScrollViewer
+            System.Windows.Point scrollPos = e.GetPosition(SwitcherScrollViewer);
+            double scrollMargin = 50.0;
+            if (scrollPos.Y >= 0 && scrollPos.Y < scrollMargin)
+            {
+                _scrollDelta = -14;
+                if (!_autoScrollTimer.IsEnabled) _autoScrollTimer.Start();
+            }
+            else if (scrollPos.Y > SwitcherScrollViewer.ActualHeight - scrollMargin && scrollPos.Y <= SwitcherScrollViewer.ActualHeight + 40)
+            {
+                _scrollDelta = 14;
+                if (!_autoScrollTimer.IsEnabled) _autoScrollTimer.Start();
+            }
+            else
+            {
+                _scrollDelta = 0;
+                _autoScrollTimer.Stop();
+            }
+
+            // Real-time visual reordering
+            try
+            {
+                System.Windows.Point panelPos = e.GetPosition(SwitcherPanel);
+                for (int i = 0; i < SwitcherPanel.Children.Count; i++)
+                {
+                    if (SwitcherPanel.Children[i] is FrameworkElement target && target != _draggedTile)
+                    {
+                        System.Windows.Media.GeneralTransform transform = target.TransformToAncestor(SwitcherPanel);
+                        System.Windows.Rect bounds = transform.TransformBounds(new System.Windows.Rect(0, 0, target.ActualWidth, target.ActualHeight));
+                        if (bounds.Contains(panelPos))
+                        {
+                            int oldIndex = SwitcherPanel.Children.IndexOf(_draggedTile);
+                            if (oldIndex != i && oldIndex >= 0)
+                            {
+                                SwitcherPanel.Children.RemoveAt(oldIndex);
+                                SwitcherPanel.Children.Insert(i, _draggedTile);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void SwitcherPanel_Drop(object sender, DragEventArgs e)
+        {
+            _autoScrollTimer.Stop();
+            _scrollDelta = 0;
+            if (_draggedTile != null)
+            {
+                _draggedTile.Opacity = 1.0;
+                _draggedTile = null;
+            }
+            _isDragging = false;
+            e.Handled = true;
+            SaveSourceOrder();
+        }
+
+        private void AutoScrollTimer_Tick(object? sender, EventArgs e)
+        {
+            if (_isDragging && _scrollDelta != 0)
+            {
+                SwitcherScrollViewer.ScrollToVerticalOffset(SwitcherScrollViewer.VerticalOffset + _scrollDelta);
+            }
+        }
+
+        public void SaveSourceOrder()
+        {
+            try
+            {
+                var settings = AppSettings.Load();
+                settings.SourceOrder = SwitcherPanel.Children
+                    .OfType<FrameworkElement>()
+                    .Select(GetTileIdentifier)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .ToList();
+                settings.Save();
+            }
+            catch (Exception ex)
+            {
+                Log("SaveSourceOrder error: " + ex.Message);
+            }
+        }
+
+        public void ApplySavedSourceOrder()
+        {
+            try
+            {
+                var settings = AppSettings.Load();
+                var order = settings.SourceOrder;
+                if (order == null || order.Count == 0) return;
+
+                var currentChildren = SwitcherPanel.Children.Cast<UIElement>().ToList();
+                if (currentChildren.Count <= 1) return;
+
+                var childMap = new Dictionary<UIElement, string>();
+                foreach (var child in currentChildren)
+                {
+                    if (child is FrameworkElement fe)
+                        childMap[child] = GetTileIdentifier(fe);
+                }
+
+                var sorted = currentChildren
+                    .Select((element, originalIndex) =>
+                    {
+                        string id = childMap.TryGetValue(element, out var v) ? v : "";
+                        int targetIndex = order.IndexOf(id);
+                        return new
+                        {
+                            Element = element,
+                            SortKey = targetIndex >= 0 ? targetIndex : 10000 + originalIndex
+                        };
+                    })
+                    .OrderBy(x => x.SortKey)
+                    .Select(x => x.Element)
+                    .ToList();
+
+                bool orderChanged = false;
+                for (int i = 0; i < currentChildren.Count; i++)
+                {
+                    if (currentChildren[i] != sorted[i])
+                    {
+                        orderChanged = true;
+                        break;
+                    }
+                }
+
+                if (orderChanged)
+                {
+                    SwitcherPanel.Children.Clear();
+                    foreach (var el in sorted)
+                    {
+                        SwitcherPanel.Children.Add(el);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("ApplySavedSourceOrder error: " + ex.Message);
+            }
+        }
+
+        #endregion
+
         private static double _syntheticAudioPhase = 0;
 
         public static IntPtr MixAudio(uint audioSampleCount, int activeSourceType, string activeInputName, string caller)
@@ -1953,6 +2270,7 @@ namespace DecklinkSwitcher
 
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
+                ApplySavedSourceOrder();
                 SwitcherPanel.IsEnabled = true;
                 CmbOutput.IsEnabled = true;
                 InputSelectorsControl.IsEnabled = true;
