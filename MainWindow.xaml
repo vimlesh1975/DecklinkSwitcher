@@ -368,6 +368,53 @@
                     <TextBox Name="TxtNdiName" Text="DeckLink Switcher - Program" Height="28" Margin="0,0,0,12" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
                     <Button Name="BtnNdi" Content="START NDI" Height="40" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
                     
+                    <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,20,0,15"/>
+                    
+                    <TextBlock Text="SRT OUTPUT" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,4,0">
+                            <TextBlock Text="Mode:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox Name="CmbSrtMode" Height="28" SelectionChanged="CmbSrtMode_SelectionChanged">
+                                <ComboBoxItem Content="Caller" IsSelected="True"/>
+                                <ComboBoxItem Content="Listener"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                            <TextBlock Text="Port:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtSrtPort" Text="9000" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                        </StackPanel>
+                    </Grid>
+                    
+                    <TextBlock Name="LblSrtHost" Text="Host / IP (Caller Mode):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtSrtHost" Text="127.0.0.1" Height="28" Margin="0,0,0,8" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                    
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,4,0">
+                            <TextBlock Text="Latency (ms):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtSrtLatency" Text="200" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                            <TextBlock Text="Stream ID (Optional):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtSrtStreamId" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="Passphrase (Optional):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtSrtPassphrase" Height="28" Margin="0,0,0,8" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+
+                    <TextBlock Text="SRT URL:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtSrtUrl" Text="srt://127.0.0.1:9000?mode=caller&amp;latency=200000" Height="28" Margin="0,0,0,12" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
+
+                    <Button Name="BtnSrt" Content="START SRT" Height="40" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnSrt_Click" FontWeight="Black" Cursor="Hand"/>
+                    
                     <TextBlock Name="TxtStatus" Foreground="#00e676" TextWrapping="Wrap" Margin="0,15,0,0" FontSize="12" HorizontalAlignment="Center"/>
                 </StackPanel>
             </ScrollViewer>

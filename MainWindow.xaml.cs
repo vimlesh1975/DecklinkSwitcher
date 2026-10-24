@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using DeckLinkAPI;
 
 namespace DecklinkSwitcher
@@ -64,6 +65,7 @@ namespace DecklinkSwitcher
         public static YouTubeStreamer YtStreamer = new YouTubeStreamer();
         public static LocalRecorder LclRecorder = new LocalRecorder();
         public static NdiSender NdiOut = new NdiSender();
+        public static SrtStreamer SrtOut = new SrtStreamer();
         
         // Latest PGM frame (BGRA 480x270) — updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
@@ -153,13 +155,14 @@ namespace DecklinkSwitcher
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
-                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning)
+                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
                                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, null);
                                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, null);
                                     if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, null);
+                                    if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, null);
                                 }
                                 System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                             }
@@ -292,6 +295,14 @@ namespace DecklinkSwitcher
                     settings.SelectedRecordingProfile = (CmbRecordingProfile.SelectedItem as RecordingProfileDefinition)?.DisplayName ?? "MP4 High Quality";
                     settings.RecordingDirectory = TxtRecordingDirectory.Text;
 
+                    if (CmbSrtMode != null) settings.SrtMode = (CmbSrtMode.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Caller";
+                    if (TxtSrtHost != null) settings.SrtHost = TxtSrtHost.Text.Trim();
+                    if (TxtSrtPort != null && int.TryParse(TxtSrtPort.Text.Trim(), out int sp) && sp > 0) settings.SrtPort = sp;
+                    if (TxtSrtLatency != null && int.TryParse(TxtSrtLatency.Text.Trim(), out int sl) && sl >= 0) settings.SrtLatencyMs = sl;
+                    if (TxtSrtPassphrase != null) settings.SrtPassphrase = TxtSrtPassphrase.Text;
+                    if (TxtSrtStreamId != null) settings.SrtStreamId = TxtSrtStreamId.Text;
+                    if (TxtSrtUrl != null) settings.SrtUrl = TxtSrtUrl.Text.Trim();
+
                     settings.SourceOrder = SwitcherPanel.Children
                         .OfType<FrameworkElement>()
                         .Select(GetTileIdentifier)
@@ -320,6 +331,7 @@ namespace DecklinkSwitcher
             // Run the cleanup in the background, then fully exit
             Task.Run(() =>
             {
+                try { SrtOut.Stop(); } catch { }
                 _syntheticCts?.Cancel();
                 foreach (var input in DynamicInputs)
                 {
@@ -643,7 +655,39 @@ namespace DecklinkSwitcher
                 YtStreamer.OnLog = Log;
                 LclRecorder.OnLog = Log;
                 NdiOut.OnLog = Log;
+                SrtOut.OnLog = Log;
+                SrtOut.OnStateChanged = (isStreaming) => Application.Current.Dispatcher.BeginInvoke(() => UpdateSrtUiState(isStreaming));
                 TxtNdiName.Text = string.IsNullOrWhiteSpace(settings.NdiStreamName) ? "DeckLink Switcher - Program" : settings.NdiStreamName;
+
+                // Initialize SRT UI
+                _isUpdatingSrtUrl = true;
+                try
+                {
+                    if (CmbSrtMode != null)
+                    {
+                        foreach (ComboBoxItem item in CmbSrtMode.Items)
+                        {
+                            if (string.Equals(item.Content?.ToString(), settings.SrtMode, StringComparison.OrdinalIgnoreCase))
+                            {
+                                CmbSrtMode.SelectedItem = item;
+                                break;
+                            }
+                        }
+                    }
+                    if (TxtSrtHost != null) TxtSrtHost.Text = string.IsNullOrWhiteSpace(settings.SrtHost) ? "127.0.0.1" : settings.SrtHost;
+                    if (TxtSrtPort != null) TxtSrtPort.Text = settings.SrtPort > 0 ? settings.SrtPort.ToString() : "9000";
+                    if (TxtSrtLatency != null) TxtSrtLatency.Text = settings.SrtLatencyMs >= 0 ? settings.SrtLatencyMs.ToString() : "200";
+                    if (TxtSrtPassphrase != null) TxtSrtPassphrase.Text = settings.SrtPassphrase ?? "";
+                    if (TxtSrtStreamId != null) TxtSrtStreamId.Text = settings.SrtStreamId ?? "";
+                    if (TxtSrtUrl != null)
+                    {
+                        TxtSrtUrl.Text = !string.IsNullOrWhiteSpace(settings.SrtUrl) ? settings.SrtUrl : BuildSrtUrl();
+                    }
+                }
+                finally
+                {
+                    _isUpdatingSrtUrl = false;
+                }
                 
                 // Initialize recording profiles
                 var profiles = new[]
@@ -802,6 +846,151 @@ namespace DecklinkSwitcher
                 {
                     System.Windows.MessageBox.Show("Failed to initialize NDI output. Ensure Processing.NDI.Lib.x64.dll is present.", "NDI Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private bool _isUpdatingSrtUrl = false;
+
+        private string BuildSrtUrl()
+        {
+            string mode = (CmbSrtMode?.SelectedItem as ComboBoxItem)?.Content?.ToString()?.ToLowerInvariant() ?? "caller";
+            string host = TxtSrtHost?.Text?.Trim() ?? "127.0.0.1";
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                host = mode == "listener" ? "0.0.0.0" : "127.0.0.1";
+            }
+            else if (mode == "listener" && (host == "127.0.0.1" || host == "localhost"))
+            {
+                host = "0.0.0.0";
+            }
+
+            if (!int.TryParse(TxtSrtPort?.Text?.Trim(), out int port) || port <= 0)
+            {
+                port = 9000;
+            }
+
+            if (!int.TryParse(TxtSrtLatency?.Text?.Trim(), out int latencyMs) || latencyMs < 0)
+            {
+                latencyMs = 200;
+            }
+            long latencyUs = (long)latencyMs * 1000;
+
+            var queryParams = new List<string>
+            {
+                $"mode={mode}",
+                $"latency={latencyUs}"
+            };
+
+            string streamId = TxtSrtStreamId?.Text?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(streamId))
+            {
+                queryParams.Add($"streamid={Uri.EscapeDataString(streamId)}");
+            }
+
+            string passphrase = TxtSrtPassphrase?.Text ?? "";
+            if (!string.IsNullOrWhiteSpace(passphrase))
+            {
+                queryParams.Add($"passphrase={Uri.EscapeDataString(passphrase)}");
+                queryParams.Add("pbkeylen=16");
+            }
+
+            return $"srt://{host}:{port}?{string.Join("&", queryParams)}";
+        }
+
+        private void UpdateGeneratedSrtUrl()
+        {
+            if (_isUpdatingSrtUrl || TxtSrtUrl == null || CmbSrtMode == null || TxtSrtHost == null || TxtSrtPort == null || TxtSrtLatency == null) return;
+            _isUpdatingSrtUrl = true;
+            try
+            {
+                TxtSrtUrl.Text = BuildSrtUrl();
+            }
+            finally
+            {
+                _isUpdatingSrtUrl = false;
+            }
+        }
+
+        private void CmbSrtMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (CmbSrtMode == null || TxtSrtHost == null || LblSrtHost == null) return;
+            string mode = (CmbSrtMode.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Caller";
+            if (mode == "Listener")
+            {
+                LblSrtHost.Text = "Listen IP (0.0.0.0 for any interface):";
+                if (TxtSrtHost.Text == "127.0.0.1" || string.IsNullOrWhiteSpace(TxtSrtHost.Text))
+                {
+                    TxtSrtHost.Text = "0.0.0.0";
+                }
+            }
+            else
+            {
+                LblSrtHost.Text = "Host / IP (Caller Mode):";
+                if (TxtSrtHost.Text == "0.0.0.0")
+                {
+                    TxtSrtHost.Text = "127.0.0.1";
+                }
+            }
+            UpdateGeneratedSrtUrl();
+        }
+
+        private void SrtInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateGeneratedSrtUrl();
+        }
+
+        private void BtnSrt_Click(object sender, RoutedEventArgs e)
+        {
+            if (SrtOut.IsStreaming)
+            {
+                SrtOut.Stop();
+                UpdateSrtUiState(false);
+                TxtStatus.Text = "SRT streaming stopped.";
+            }
+            else
+            {
+                string srtUrl = TxtSrtUrl?.Text?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(srtUrl))
+                {
+                    srtUrl = BuildSrtUrl();
+                    if (TxtSrtUrl != null) TxtSrtUrl.Text = srtUrl;
+                }
+
+                if (!srtUrl.StartsWith("srt://", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show("Please enter a valid SRT URL starting with 'srt://'.", "Invalid SRT URL", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                SaveCurrentSettings();
+
+                UpdatePgmPreviewSynthetic();
+                SrtOut.Start(srtUrl, 1920, 1080, 25);
+                if (SrtOut.IsStreaming)
+                {
+                    UpdateSrtUiState(true);
+                    TxtStatus.Text = $"SRT streaming started: {srtUrl}";
+                }
+                else
+                {
+                    UpdateSrtUiState(false);
+                    TxtStatus.Text = "Failed to start SRT output. Check logs.";
+                }
+            }
+        }
+
+        private void UpdateSrtUiState(bool isStreaming)
+        {
+            if (BtnSrt == null) return;
+            if (isStreaming)
+            {
+                BtnSrt.Content = "STOP SRT";
+                BtnSrt.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
+            }
+            else
+            {
+                BtnSrt.Content = "START SRT";
+                BtnSrt.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 102, 204));
             }
         }
 
@@ -1943,13 +2132,14 @@ namespace DecklinkSwitcher
             if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
             {
             if (writeSystemAudio) SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning)
+                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
                     if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
+                    if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, uyvyBytes);
                 }
             }
         }
@@ -2155,7 +2345,7 @@ namespace DecklinkSwitcher
             IntPtr modifiedAudioBuffer = MixAudio(audioSampleCount, ActiveSourceType, ActiveInputName, "software-decklink-output");
 
             byte[]? uyvyBytes = null;
-            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning)
+            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
             {
                 lock (_softwareDeckLinkLock)
                 {
@@ -2379,6 +2569,7 @@ namespace DecklinkSwitcher
         protected override void OnClosed(EventArgs e)
         {
             try { NdiOut.Stop(); } catch { }
+            try { SrtOut.Stop(); } catch { }
             base.OnClosed(e);
         }
     }
@@ -2910,7 +3101,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int outRowBytes = _reusableOutputFrame.GetRowBytes();
@@ -2993,7 +3184,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -3129,7 +3320,7 @@ namespace DecklinkSwitcher
             try 
             {
                 byte[] uyvyBytes = null;
-                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning)
+                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming)
                 {
                     int h = _reusableOutputFrame.GetHeight();
                     int rowBytes = _reusableOutputFrame.GetRowBytes();

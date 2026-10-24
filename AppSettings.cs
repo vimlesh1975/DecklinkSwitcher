@@ -20,6 +20,13 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.Dictionary<string, double> InputAudioLevels { get; set; } = new();
         public string YouTubeStreamKey { get; set; } = "";
         public string NdiStreamName { get; set; } = "DeckLink Switcher - Program";
+        public string SrtMode { get; set; } = "Caller";
+        public string SrtHost { get; set; } = "127.0.0.1";
+        public int SrtPort { get; set; } = 9000;
+        public int SrtLatencyMs { get; set; } = 200;
+        public string SrtPassphrase { get; set; } = "";
+        public string SrtStreamId { get; set; } = "";
+        public string SrtUrl { get; set; } = "";
         public double AudioLevelPgm { get; set; } = 1.0;
         public double AudioLevelColorBars { get; set; } = 1.0;
         public double AudioLevelMedia { get; set; } = 1.0;
