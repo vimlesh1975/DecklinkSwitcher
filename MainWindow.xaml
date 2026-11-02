@@ -216,11 +216,20 @@
                             <Slider Name="SldMediaAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldMediaAudio_ValueChanged"/>
                         </StackPanel>
                         <Button Name="BtnMedia" Content="Local Video" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMedia_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <!-- Media Control Buttons -->
+                        <Grid Margin="0,0,0,6" Width="184">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Name="BtnSelectMedia" Grid.Column="0" Content="Select File" FontSize="11" FontWeight="SemiBold" Height="26" Click="BtnSelectMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                            <Button Name="BtnStopMedia" Grid.Column="2" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="60" Click="BtnStopMedia_Click" Background="#c62828" Foreground="White" Cursor="Hand"/>
+                        </Grid>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                            <Button Name="BtnSelectMedia" Content="Select File" FontSize="11" Height="24" Width="65" Click="BtnSelectMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0"/>
-                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="24" Width="35" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0"/>
-                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="24" Width="45" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0"/>
-                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" Height="24" Width="55" Click="BtnResumeMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}"/>
+                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="24" Width="45" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
+                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="24" Width="55" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
+                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" FontWeight="SemiBold" Height="24" Width="65" Click="BtnResumeMedia_Click" Background="#2e7d32" Foreground="White" Cursor="Hand"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                             <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" Margin="0,0,10,0"/>
@@ -228,6 +237,52 @@
                                     Thumb.DragStarted="SldMediaSeek_DragStarted" Thumb.DragCompleted="SldMediaSeek_DragCompleted" ValueChanged="SldMediaSeek_ValueChanged"/>
                         </StackPanel>
                         <ComboBox Name="CmbAudioStateMedia" FontSize="12" Height="26" SelectionChanged="CmbAudioState_SelectionChanged">
+                            <ComboBoxItem Content="AFV"/>
+                            <ComboBoxItem Content="ON"/>
+                            <ComboBoxItem Content="OFF"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
+                <Border Name="TileYouTube" Style="{StaticResource MixerPanel}">
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <ProgressBar Name="AudioBarYTL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
+                                <Grid Width="158" Height="100">
+                                    <Image Name="PreviewYouTube" Stretch="Uniform" MouseDown="PreviewYouTube_MouseDown" Cursor="Hand"/>
+                                    <StackPanel Name="PnlYouTubeStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Name="TxtYouTubeStatusIcon" Text="▶" FontSize="20" HorizontalAlignment="Center" Foreground="#ff3333" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtYouTubeStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <ProgressBar Name="AudioBarYTR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Slider Name="SldYouTubeAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldYouTubeAudio_ValueChanged"/>
+                        </StackPanel>
+                        <Button Name="BtnYouTube" Content="YouTube Live" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnYouTube_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Expander Name="ExpanderYouTubeUrl" Header="Stream URL / Live" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,8" IsExpanded="True" MaxWidth="200">
+                            <StackPanel Orientation="Vertical" Margin="0,4,0,0">
+                                <TextBox Name="TxtYouTubeUrl" Height="24" FontSize="11" Margin="0,0,0,6" 
+                                         Background="{DynamicResource InputBg}" Foreground="{DynamicResource TextPrimary}" 
+                                         BorderBrush="{DynamicResource ControlBorder}" ToolTip="YouTube Live URL (e.g. https://www.youtube.com/watch?v=...)"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Button Name="BtnConnectYouTube" Content="Connect" FontSize="11" FontWeight="Bold" Height="26" Width="80" Click="BtnConnectYouTube_Click" Background="#2e7d32" Foreground="White" Margin="0,0,6,0" Cursor="Hand"/>
+                                    <Button Name="BtnDisconnectYouTube" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="65" Click="BtnDisconnectYouTube_Click" Background="#c62828" Foreground="White" IsEnabled="False" Cursor="Hand"/>
+                                </StackPanel>
+                                <Grid Margin="0,2,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="42"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Sync:" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Slider Name="SldYouTubeAudioDelay" Grid.Column="1" Minimum="0" Maximum="1000" Value="200" SmallChange="10" LargeChange="50" TickFrequency="50" IsSnapToTickEnabled="False" VerticalAlignment="Center" ValueChanged="SldYouTubeAudioDelay_ValueChanged"/>
+                                    <TextBlock Name="TxtYouTubeAudioDelay" Grid.Column="2" Text="200ms" FontSize="10" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </Expander>
+                        <ComboBox Name="CmbAudioStateYouTube" FontSize="12" Height="26" SelectionChanged="CmbAudioState_SelectionChanged">
                             <ComboBoxItem Content="AFV"/>
                             <ComboBoxItem Content="ON"/>
                             <ComboBoxItem Content="OFF"/>

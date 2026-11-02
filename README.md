@@ -25,6 +25,11 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
     *   **AFV Support for Screens:** In **AFV** mode, System Audio automatically unmutes whenever any computer screen is switched to Program, and mutes when cutting away. In **ON** mode, it remains continuously mixed into Program for background music or alerts.
     *   **Universal Format Conversion:** Converts arbitrary system audio formats (32-bit float, 16/24/32-bit PCM, 44.1 kHz, 48 kHz, 96 kHz, surround) into broadcast-standard **48 kHz 16-bit stereo PCM**.
     *   **Decay & Silence Detection:** Meters smoothly decay and reset to zero when system audio pauses or is idle.
+*   **YouTube Live Stream as a Source:**
+    *   **Direct YouTube Live Ingestion:** Connect to any public YouTube Live broadcast URL (or direct HLS `.m3u8` link) and ingest it directly as an active broadcast source.
+    *   **Dedicated Multiview Tile with Expandable URL Input:** Expandable stream URL input directly on the tile allows pasting live links on the fly, with one-click **Connect** / **Stop** controls and real-time status indicators (`OFFLINE`, `Resolving...`, `LIVE`, `Buffering...`).
+    *   **Low-Latency Playback & Synchronization:** Powered by `YoutubeExplode` and LibVLC with tuned low-latency network caching, decoding full 1080p UYVY broadcast video and 48kHz 16-bit stereo PCM audio.
+    *   **Full Switcher & Mixer Integration:** Switch between YouTube Live and other inputs via the "YouTube Live" button or preview click. Supports dedicated L/R VU meters, volume fader, and AFV / ON / OFF audio modes.
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output.
     *   **Image Support:** Also supports routing static images (JPG, PNG, BMP) seamlessly into the broadcast.
     *   **Loop Mode:** Features a toggleable gapless playback loop for continuous playback of a selected file.
@@ -72,5 +77,6 @@ The compiled application and its dependencies will be placed in the `bin/Debug/n
 8. **System Audio:** Use the **System Audio** tile to capture your PC's audio playback (YouTube, Zoom, music). Select your audio device, adjust the volume slider, and set the mode to **AFV** (follows screen capture) or **ON** (always mixed).
 9. **Audio Mixer:** Adjust volume faders and define audio modes (**AFV** - Audio Follows Video, **ON**, **OFF**) for every channel.
 10. **Local Video:** Load media files with **Select File**, use **Cue**, **Pause**, **Resume**, and toggle **Loop**.
-11. **Streaming:** Enter your YouTube Stream Key in the settings panel and click **START STREAM**.
-12. **Recording:** Choose a recording profile (MP4, ProRes, XDCAM) and destination folder, then click **START RECORDING**.
+11. **YouTube Live Source:** On the **YouTube Live** tile, expand the **Stream URL / Live** field, paste your YouTube Live stream link, and click **Connect**. Cut to YouTube Live to send it to Program.
+12. **Streaming:** Enter your YouTube Stream Key in the settings panel and click **START STREAM**.
+13. **Recording:** Choose a recording profile (MP4, ProRes, XDCAM) and destination folder, then click **START RECORDING**.

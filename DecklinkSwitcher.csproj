@@ -38,6 +38,7 @@
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.12" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.12" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
+    <PackageReference Include="YoutubeExplode" Version="6.6.3" />
   </ItemGroup>
 
 </Project>

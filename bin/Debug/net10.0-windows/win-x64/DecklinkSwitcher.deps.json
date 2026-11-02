@@ -12,6 +12,7 @@
           "FlashCap": "1.12.0",
           "LibVLCSharp": "3.10.1",
           "NAudio": "3.1.0",
+          "YoutubeExplode": "6.6.3",
           "DeckLinkAPI.Interop": "1.0.0.0"
         },
         "runtime": {
@@ -160,6 +161,15 @@
           }
         }
       },
+      "YoutubeExplode/6.6.3": {
+        "runtime": {
+          "lib/net10.0/YoutubeExplode.dll": {
+            "assemblyVersion": "6.6.3.0",
+            "fileVersion": "6.6.3.0",
+            "localPath": "YoutubeExplode.dll"
+          }
+        }
+      },
       "DeckLinkAPI.Interop/1.0.0.0": {
         "runtime": {
           "DeckLinkAPI.Interop.dll": {
@@ -259,6 +269,13 @@
       "sha512": "sha512-hyJB4UlpAi19Xr9AXzu2NuagKC4lPfHObNMEAA0HmqFz2rX7wKgzeYzO/jM/eBHDhnUGFFEjk5cOoJaxqg5J4A==",
       "path": "system.numerics.tensors/9.0.0",
       "hashPath": "system.numerics.tensors.9.0.0.nupkg.sha512"
+    },
+    "YoutubeExplode/6.6.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/0s3+iUZyqkyV7onEDXAFwLgTji6UbFL/Ucmyd9UUgggSD8xx5tTSFbvAWBoTRQPFtas/wuaYpLupgrKDRm/cg==",
+      "path": "youtubeexplode/6.6.3",
+      "hashPath": "youtubeexplode.6.6.3.nupkg.sha512"
     },
     "DeckLinkAPI.Interop/1.0.0.0": {
       "type": "reference",

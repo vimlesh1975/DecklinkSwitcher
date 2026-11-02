@@ -18,13 +18,13 @@ x64/
 x86/
 build/
 
-# Ignore bin except for bin/Debug/net11.0-windows/win-x64/
+# Ignore bin except for bin/Debug/net10.0-windows/win-x64/
 bin/*
 !bin/Debug/
 bin/Debug/*
-!bin/Debug/net11.0-windows/
-bin/Debug/net11.0-windows/*
-!bin/Debug/net11.0-windows/win-x64/
+!bin/Debug/net10.0-windows/
+bin/Debug/net10.0-windows/*
+!bin/Debug/net10.0-windows/win-x64/
 
 # Do NOT ignore root interop DLL required for DeckLink SDK
 !DeckLinkAPI.Interop.dll

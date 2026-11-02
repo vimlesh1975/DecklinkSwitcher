@@ -53,6 +53,7 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpColorBars;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpYouTube;
         private ScreenInputViewModel? _activeScreen;
         private WebcamInputViewModel? _activeWebcam;
         private SystemAudioSource _systemAudioSource = new();
@@ -60,6 +61,9 @@ namespace DecklinkSwitcher
         public static AudioState StateSystemAudio = AudioState.AFV;
         
         private VlcMediaSource _mediaSource;
+        private YouTubeSource _youtubeSource;
+        public static float YouTubeAudioLevel = 1.0f;
+        public static AudioState StateYouTube = AudioState.AFV;
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
         private CancellationTokenSource? _syntheticCts;
         public static YouTubeStreamer YtStreamer = new YouTubeStreamer();
@@ -67,8 +71,9 @@ namespace DecklinkSwitcher
         public static NdiSender NdiOut = new NdiSender();
         public static SrtStreamer SrtOut = new SrtStreamer();
         
-        // Latest PGM frame (BGRA 480x270) — updated by all PGM sources, read by streaming loop
+        // Latest PGM frame (BGRA 1920x1080 or 480x270) — updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
+        internal static byte[]? LatestYouTubeUyvy = new byte[1920 * 1080 * 2];
         internal static readonly object _pgmLock = new object();
         private static CancellationTokenSource? _streamLoopCts;
 
@@ -116,9 +121,11 @@ namespace DecklinkSwitcher
             _bmpColorBars = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMedia = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpYouTube = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
+            PreviewYouTube.Source = _bmpYouTube;
             
             try
             {
@@ -196,6 +203,64 @@ namespace DecklinkSwitcher
             {
             }
 
+            try
+            {
+                _youtubeSource = new YouTubeSource();
+                _youtubeSource.OnPreviewBufferUpdated = (buf) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        _bmpYouTube.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        if (_activeSourceType == 6)
+                        {
+                            _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        }
+                    });
+                };
+                _youtubeSource.OnAudioLevelArrived = (l, r) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        double ytL = l * _youtubeSource.AudioLevel;
+                        double ytR = r * _youtubeSource.AudioLevel;
+                        AudioBarYTL.Value = ytL; AudioBarYTR.Value = ytR;
+                        if (_activeSourceType == 6)
+                        {
+                            AudioOutputL.Value = ytL * PgmAudioLevel;
+                            AudioOutputR.Value = ytR * PgmAudioLevel;
+                        }
+                    });
+                };
+                _youtubeSource.OnStatusChanged = (status, isLive, isError) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        TxtYouTubeStatus.Text = status;
+                        if (isError)
+                        {
+                            TxtYouTubeStatus.Foreground = System.Windows.Media.Brushes.IndianRed;
+                            TxtYouTubeStatusIcon.Foreground = System.Windows.Media.Brushes.IndianRed;
+                            PnlYouTubeStatusOverlay.Visibility = Visibility.Visible;
+                            BtnConnectYouTube.IsEnabled = true;
+                            BtnDisconnectYouTube.IsEnabled = false;
+                        }
+                        else if (isLive)
+                        {
+                            TxtYouTubeStatus.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                            TxtYouTubeStatusIcon.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                            PnlYouTubeStatusOverlay.Visibility = Visibility.Collapsed;
+                            BtnConnectYouTube.IsEnabled = false;
+                            BtnDisconnectYouTube.IsEnabled = true;
+                        }
+                        else
+                        {
+                            TxtYouTubeStatus.Foreground = (System.Windows.Media.Brush)FindResource("TextDim");
+                            TxtYouTubeStatusIcon.Foreground = System.Windows.Media.Brushes.Red;
+                            PnlYouTubeStatusOverlay.Visibility = Visibility.Visible;
+                            BtnConnectYouTube.IsEnabled = true;
+                            BtnDisconnectYouTube.IsEnabled = false;
+                        }
+                    });
+                };
+            }
+            catch (Exception ex)
+            {
+            }
+
             SystemAudioPlayer.Init();
 
             _seekTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -265,6 +330,11 @@ namespace DecklinkSwitcher
                     
                     settings.AudioStateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
                     settings.AudioStateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
+                    if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
+                        settings.AudioStateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
+                    if (SldYouTubeAudio != null) settings.AudioLevelYouTube = SldYouTubeAudio.Value;
+                    if (SldYouTubeAudioDelay != null) settings.YouTubeAudioDelayMs = (int)SldYouTubeAudioDelay.Value;
+                    if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
                         settings.AudioStateSystemAudio = (AudioState)CmbAudioStateSystemAudio.SelectedIndex;
@@ -347,6 +417,7 @@ namespace DecklinkSwitcher
                 }
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
+                if (_youtubeSource != null) _youtubeSource.Dispose();
                 _systemAudioSource?.Dispose();
                 SystemAudioPlayer.Shutdown();
                 Log("Resources released.");
@@ -511,6 +582,18 @@ namespace DecklinkSwitcher
                 ChkLoopMedia.IsChecked = settings.LoopMediaEnabled;
                 CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;
                 CmbAudioStateMedia.SelectedIndex = (int)settings.AudioStateMedia;
+                if (!string.IsNullOrEmpty(settings.YouTubeSourceUrl))
+                    TxtYouTubeUrl.Text = settings.YouTubeSourceUrl;
+                SldYouTubeAudio.Value = settings.AudioLevelYouTube;
+                YouTubeAudioLevel = (float)settings.AudioLevelYouTube;
+                CmbAudioStateYouTube.SelectedIndex = (int)settings.AudioStateYouTube;
+                StateYouTube = settings.AudioStateYouTube;
+                if (SldYouTubeAudioDelay != null)
+                {
+                    SldYouTubeAudioDelay.Value = settings.YouTubeAudioDelayMs;
+                    if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = $"{settings.YouTubeAudioDelayMs}ms";
+                }
+                if (_youtubeSource != null) _youtubeSource.AudioDelayMs = settings.YouTubeAudioDelayMs;
 
                 // System Audio Setup
                 var renderDevices = SystemAudioSource.GetRenderDevices();
@@ -1119,6 +1202,7 @@ namespace DecklinkSwitcher
             if (BtnColorBars != null) BtnColorBars.Background = (_activeSourceType == 1) ? activeBrush : defaultBrush;
             if (BtnMatte != null) BtnMatte.Background = (_activeSourceType == 2) ? activeBrush : defaultBrush;
             if (BtnMedia != null) BtnMedia.Background = (_activeSourceType == 3) ? activeBrush : defaultBrush;
+            if (BtnYouTube != null) BtnYouTube.Background = (_activeSourceType == 6) ? activeBrush : defaultBrush;
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
             if (BtnSystemAudio != null) BtnSystemAudio.Background = isSysAudioActive ? activeBrush : defaultBrush;
@@ -1156,6 +1240,44 @@ namespace DecklinkSwitcher
             UpdateProgramSourceFlags();
         }
         private void PreviewMedia_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMedia_Click(null, null);
+
+        private void BtnYouTube_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 6; ActiveSourceType = 6; ActiveInputName = "YouTube"; Log("Switched to YouTube Live");
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
+            UpdateProgramSourceFlags();
+        }
+        private void PreviewYouTube_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnYouTube_Click(null, null);
+
+        private async void BtnConnectYouTube_Click(object sender, RoutedEventArgs e)
+        {
+            string url = TxtYouTubeUrl.Text.Trim();
+            SaveCurrentSettings();
+            BtnConnectYouTube.IsEnabled = false;
+            BtnDisconnectYouTube.IsEnabled = true;
+            await _youtubeSource.StartAsync(url);
+        }
+
+        private void BtnDisconnectYouTube_Click(object sender, RoutedEventArgs e)
+        {
+            _youtubeSource.Stop();
+            BtnConnectYouTube.IsEnabled = true;
+            BtnDisconnectYouTube.IsEnabled = false;
+        }
+
+        private void SldYouTubeAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_youtubeSource != null) _youtubeSource.AudioLevel = (float)e.NewValue;
+            YouTubeAudioLevel = (float)e.NewValue;
+        }
+
+        private void SldYouTubeAudioDelay_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            int ms = (int)e.NewValue;
+            if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = $"{ms}ms";
+            if (_youtubeSource != null) _youtubeSource.AudioDelayMs = ms;
+            SaveCurrentSettings();
+        }
 
         public void SwitchToScreen(ScreenInputViewModel vm)
         {
@@ -1303,6 +1425,11 @@ namespace DecklinkSwitcher
             _mediaSource?.Resume();
         }
 
+        private void BtnStopMedia_Click(object sender, RoutedEventArgs e)
+        {
+            _mediaSource?.Stop();
+        }
+
         private void SeekTimer_Tick(object sender, EventArgs e)
         {
             try
@@ -1439,6 +1566,27 @@ namespace DecklinkSwitcher
                 }
             }
 
+            public void Drain(int sampleCount)
+            {
+                lock (_lock)
+                {
+                    int drained = 0;
+                    while (drained < sampleCount && _packets.Count > 0)
+                    {
+                        short[] packet = _packets.Peek();
+                        int packetSamples = Math.Min(sampleCount - drained, packet.Length - _headOffset);
+                        drained += packetSamples;
+                        _headOffset += packetSamples;
+                        _count -= packetSamples;
+                        if (_headOffset == packet.Length)
+                        {
+                            _packets.Dequeue();
+                            _headOffset = 0;
+                        }
+                    }
+                }
+            }
+
             public string GetDiagnostics()
             {
                 lock (_lock)
@@ -1500,6 +1648,8 @@ namespace DecklinkSwitcher
             if (!IsLoaded) return;
             StateMedia = (AudioState)CmbAudioStateMedia.SelectedIndex;
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
+            if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
+                StateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
             SaveCurrentSettings();
         }
 
@@ -1620,6 +1770,7 @@ namespace DecklinkSwitcher
         private string GetTileIdentifier(FrameworkElement fe)
         {
             if (fe == TileMedia) return "TileMedia";
+            if (fe == TileYouTube) return "TileYouTube";
             if (fe == TileColorBars) return "TileColorBars";
             if (fe == TileMatte) return "TileMatte";
             if (fe == TileSystemAudio) return "TileSystemAudio";
@@ -1868,11 +2019,11 @@ namespace DecklinkSwitcher
 
             Action<string, float, AudioState, bool> mixSource = (name, level, state, isLocalActive) =>
             {
-                if (state == AudioState.OFF) return;
-                if (state == AudioState.AFV && !isLocalActive) return;
-                
+                bool shouldMix = (state == AudioState.ON) || (state == AudioState.AFV && isLocalActive);
+
                 if (name == "Color Bars")
                 {
+                    if (!shouldMix) return;
                     for (int i = 0; i < totalSamples; i += 2)
                     {
                         // Standard -20 dBFS level (approx 3277 amplitude), ignoring the UI slider
@@ -1887,7 +2038,14 @@ namespace DecklinkSwitcher
 
                 if (AudioFifos.TryGetValue(name, out var q))
                 {
-                    q.MixInto(mixed, totalSamples, level);
+                    if (shouldMix)
+                    {
+                        q.MixInto(mixed, totalSamples, level);
+                    }
+                    else
+                    {
+                        q.Drain(totalSamples);
+                    }
                 }
             };
 
@@ -1896,6 +2054,7 @@ namespace DecklinkSwitcher
                 mixSource(input.DisplayName, (float)input.AudioLevel, input.State, activeSourceType == 0 && activeInputName == input.DisplayName);
             }
             mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
+            mixSource("YouTube", YouTubeAudioLevel, StateYouTube, activeSourceType == 6);
             mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
             foreach (var cam in DynamicWebcams)
             {
@@ -2031,9 +2190,9 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
-            else if (_activeSourceType == 4 || _activeSourceType == 5) // Desktop Capture or Webcam
+            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6) // Media, Desktop, Webcam, or YouTube
             {
-                // Handled continuously by background capture thread to prevent audio timing stutter
+                // Handled continuously by streaming/capture callbacks
                 return;
             }
             else if (_activeSourceType == 1) // Color Bars
@@ -2508,7 +2667,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
                             UpdatePgmPreviewSynthetic();
@@ -2524,10 +2683,20 @@ namespace DecklinkSwitcher
                                 if (modifiedAudioBuffer != IntPtr.Zero)
                                 {
                                     byte[] uyvyBytes = null;
-                                    lock (MainWindow._pgmLock) 
-                                    { 
-                                        if (_latestPgmFrame != null && _latestPgmFrame.Length == 1920 * 1080 * 4) uyvyBytes = ConvertBgra1080ToUyvy1080(_latestPgmFrame);
-                                        else if (_latestPgmFrame != null) uyvyBytes = ConvertBgraToUyvy1080(_latestPgmFrame); 
+                                    if (_activeSourceType == 6 && LatestYouTubeUyvy != null)
+                                    {
+                                        lock (MainWindow._pgmLock)
+                                        {
+                                            uyvyBytes = (byte[])LatestYouTubeUyvy.Clone();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        lock (MainWindow._pgmLock) 
+                                        { 
+                                            if (_latestPgmFrame != null && _latestPgmFrame.Length == 1920 * 1080 * 4) uyvyBytes = ConvertBgra1080ToUyvy1080(_latestPgmFrame);
+                                            else if (_latestPgmFrame != null) uyvyBytes = ConvertBgraToUyvy1080(_latestPgmFrame); 
+                                        }
                                     }
                                     OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                                     System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
@@ -3294,6 +3463,16 @@ namespace DecklinkSwitcher
                             }
                         }
                     }
+                    else if (sourceType == 6) // YouTube direct 1080p UYVY
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestYouTubeUyvy != null)
+                            {
+                                System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestYouTubeUyvy, 0, outputBuffer, MainWindow.LatestYouTubeUyvy.Length);
+                            }
+                        }
+                    }
                     else if (sourceType == 4 || sourceType == 5) // Desktop Capture or Webcam
                     {
                         byte[] deskUyvy = null;
@@ -3301,7 +3480,10 @@ namespace DecklinkSwitcher
                         {
                             if (MainWindow._latestPgmFrame != null)
                             {
-                                deskUyvy = MainWindow.ConvertBgra1080ToUyvy1080(MainWindow._latestPgmFrame);
+                                if (MainWindow._latestPgmFrame.Length == 1920 * 1080 * 4)
+                                    deskUyvy = MainWindow.ConvertBgra1080ToUyvy1080(MainWindow._latestPgmFrame);
+                                else
+                                    deskUyvy = MainWindow.ConvertBgraToUyvy1080(MainWindow._latestPgmFrame);
                             }
                         }
                         if (deskUyvy != null)
