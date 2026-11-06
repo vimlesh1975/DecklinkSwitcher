@@ -222,15 +222,18 @@ namespace DecklinkSwitcher
             }
 
             // 2. Convert to full-resolution 1080p BGRA for PGM streaming consumers
-            unsafe
+            if (MainWindow.ActiveSourceType == 6)
             {
-                DeckLinkDevice.ConvertUYVYToBGRA_Downsampled(_videoBuffer, _width, _height, _width * 2, _pgm1080Buffer, _width, _height, _width * 4);
-            }
-            lock (MainWindow._pgmLock)
-            {
-                if (MainWindow._latestPgmFrame == null || MainWindow._latestPgmFrame.Length != _width * _height * 4)
-                    MainWindow._latestPgmFrame = new byte[_width * _height * 4];
-                Marshal.Copy(_pgm1080Buffer, MainWindow._latestPgmFrame, 0, _width * _height * 4);
+                unsafe
+                {
+                    DeckLinkDevice.ConvertUYVYToBGRA_Downsampled(_videoBuffer, _width, _height, _width * 2, _pgm1080Buffer, _width, _height, _width * 4);
+                }
+                lock (MainWindow._pgmLock)
+                {
+                    if (MainWindow._latestPgmFrame == null || MainWindow._latestPgmFrame.Length != _width * _height * 4)
+                        MainWindow._latestPgmFrame = new byte[_width * _height * 4];
+                    Marshal.Copy(_pgm1080Buffer, MainWindow._latestPgmFrame, 0, _width * _height * 4);
+                }
             }
 
             // 3. Downsample to 480x270 BGRA for UI preview thumbnails
@@ -245,6 +248,28 @@ namespace DecklinkSwitcher
                 Marshal.Copy(_previewBuffer, previewCopy, 0, previewCopy.Length);
                 OnPreviewBufferUpdated?.Invoke(previewCopy);
             }
+        }
+
+        public byte[]? GetLatestPgmPixels()
+        {
+            if (_videoBuffer == IntPtr.Zero || !IsStreaming) return null;
+            byte[] copy = new byte[_width * _height * 4];
+            unsafe
+            {
+                fixed (byte* dst = copy)
+                {
+                    DeckLinkDevice.ConvertUYVYToBGRA_Downsampled(_videoBuffer, _width, _height, _width * 2, (IntPtr)dst, _width, _height, _width * 4);
+                }
+            }
+            return copy;
+        }
+
+        public byte[]? GetLatestPreviewPixels()
+        {
+            if (_previewBuffer == IntPtr.Zero || !IsStreaming) return null;
+            byte[] copy = new byte[480 * 270 * 4];
+            Marshal.Copy(_previewBuffer, copy, 0, copy.Length);
+            return copy;
         }
 
         private void PlayAudio(IntPtr data, IntPtr samples, uint count, long pts)

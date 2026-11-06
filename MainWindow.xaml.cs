@@ -1246,6 +1246,25 @@ namespace DecklinkSwitcher
             _activeSourceType = 6; ActiveSourceType = 6; ActiveInputName = "YouTube"; Log("Switched to YouTube Live");
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
+
+            if (_youtubeSource != null)
+            {
+                var preview = _youtubeSource.GetLatestPreviewPixels();
+                if (preview != null && _bmpOutput != null)
+                {
+                    _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), preview, 480 * 4, 0);
+                }
+                var pgm = _youtubeSource.GetLatestPgmPixels();
+                if (pgm != null)
+                {
+                    lock (_pgmLock)
+                    {
+                        if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                            _latestPgmFrame = new byte[1920 * 1080 * 4];
+                        Array.Copy(pgm, _latestPgmFrame, _latestPgmFrame.Length);
+                    }
+                }
+            }
         }
         private void PreviewYouTube_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnYouTube_Click(null, null);
 
