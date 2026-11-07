@@ -147,6 +147,66 @@
         <Style TargetType="ProgressBar">
             <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border Name="TemplateRoot"
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="1" 
+                                SnapsToDevicePixels="True">
+                            <Grid Name="PART_Track">
+                                <!-- Dim unlit zones -->
+                                <Border Name="DimTrack" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Opacity="0.18">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#00e676" Offset="0.0"/>
+                                            <GradientStop Color="#00e676" Offset="0.65"/>
+                                            <GradientStop Color="#ffd600" Offset="0.68"/>
+                                            <GradientStop Color="#ffd600" Offset="0.82"/>
+                                            <GradientStop Color="#ff1744" Offset="0.85"/>
+                                            <GradientStop Color="#ff1744" Offset="1.0"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+
+                                <!-- Active illuminated indicator -->
+                                <Border Name="PART_Indicator" 
+                                        HorizontalAlignment="Left" 
+                                        VerticalAlignment="Stretch" 
+                                        ClipToBounds="True">
+                                    <Border Name="LitBar" 
+                                            HorizontalAlignment="Left" 
+                                            VerticalAlignment="Stretch" 
+                                            Width="{Binding ActualWidth, ElementName=PART_Track}">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#00e676" Offset="0.0"/>
+                                                <GradientStop Color="#00e676" Offset="0.65"/>
+                                                <GradientStop Color="#ffd600" Offset="0.68"/>
+                                                <GradientStop Color="#ffd600" Offset="0.82"/>
+                                                <GradientStop Color="#ff1744" Offset="0.85"/>
+                                                <GradientStop Color="#ff1744" Offset="1.0"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Vertical">
+                                <Setter TargetName="TemplateRoot" Property="LayoutTransform">
+                                    <Setter.Value>
+                                        <RotateTransform Angle="-90"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
