@@ -54,6 +54,8 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpYouTube;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlSource;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlOverlay;
         private ScreenInputViewModel? _activeScreen;
         private WebcamInputViewModel? _activeWebcam;
         private SystemAudioSource _systemAudioSource = new();
@@ -62,8 +64,11 @@ namespace DecklinkSwitcher
         
         private VlcMediaSource _mediaSource;
         private YouTubeSource _youtubeSource;
+        private HtmlBrowserSource _htmlSource;
+        private HtmlBrowserSource _htmlOverlaySource;
         public static float YouTubeAudioLevel = 1.0f;
         public static AudioState StateYouTube = AudioState.AFV;
+        public static AudioState StateHtml = AudioState.AFV;
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
         private CancellationTokenSource? _syntheticCts;
         public static YouTubeStreamer YtStreamer = new YouTubeStreamer();
@@ -74,6 +79,7 @@ namespace DecklinkSwitcher
         // Latest PGM frame (BGRA 1920x1080 or 480x270) — updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
         internal static byte[]? LatestYouTubeUyvy = new byte[1920 * 1080 * 2];
+        internal static byte[]? LatestHtmlSourceUyvy = new byte[1920 * 1080 * 2];
         internal static readonly object _pgmLock = new object();
         private static CancellationTokenSource? _streamLoopCts;
 
@@ -99,6 +105,10 @@ namespace DecklinkSwitcher
         public static double LogoOpacityPercent = 100.0;
         public static double LogoXPercent = 96.0;
         public static double LogoYPercent = 4.0;
+
+        public static volatile bool IsHtmlOverlayEnabled = false;
+        internal static volatile PreparedHtmlOverlayFrame? CurrentHtmlOverlay = null;
+        public static double HtmlOverlayOpacityPercent = 100.0;
 
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
@@ -145,10 +155,14 @@ namespace DecklinkSwitcher
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMedia = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpYouTube = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpHtmlSource = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpHtmlOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
             PreviewYouTube.Source = _bmpYouTube;
+            PreviewHtmlSource.Source = _bmpHtmlSource;
+            PreviewHtmlOverlay.Source = _bmpHtmlOverlay;
             
             try
             {
@@ -291,6 +305,71 @@ namespace DecklinkSwitcher
             {
             }
 
+            try
+            {
+                _htmlSource = new HtmlBrowserSource(false, "Source");
+                _htmlSource.OnPreviewBufferUpdated = (buf) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        _bmpHtmlSource.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        if (_activeSourceType == 7)
+                        {
+                            _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        }
+                    });
+                };
+                _htmlSource.OnStatusChanged = (status, isLive, isError) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        TxtHtmlStatus.Text = status;
+                        if (isError)
+                        {
+                            TxtHtmlStatus.Foreground = System.Windows.Media.Brushes.IndianRed;
+                            PnlHtmlStatusOverlay.Visibility = Visibility.Visible;
+                            BtnConnectHtmlSource.IsEnabled = true;
+                            BtnDisconnectHtmlSource.IsEnabled = false;
+                        }
+                        else if (isLive)
+                        {
+                            TxtHtmlStatus.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                            PnlHtmlStatusOverlay.Visibility = Visibility.Collapsed;
+                            BtnConnectHtmlSource.IsEnabled = true;
+                            BtnDisconnectHtmlSource.IsEnabled = true;
+                            UpdateHtmlSourceMuteState();
+                        }
+                        else
+                        {
+                            TxtHtmlStatus.Foreground = (System.Windows.Media.Brush)FindResource("TextDim");
+                            PnlHtmlStatusOverlay.Visibility = Visibility.Visible;
+                            BtnConnectHtmlSource.IsEnabled = true;
+                            BtnDisconnectHtmlSource.IsEnabled = _htmlSource.IsRunning;
+                        }
+                    });
+                };
+
+                _htmlOverlaySource = new HtmlBrowserSource(true, "Overlay");
+                _htmlOverlaySource.OnOverlayFrameUpdated = (frame) => {
+                    CurrentHtmlOverlay = frame;
+                };
+                _htmlOverlaySource.OnPreviewBufferUpdated = (buf) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        _bmpHtmlOverlay.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                    });
+                };
+                _htmlOverlaySource.OnStatusChanged = (status, isLive, isError) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        if (TxtHtmlOverlayStatus != null)
+                        {
+                            TxtHtmlOverlayStatus.Text = "Status: " + status;
+                            TxtHtmlOverlayStatus.Foreground = isError
+                                ? System.Windows.Media.Brushes.IndianRed
+                                : (isLive ? System.Windows.Media.Brushes.LimeGreen : (System.Windows.Media.Brush)FindResource("TextDim"));
+                        }
+                    });
+                };
+            }
+            catch (Exception ex)
+            {
+            }
+
             SystemAudioPlayer.Init();
 
             _seekTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -412,6 +491,13 @@ namespace DecklinkSwitcher
                     if (SldLogoX != null) settings.LogoXPercent = SldLogoX.Value;
                     if (SldLogoY != null) settings.LogoYPercent = SldLogoY.Value;
 
+                    if (TxtHtmlSourceUrl != null) settings.HtmlSourceUrl = TxtHtmlSourceUrl.Text.Trim();
+                    if (CmbAudioStateHtml != null && CmbAudioStateHtml.SelectedIndex >= 0)
+                        settings.AudioStateHtml = (AudioState)CmbAudioStateHtml.SelectedIndex;
+                    if (TxtHtmlOverlayUrl != null) settings.HtmlOverlayUrl = TxtHtmlOverlayUrl.Text.Trim();
+                    settings.HtmlOverlayEnabled = IsHtmlOverlayEnabled;
+                    if (SldHtmlOverlayOpacity != null) settings.HtmlOverlayOpacityPercent = SldHtmlOverlayOpacity.Value;
+
                     settings.SourceOrder = SwitcherPanel.Children
                         .OfType<FrameworkElement>()
                         .Select(GetTileIdentifier)
@@ -457,6 +543,8 @@ namespace DecklinkSwitcher
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
                 if (_youtubeSource != null) _youtubeSource.Dispose();
+                if (_htmlSource != null) _htmlSource.Dispose();
+                if (_htmlOverlaySource != null) _htmlOverlaySource.Dispose();
                 _systemAudioSource?.Dispose();
                 SystemAudioPlayer.Shutdown();
                 Log("Resources released.");
@@ -887,6 +975,19 @@ namespace DecklinkSwitcher
                     }
 
                     SetLogoOverlayActiveState(settings.LogoOverlayEnabled && CurrentLogoOverlay != null);
+
+                    if (!string.IsNullOrEmpty(settings.HtmlSourceUrl) && TxtHtmlSourceUrl != null)
+                        TxtHtmlSourceUrl.Text = settings.HtmlSourceUrl;
+                    if (CmbAudioStateHtml != null)
+                        CmbAudioStateHtml.SelectedIndex = (int)settings.AudioStateHtml;
+                    StateHtml = settings.AudioStateHtml;
+
+                    if (!string.IsNullOrEmpty(settings.HtmlOverlayUrl) && TxtHtmlOverlayUrl != null)
+                        TxtHtmlOverlayUrl.Text = settings.HtmlOverlayUrl;
+                    HtmlOverlayOpacityPercent = settings.HtmlOverlayOpacityPercent > 0 ? Math.Clamp(settings.HtmlOverlayOpacityPercent, 10.0, 100.0) : 100.0;
+                    if (SldHtmlOverlayOpacity != null) SldHtmlOverlayOpacity.Value = HtmlOverlayOpacityPercent;
+                    if (TxtHtmlOverlayOpacityVal != null) TxtHtmlOverlayOpacityVal.Text = $"{(int)Math.Round(HtmlOverlayOpacityPercent)}%";
+                    SetHtmlOverlayActiveState(false);
                 }
                 finally
                 {
@@ -938,31 +1039,12 @@ namespace DecklinkSwitcher
             SaveCurrentSettings();
         }
 
-        private void ChkLogoOverlay_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_isUpdatingLogoUi || !IsLoaded) return;
-            bool wantEnabled = ChkLogoOverlay.IsChecked == true;
-            if (wantEnabled && CurrentLogoOverlay == null)
-            {
-                _isUpdatingLogoUi = true;
-                ChkLogoOverlay.IsChecked = false;
-                _isUpdatingLogoUi = false;
-                BtnSelectLogo_Click(sender, e);
-                return;
-            }
-            SetLogoOverlayActiveState(wantEnabled);
-            SaveCurrentSettings();
-        }
-
         private void SetLogoOverlayActiveState(bool enabled)
         {
             IsLogoOverlayEnabled = enabled && CurrentLogoOverlay != null;
             _isUpdatingLogoUi = true;
             try
             {
-                if (ChkLogoOverlay != null)
-                    ChkLogoOverlay.IsChecked = IsLogoOverlayEnabled;
-
                 if (BtnToggleLogo != null)
                 {
                     BtnToggleLogo.Content = IsLogoOverlayEnabled ? "LOGO: ON" : "LOGO: OFF";
@@ -1225,37 +1307,28 @@ namespace DecklinkSwitcher
             SaveCurrentSettings();
         }
 
-        public static unsafe void ApplyLogoOverlayUyvy(byte* uyvyBuffer)
+        private static unsafe void BlendPreparedRegionUyvy(byte* uyvyBuffer, int startX, int startY, int boxW, int boxH, byte[] yArr, byte[] uArr, byte[] vArr, byte[] aArr, double opacityPercent)
         {
-            if (!IsLogoOverlayEnabled || uyvyBuffer == null) return;
-            var ov = CurrentLogoOverlay;
-            if (ov == null) return;
-
-            int logoW = ov.Width;
-            int logoH = ov.Height;
-            if (logoW <= 0 || logoH <= 0) return;
-
-            int opacityScale = (int)Math.Round(Math.Clamp(LogoOpacityPercent, 0.0, 100.0) * 255.0 / 100.0);
+            if (boxW <= 0 || boxH <= 0) return;
+            int opacityScale = (int)Math.Round(Math.Clamp(opacityPercent, 0.0, 100.0) * 255.0 / 100.0);
             if (opacityScale <= 0) return;
 
-            int startX = (int)Math.Round((1920 - logoW) * (Math.Clamp(LogoXPercent, 0.0, 100.0) / 100.0));
-            int startY = (int)Math.Round((1080 - logoH) * (Math.Clamp(LogoYPercent, 0.0, 100.0) / 100.0));
             startX &= ~1;
             if (startX < 0) startX = 0;
             if (startY < 0) startY = 0;
-            if (startX + logoW > 1920) startX = (1920 - logoW) & ~1;
-            if (startY + logoH > 1080) startY = 1080 - logoH;
+            if (startX + boxW > 1920) startX = (1920 - boxW) & ~1;
+            if (startY + boxH > 1080) startY = 1080 - boxH;
 
-            fixed (byte* pY = ov.Y)
-            fixed (byte* pU = ov.U)
-            fixed (byte* pV = ov.V)
-            fixed (byte* pA = ov.A)
+            fixed (byte* pY = yArr)
+            fixed (byte* pU = uArr)
+            fixed (byte* pV = vArr)
+            fixed (byte* pA = aArr)
             {
-                for (int ly = 0; ly < logoH; ly++)
+                for (int ly = 0; ly < boxH; ly++)
                 {
                     byte* dstRow = uyvyBuffer + ((startY + ly) * 1920 + startX) * 2;
-                    int rowIdx = ly * logoW;
-                    for (int lx = 0; lx < logoW; lx += 2)
+                    int rowIdx = ly * boxW;
+                    for (int lx = 0; lx < boxW; lx += 2)
                     {
                         int idx0 = rowIdx + lx;
                         int idx1 = idx0 + 1;
@@ -1285,13 +1358,149 @@ namespace DecklinkSwitcher
             }
         }
 
+        public static unsafe void ApplyLogoOverlayUyvy(byte* uyvyBuffer)
+        {
+            if (uyvyBuffer == null) return;
+
+            if (IsHtmlOverlayEnabled)
+            {
+                var htmlOv = CurrentHtmlOverlay;
+                if (htmlOv != null)
+                {
+                    BlendPreparedRegionUyvy(uyvyBuffer, htmlOv.StartX, htmlOv.StartY, htmlOv.Width, htmlOv.Height, htmlOv.Y, htmlOv.U, htmlOv.V, htmlOv.A, HtmlOverlayOpacityPercent);
+                }
+            }
+
+            if (IsLogoOverlayEnabled)
+            {
+                var ov = CurrentLogoOverlay;
+                if (ov != null && ov.Width > 0 && ov.Height > 0)
+                {
+                    int startX = (int)Math.Round((1920 - ov.Width) * (Math.Clamp(LogoXPercent, 0.0, 100.0) / 100.0));
+                    int startY = (int)Math.Round((1080 - ov.Height) * (Math.Clamp(LogoYPercent, 0.0, 100.0) / 100.0));
+                    BlendPreparedRegionUyvy(uyvyBuffer, startX, startY, ov.Width, ov.Height, ov.Y, ov.U, ov.V, ov.A, LogoOpacityPercent);
+                }
+            }
+        }
+
         public static unsafe void ApplyLogoOverlayUyvy(byte[]? uyvyBytes)
         {
-            if (!IsLogoOverlayEnabled || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
+            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
             fixed (byte* ptr = uyvyBytes)
             {
                 ApplyLogoOverlayUyvy(ptr);
             }
+        }
+
+        private void BtnBrowseHtmlOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select HTML CG Overlay File",
+                Filter = "HTML Files (*.html;*.htm)|*.html;*.htm|All Files (*.*)|*.*"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                TxtHtmlOverlayUrl.Text = dlg.FileName;
+                SaveCurrentSettings();
+            }
+        }
+
+        private void TxtHtmlOverlayUrl_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                e.Handled = true;
+                BtnConnectHtmlOverlay_Click(sender, e);
+            }
+        }
+
+        private async void BtnConnectHtmlOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            string url = TxtHtmlOverlayUrl.Text.Trim();
+            if (string.IsNullOrEmpty(url))
+            {
+                BtnBrowseHtmlOverlay_Click(sender, e);
+                url = TxtHtmlOverlayUrl.Text.Trim();
+                if (string.IsNullOrEmpty(url)) return;
+            }
+            SaveCurrentSettings();
+            await _htmlOverlaySource.StartAsync(url);
+            SetHtmlOverlayActiveState(true);
+            SaveCurrentSettings();
+        }
+
+        private void BtnReloadHtmlOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            _htmlOverlaySource?.Reload();
+        }
+
+        private void BtnDisconnectHtmlOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            _htmlOverlaySource?.Stop();
+            SetHtmlOverlayActiveState(false);
+            SaveCurrentSettings();
+        }
+
+        private async void BtnToggleHtmlOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsHtmlOverlayEnabled && (_htmlOverlaySource == null || !_htmlOverlaySource.IsRunning))
+            {
+                string url = TxtHtmlOverlayUrl.Text.Trim();
+                if (!string.IsNullOrEmpty(url))
+                {
+                    await _htmlOverlaySource!.StartAsync(url);
+                }
+                else
+                {
+                    BtnConnectHtmlOverlay_Click(sender, e);
+                    return;
+                }
+            }
+            SetHtmlOverlayActiveState(!IsHtmlOverlayEnabled);
+            SaveCurrentSettings();
+        }
+
+        private void SetHtmlOverlayActiveState(bool enabled)
+        {
+            IsHtmlOverlayEnabled = enabled && _htmlOverlaySource != null && _htmlOverlaySource.IsRunning;
+            _isUpdatingLogoUi = true;
+            try
+            {
+                if (BtnToggleHtmlOverlay != null)
+                {
+                    BtnToggleHtmlOverlay.Content = IsHtmlOverlayEnabled ? "CG: ON" : "CG: OFF";
+                    BtnToggleHtmlOverlay.Background = IsHtmlOverlayEnabled
+                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2e, 0x7d, 0x32))
+                        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x42, 0x42, 0x42));
+                }
+            }
+            finally
+            {
+                _isUpdatingLogoUi = false;
+            }
+            UpdateHtmlOverlayPreviewElement();
+        }
+
+        private void UpdateHtmlOverlayPreviewElement()
+        {
+            if (PreviewHtmlOverlay == null) return;
+            if (!IsHtmlOverlayEnabled)
+            {
+                PreviewHtmlOverlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+            PreviewHtmlOverlay.Opacity = Math.Clamp(HtmlOverlayOpacityPercent / 100.0, 0.0, 1.0);
+            PreviewHtmlOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void SldHtmlOverlayOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            HtmlOverlayOpacityPercent = e.NewValue;
+            if (TxtHtmlOverlayOpacityVal != null) TxtHtmlOverlayOpacityVal.Text = $"{(int)Math.Round(e.NewValue)}%";
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            UpdateHtmlOverlayPreviewElement();
+            SaveCurrentSettings();
         }
 
         #endregion
@@ -1676,9 +1885,19 @@ namespace DecklinkSwitcher
             if (BtnMatte != null) BtnMatte.Background = (_activeSourceType == 2) ? activeBrush : defaultBrush;
             if (BtnMedia != null) BtnMedia.Background = (_activeSourceType == 3) ? activeBrush : defaultBrush;
             if (BtnYouTube != null) BtnYouTube.Background = (_activeSourceType == 6) ? activeBrush : defaultBrush;
+            if (BtnHtmlSource != null) BtnHtmlSource.Background = (_activeSourceType == 7) ? activeBrush : defaultBrush;
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
             if (BtnSystemAudio != null) BtnSystemAudio.Background = isSysAudioActive ? activeBrush : defaultBrush;
+
+            UpdateHtmlSourceMuteState();
+        }
+
+        private void UpdateHtmlSourceMuteState()
+        {
+            if (_htmlSource == null) return;
+            bool shouldPlayAudio = (StateHtml == AudioState.ON) || (StateHtml == AudioState.AFV && _activeSourceType == 7);
+            _htmlSource.SetMuted(!shouldPlayAudio);
         }
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
@@ -1769,6 +1988,77 @@ namespace DecklinkSwitcher
             if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = $"{ms}ms";
             if (_youtubeSource != null) _youtubeSource.AudioDelayMs = ms;
             SaveCurrentSettings();
+        }
+
+        private void BtnHtmlSource_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 7; ActiveSourceType = 7; ActiveInputName = "HTML"; Log("Switched to HTML / Web Source");
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
+            UpdateProgramSourceFlags();
+
+            if (_htmlSource != null)
+            {
+                var preview = _htmlSource.GetLatestPreviewPixels();
+                if (preview != null && _bmpOutput != null)
+                {
+                    _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), preview, 480 * 4, 0);
+                }
+                var pgm = _htmlSource.GetLatestPgmPixels();
+                if (pgm != null)
+                {
+                    lock (_pgmLock)
+                    {
+                        if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                            _latestPgmFrame = new byte[1920 * 1080 * 4];
+                        Array.Copy(pgm, _latestPgmFrame, _latestPgmFrame.Length);
+                    }
+                }
+            }
+        }
+        private void PreviewHtmlSource_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnHtmlSource_Click(null, null);
+
+        private void BtnBrowseHtmlSource_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select Local HTML File",
+                Filter = "HTML Files (*.html;*.htm)|*.html;*.htm|All Files (*.*)|*.*"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                TxtHtmlSourceUrl.Text = dlg.FileName;
+                SaveCurrentSettings();
+            }
+        }
+
+        private void TxtHtmlSourceUrl_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                e.Handled = true;
+                BtnConnectHtmlSource_Click(sender, e);
+            }
+        }
+
+        private async void BtnConnectHtmlSource_Click(object sender, RoutedEventArgs e)
+        {
+            string url = TxtHtmlSourceUrl.Text.Trim();
+            SaveCurrentSettings();
+            BtnDisconnectHtmlSource.IsEnabled = true;
+            await _htmlSource.StartAsync(url);
+            UpdateHtmlSourceMuteState();
+        }
+
+        private void BtnReloadHtmlSource_Click(object sender, RoutedEventArgs e)
+        {
+            _htmlSource?.Reload();
+        }
+
+        private void BtnDisconnectHtmlSource_Click(object sender, RoutedEventArgs e)
+        {
+            _htmlSource?.Stop();
+            BtnConnectHtmlSource.IsEnabled = true;
+            BtnDisconnectHtmlSource.IsEnabled = false;
         }
 
         public void SwitchToScreen(ScreenInputViewModel vm)
@@ -2142,6 +2432,9 @@ namespace DecklinkSwitcher
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
             if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
                 StateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
+            if (CmbAudioStateHtml != null && CmbAudioStateHtml.SelectedIndex >= 0)
+                StateHtml = (AudioState)CmbAudioStateHtml.SelectedIndex;
+            UpdateHtmlSourceMuteState();
             SaveCurrentSettings();
         }
 
@@ -2263,6 +2556,7 @@ namespace DecklinkSwitcher
         {
             if (fe == TileMedia) return "TileMedia";
             if (fe == TileYouTube) return "TileYouTube";
+            if (fe == TileHtmlSource) return "TileHtmlSource";
             if (fe == TileColorBars) return "TileColorBars";
             if (fe == TileMatte) return "TileMatte";
             if (fe == TileSystemAudio) return "TileSystemAudio";
@@ -2682,7 +2976,7 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
-            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6) // Media, Desktop, Webcam, or YouTube
+            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7) // Media, Desktop, Webcam, YouTube, or HTML
             {
                 // Handled continuously by streaming/capture callbacks
                 return;
@@ -3160,7 +3454,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
                             UpdatePgmPreviewSynthetic();
@@ -3181,6 +3475,13 @@ namespace DecklinkSwitcher
                                         lock (MainWindow._pgmLock)
                                         {
                                             uyvyBytes = (byte[])LatestYouTubeUyvy.Clone();
+                                        }
+                                    }
+                                    else if (_activeSourceType == 7 && LatestHtmlSourceUyvy != null)
+                                    {
+                                        lock (MainWindow._pgmLock)
+                                        {
+                                            uyvyBytes = (byte[])LatestHtmlSourceUyvy.Clone();
                                         }
                                     }
                                     else
@@ -3972,6 +4273,16 @@ namespace DecklinkSwitcher
                             if (MainWindow.LatestYouTubeUyvy != null)
                             {
                                 System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestYouTubeUyvy, 0, outputBuffer, MainWindow.LatestYouTubeUyvy.Length);
+                            }
+                        }
+                    }
+                    else if (sourceType == 7) // HTML / Web direct 1080p UYVY
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestHtmlSourceUyvy != null)
+                            {
+                                System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestHtmlSourceUyvy, 0, outputBuffer, MainWindow.LatestHtmlSourceUyvy.Length);
                             }
                         }
                     }

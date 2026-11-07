@@ -11,9 +11,13 @@
         "dependencies": {
           "FlashCap": "1.12.0",
           "LibVLCSharp": "3.10.1",
+          "Microsoft.Web.WebView2": "1.0.4314.35",
           "NAudio": "3.1.0",
           "YoutubeExplode": "6.6.3",
-          "DeckLinkAPI.Interop": "1.0.0.0"
+          "DeckLinkAPI.Interop": "1.0.0.0",
+          "Microsoft.Web.WebView2.Core": "1.0.4314.35",
+          "Microsoft.Web.WebView2.WinForms": "1.0.4314.35",
+          "Microsoft.Web.WebView2.Wpf": "1.0.4314.35"
         },
         "runtime": {
           "DecklinkSwitcher.dll": {}
@@ -46,6 +50,14 @@
             "assemblyVersion": "3.10.1.0",
             "fileVersion": "3.10.1.0",
             "localPath": "LibVLCSharp.dll"
+          }
+        }
+      },
+      "Microsoft.Web.WebView2/1.0.4314.35": {
+        "native": {
+          "runtimes/win-x64/native/WebView2Loader.dll": {
+            "fileVersion": "1.0.4314.35",
+            "localPath": "WebView2Loader.dll"
           }
         }
       },
@@ -177,6 +189,30 @@
             "fileVersion": "1.0.0.0"
           }
         }
+      },
+      "Microsoft.Web.WebView2.Core/1.0.4314.35": {
+        "runtime": {
+          "Microsoft.Web.WebView2.Core.dll": {
+            "assemblyVersion": "1.0.4314.35",
+            "fileVersion": "1.0.4314.35"
+          }
+        }
+      },
+      "Microsoft.Web.WebView2.WinForms/1.0.4314.35": {
+        "runtime": {
+          "Microsoft.Web.WebView2.WinForms.dll": {
+            "assemblyVersion": "1.0.4314.35",
+            "fileVersion": "1.0.4314.35"
+          }
+        }
+      },
+      "Microsoft.Web.WebView2.Wpf/1.0.4314.35": {
+        "runtime": {
+          "Microsoft.Web.WebView2.Wpf.dll": {
+            "assemblyVersion": "1.0.4314.35",
+            "fileVersion": "1.0.4314.35"
+          }
+        }
       }
     }
   },
@@ -206,6 +242,13 @@
       "sha512": "sha512-6iSrYMk6RU8fyftdXrfR1TW3xpR/WhEmliORuWvAu2N05wECb8k2hykWiU53/1zqx616v/qUlDbJJyqv78MDkQ==",
       "path": "libvlcsharp/3.10.1",
       "hashPath": "libvlcsharp.3.10.1.nupkg.sha512"
+    },
+    "Microsoft.Web.WebView2/1.0.4314.35": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-x5MFf2W03xueU1mMNvivXfHSsQ+ODo7vJ36qw/dLtU5Gs+8d7+7N7zzmNNDoT3ffosmcvZNBtUnlzyiDUuBkSQ==",
+      "path": "microsoft.web.webview2/1.0.4314.35",
+      "hashPath": "microsoft.web.webview2.1.0.4314.35.nupkg.sha512"
     },
     "NAudio/3.1.0": {
       "type": "package",
@@ -278,6 +321,21 @@
       "hashPath": "youtubeexplode.6.6.3.nupkg.sha512"
     },
     "DeckLinkAPI.Interop/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Web.WebView2.Core/1.0.4314.35": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Web.WebView2.WinForms/1.0.4314.35": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Web.WebView2.Wpf/1.0.4314.35": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""

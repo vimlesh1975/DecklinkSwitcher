@@ -66,6 +66,13 @@ namespace DecklinkSwitcher
         public double LogoOpacityPercent { get; set; } = 100.0;
         public double LogoXPercent { get; set; } = 96.0;
         public double LogoYPercent { get; set; } = 4.0;
+
+        public string HtmlSourceUrl { get; set; } = "";
+        public AudioState AudioStateHtml { get; set; } = AudioState.AFV;
+
+        public string HtmlOverlayUrl { get; set; } = "";
+        public bool HtmlOverlayEnabled { get; set; } = false;
+        public double HtmlOverlayOpacityPercent { get; set; } = 100.0;
         
         private static string GetSettingsPath()
         {
