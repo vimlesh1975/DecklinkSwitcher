@@ -77,6 +77,29 @@ namespace DecklinkSwitcher
         internal static readonly object _pgmLock = new object();
         private static CancellationTokenSource? _streamLoopCts;
 
+        internal sealed class PreparedLogoOverlay
+        {
+            public int Width { get; init; }
+            public int Height { get; init; }
+            public byte[] Y { get; init; } = Array.Empty<byte>();
+            public byte[] U { get; init; } = Array.Empty<byte>();
+            public byte[] V { get; init; } = Array.Empty<byte>();
+            public byte[] A { get; init; } = Array.Empty<byte>();
+        }
+
+        private string _logoFilePath = "";
+        private System.Drawing.Bitmap? _rawLogoBitmap = null;
+        private System.Windows.Media.Imaging.BitmapImage? _logoPreviewImageSource = null;
+        private bool _isUpdatingLogoUi = false;
+        private bool _isLoadingSettings = true;
+
+        public static volatile bool IsLogoOverlayEnabled = false;
+        internal static volatile PreparedLogoOverlay? CurrentLogoOverlay = null;
+        public static double LogoSizePercent = 15.0;
+        public static double LogoOpacityPercent = 100.0;
+        public static double LogoXPercent = 96.0;
+        public static double LogoYPercent = 4.0;
+
 
         private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "decklinkswitcher_log.txt");
 
@@ -166,10 +189,17 @@ namespace DecklinkSwitcher
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
-                                    if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, null);
-                                    if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, null);
-                                    if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, null);
-                                    if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, null);
+                                    byte[]? uyvyBytes = null;
+                                    if (vBuf != IntPtr.Zero && w == 1920 && h == 1080 && rb == 1920 * 2)
+                                    {
+                                        uyvyBytes = new byte[1920 * 1080 * 2];
+                                        System.Runtime.InteropServices.Marshal.Copy(vBuf, uyvyBytes, 0, uyvyBytes.Length);
+                                        ApplyLogoOverlayUyvy(uyvyBytes);
+                                    }
+                                    if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
+                                    if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
+                                    if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
+                                    if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, uyvyBytes);
                                 }
                                 System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                             }
@@ -287,6 +317,7 @@ namespace DecklinkSwitcher
 
         public void SaveCurrentSettings()
         {
+            if (_isLoadingSettings) return;
             try
             {
                 var settings = AppSettings.Load();
@@ -358,7 +389,6 @@ namespace DecklinkSwitcher
                     settings.MicLevels.Clear();
                     foreach (var kvp in DynamicMicLevels) settings.MicLevels[kvp.Key] = kvp.Value;
                     settings.MicStates.Clear();
-                    settings.MicStates.Clear();
                     foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
                     
                     settings.YouTubeStreamKey = TxtStreamKey.Text;
@@ -372,6 +402,15 @@ namespace DecklinkSwitcher
                     if (TxtSrtPassphrase != null) settings.SrtPassphrase = TxtSrtPassphrase.Text;
                     if (TxtSrtStreamId != null) settings.SrtStreamId = TxtSrtStreamId.Text;
                     if (TxtSrtUrl != null) settings.SrtUrl = TxtSrtUrl.Text.Trim();
+
+                    settings.LogoFilePath = _logoFilePath ?? "";
+                    settings.LogoOverlayEnabled = IsLogoOverlayEnabled;
+                    if (CmbLogoPosition?.SelectedItem is ComboBoxItem logoPosItem)
+                        settings.LogoPositionPreset = logoPosItem.Content?.ToString() ?? "Top-Right";
+                    if (SldLogoSize != null) settings.LogoSizePercent = SldLogoSize.Value;
+                    if (SldLogoOpacity != null) settings.LogoOpacityPercent = SldLogoOpacity.Value;
+                    if (SldLogoX != null) settings.LogoXPercent = SldLogoX.Value;
+                    if (SldLogoY != null) settings.LogoYPercent = SldLogoY.Value;
 
                     settings.SourceOrder = SwitcherPanel.Children
                         .OfType<FrameworkElement>()
@@ -811,6 +850,48 @@ namespace DecklinkSwitcher
                 }
                 
                 TxtRecordingDirectory.Text = settings.RecordingDirectory;
+
+                // Restore PGM Logo Overlay settings
+                _isUpdatingLogoUi = true;
+                try
+                {
+                    LogoSizePercent = settings.LogoSizePercent > 0 ? Math.Clamp(settings.LogoSizePercent, 3.0, 50.0) : 15.0;
+                    LogoOpacityPercent = settings.LogoOpacityPercent > 0 ? Math.Clamp(settings.LogoOpacityPercent, 10.0, 100.0) : 100.0;
+                    LogoXPercent = Math.Clamp(settings.LogoXPercent, 0.0, 100.0);
+                    LogoYPercent = Math.Clamp(settings.LogoYPercent, 0.0, 100.0);
+
+                    if (SldLogoSize != null) SldLogoSize.Value = LogoSizePercent;
+                    if (TxtLogoSizeVal != null) TxtLogoSizeVal.Text = $"{(int)Math.Round(LogoSizePercent)}%";
+                    if (SldLogoOpacity != null) SldLogoOpacity.Value = LogoOpacityPercent;
+                    if (TxtLogoOpacityVal != null) TxtLogoOpacityVal.Text = $"{(int)Math.Round(LogoOpacityPercent)}%";
+                    if (SldLogoX != null) SldLogoX.Value = LogoXPercent;
+                    if (TxtLogoXVal != null) TxtLogoXVal.Text = $"{(int)Math.Round(LogoXPercent)}%";
+                    if (SldLogoY != null) SldLogoY.Value = LogoYPercent;
+                    if (TxtLogoYVal != null) TxtLogoYVal.Text = $"{(int)Math.Round(LogoYPercent)}%";
+
+                    if (CmbLogoPosition != null && !string.IsNullOrWhiteSpace(settings.LogoPositionPreset))
+                    {
+                        foreach (ComboBoxItem item in CmbLogoPosition.Items)
+                        {
+                            if (string.Equals(item.Content?.ToString(), settings.LogoPositionPreset, StringComparison.OrdinalIgnoreCase))
+                            {
+                                CmbLogoPosition.SelectedItem = item;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(settings.LogoFilePath) && File.Exists(settings.LogoFilePath))
+                    {
+                        LoadLogoFromFile(settings.LogoFilePath);
+                    }
+
+                    SetLogoOverlayActiveState(settings.LogoOverlayEnabled && CurrentLogoOverlay != null);
+                }
+                finally
+                {
+                    _isUpdatingLogoUi = false;
+                }
                 
                 ApplySavedSourceOrder();
 
@@ -821,7 +902,399 @@ namespace DecklinkSwitcher
             {
                 Log("MainWindow_Loaded error: " + ex.ToString());
             }
+            finally
+            {
+                _isLoadingSettings = false;
+            }
         }
+
+        #region PGM Logo Overlay
+
+        private void BtnSelectLogo_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select PGM Logo Image",
+                Filter = "Image Files (*.png;*.webp;*.bmp;*.jpg;*.jpeg)|*.png;*.webp;*.bmp;*.jpg;*.jpeg|PNG Files (*.png)|*.png|All Files (*.*)|*.*"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                if (LoadLogoFromFile(dlg.FileName))
+                {
+                    SetLogoOverlayActiveState(true);
+                    SaveCurrentSettings();
+                }
+            }
+        }
+
+        private void BtnToggleLogo_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentLogoOverlay == null && !IsLogoOverlayEnabled)
+            {
+                BtnSelectLogo_Click(sender, e);
+                return;
+            }
+            SetLogoOverlayActiveState(!IsLogoOverlayEnabled);
+            SaveCurrentSettings();
+        }
+
+        private void ChkLogoOverlay_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            bool wantEnabled = ChkLogoOverlay.IsChecked == true;
+            if (wantEnabled && CurrentLogoOverlay == null)
+            {
+                _isUpdatingLogoUi = true;
+                ChkLogoOverlay.IsChecked = false;
+                _isUpdatingLogoUi = false;
+                BtnSelectLogo_Click(sender, e);
+                return;
+            }
+            SetLogoOverlayActiveState(wantEnabled);
+            SaveCurrentSettings();
+        }
+
+        private void SetLogoOverlayActiveState(bool enabled)
+        {
+            IsLogoOverlayEnabled = enabled && CurrentLogoOverlay != null;
+            _isUpdatingLogoUi = true;
+            try
+            {
+                if (ChkLogoOverlay != null)
+                    ChkLogoOverlay.IsChecked = IsLogoOverlayEnabled;
+
+                if (BtnToggleLogo != null)
+                {
+                    BtnToggleLogo.Content = IsLogoOverlayEnabled ? "LOGO: ON" : "LOGO: OFF";
+                    BtnToggleLogo.Background = IsLogoOverlayEnabled
+                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2e, 0x7d, 0x32))
+                        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x42, 0x42, 0x42));
+                }
+            }
+            finally
+            {
+                _isUpdatingLogoUi = false;
+            }
+            UpdateLogoPreviewElement();
+        }
+
+        private bool LoadLogoFromFile(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath)) return false;
+
+                byte[] fileBytes = File.ReadAllBytes(filePath);
+                using var ms1 = new MemoryStream(fileBytes);
+                using var loadedBmp = new System.Drawing.Bitmap(ms1);
+                var clonedBmp = new System.Drawing.Bitmap(loadedBmp.Width, loadedBmp.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                using (var g = System.Drawing.Graphics.FromImage(clonedBmp))
+                {
+                    g.DrawImage(loadedBmp, 0, 0, loadedBmp.Width, loadedBmp.Height);
+                }
+
+                var bmpImg = new System.Windows.Media.Imaging.BitmapImage();
+                using (var ms2 = new MemoryStream(fileBytes))
+                {
+                    bmpImg.BeginInit();
+                    bmpImg.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bmpImg.StreamSource = ms2;
+                    bmpImg.EndInit();
+                    bmpImg.Freeze();
+                }
+
+                _rawLogoBitmap?.Dispose();
+                _rawLogoBitmap = clonedBmp;
+                _logoPreviewImageSource = bmpImg;
+                _logoFilePath = filePath;
+
+                if (TxtLogoFileName != null)
+                {
+                    TxtLogoFileName.Text = Path.GetFileName(filePath);
+                    TxtLogoFileName.ToolTip = filePath;
+                }
+
+                RebuildPreparedLogo();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log("LoadLogoFromFile error: " + ex.Message);
+                System.Windows.MessageBox.Show("Failed to load logo image: " + ex.Message, "Logo Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+        }
+
+        private unsafe void RebuildPreparedLogo()
+        {
+            if (_rawLogoBitmap == null || _rawLogoBitmap.Width <= 0 || _rawLogoBitmap.Height <= 0)
+            {
+                CurrentLogoOverlay = null;
+                UpdateLogoPreviewElement();
+                return;
+            }
+
+            int w = Math.Max(2, (int)Math.Round(1920.0 * (Math.Clamp(LogoSizePercent, 3.0, 50.0) / 100.0)));
+            if ((w & 1) != 0) w++;
+            if (w > 1920) w = 1920;
+
+            int h = Math.Max(2, (int)Math.Round(w * ((double)_rawLogoBitmap.Height / _rawLogoBitmap.Width)));
+            if (h > 1080)
+            {
+                h = 1080;
+                w = Math.Max(2, (int)Math.Round(h * ((double)_rawLogoBitmap.Width / _rawLogoBitmap.Height))) & ~1;
+            }
+
+            using var scaled = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = System.Drawing.Graphics.FromImage(scaled))
+            {
+                g.Clear(System.Drawing.Color.Transparent);
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                g.DrawImage(_rawLogoBitmap, new System.Drawing.Rectangle(0, 0, w, h));
+            }
+
+            int totalPixels = w * h;
+            byte[] yArr = new byte[totalPixels];
+            byte[] uArr = new byte[totalPixels];
+            byte[] vArr = new byte[totalPixels];
+            byte[] aArr = new byte[totalPixels];
+
+            var bmpData = scaled.LockBits(new System.Drawing.Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            try
+            {
+                byte* scan0 = (byte*)bmpData.Scan0;
+                int stride = bmpData.Stride;
+                for (int y = 0; y < h; y++)
+                {
+                    byte* row = scan0 + y * stride;
+                    int rowOffset = y * w;
+                    for (int x = 0; x < w; x++)
+                    {
+                        byte b = row[x * 4 + 0];
+                        byte gVal = row[x * 4 + 1];
+                        byte r = row[x * 4 + 2];
+                        byte a = row[x * 4 + 3];
+
+                        int yVal = ((66 * r + 129 * gVal + 25 * b + 128) >> 8) + 16;
+                        int uVal = ((-38 * r - 74 * gVal + 112 * b + 128) >> 8) + 128;
+                        int vVal = ((112 * r - 94 * gVal - 18 * b + 128) >> 8) + 128;
+
+                        if (yVal < 16) yVal = 16; else if (yVal > 235) yVal = 235;
+                        if (uVal < 16) uVal = 16; else if (uVal > 240) uVal = 240;
+                        if (vVal < 16) vVal = 16; else if (vVal > 240) vVal = 240;
+
+                        int idx = rowOffset + x;
+                        yArr[idx] = (byte)yVal;
+                        uArr[idx] = (byte)uVal;
+                        vArr[idx] = (byte)vVal;
+                        aArr[idx] = a;
+                    }
+                }
+            }
+            finally
+            {
+                scaled.UnlockBits(bmpData);
+            }
+
+            CurrentLogoOverlay = new PreparedLogoOverlay
+            {
+                Width = w,
+                Height = h,
+                Y = yArr,
+                U = uArr,
+                V = vArr,
+                A = aArr
+            };
+
+            UpdateLogoPreviewElement();
+        }
+
+        private void UpdateLogoPreviewElement()
+        {
+            if (PreviewLogoOverlay == null) return;
+            var ov = CurrentLogoOverlay;
+            if (!IsLogoOverlayEnabled || _logoPreviewImageSource == null || ov == null)
+            {
+                PreviewLogoOverlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            double w1080 = ov.Width;
+            double h1080 = ov.Height;
+            double x1080 = (1920.0 - w1080) * (Math.Clamp(LogoXPercent, 0.0, 100.0) / 100.0);
+            double y1080 = (1080.0 - h1080) * (Math.Clamp(LogoYPercent, 0.0, 100.0) / 100.0);
+
+            PreviewLogoOverlay.Source = _logoPreviewImageSource;
+            PreviewLogoOverlay.Width = w1080 * 0.25;
+            PreviewLogoOverlay.Height = h1080 * 0.25;
+            System.Windows.Controls.Canvas.SetLeft(PreviewLogoOverlay, x1080 * 0.25);
+            System.Windows.Controls.Canvas.SetTop(PreviewLogoOverlay, y1080 * 0.25);
+            PreviewLogoOverlay.Opacity = Math.Clamp(LogoOpacityPercent / 100.0, 0.0, 1.0);
+            PreviewLogoOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void CmbLogoPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            string preset = (CmbLogoPosition.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Top-Right";
+            if (preset == "Custom")
+            {
+                SaveCurrentSettings();
+                return;
+            }
+
+            double targetX = LogoXPercent;
+            double targetY = LogoYPercent;
+            switch (preset)
+            {
+                case "Top-Right":    targetX = 96.0; targetY = 4.0; break;
+                case "Top-Left":     targetX = 4.0;  targetY = 4.0; break;
+                case "Bottom-Right": targetX = 96.0; targetY = 94.0; break;
+                case "Bottom-Left":  targetX = 4.0;  targetY = 94.0; break;
+                case "Center":       targetX = 50.0; targetY = 50.0; break;
+            }
+
+            _isUpdatingLogoUi = true;
+            try
+            {
+                LogoXPercent = targetX;
+                LogoYPercent = targetY;
+                if (SldLogoX != null) SldLogoX.Value = targetX;
+                if (TxtLogoXVal != null) TxtLogoXVal.Text = $"{(int)Math.Round(targetX)}%";
+                if (SldLogoY != null) SldLogoY.Value = targetY;
+                if (TxtLogoYVal != null) TxtLogoYVal.Text = $"{(int)Math.Round(targetY)}%";
+            }
+            finally
+            {
+                _isUpdatingLogoUi = false;
+            }
+
+            UpdateLogoPreviewElement();
+            SaveCurrentSettings();
+        }
+
+        private void SldLogoSize_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            LogoSizePercent = e.NewValue;
+            if (TxtLogoSizeVal != null) TxtLogoSizeVal.Text = $"{(int)Math.Round(e.NewValue)}%";
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            RebuildPreparedLogo();
+            SaveCurrentSettings();
+        }
+
+        private void SldLogoOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            LogoOpacityPercent = e.NewValue;
+            if (TxtLogoOpacityVal != null) TxtLogoOpacityVal.Text = $"{(int)Math.Round(e.NewValue)}%";
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            UpdateLogoPreviewElement();
+            SaveCurrentSettings();
+        }
+
+        private void SldLogoPos_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (SldLogoX != null) LogoXPercent = SldLogoX.Value;
+            if (SldLogoY != null) LogoYPercent = SldLogoY.Value;
+            if (TxtLogoXVal != null) TxtLogoXVal.Text = $"{(int)Math.Round(LogoXPercent)}%";
+            if (TxtLogoYVal != null) TxtLogoYVal.Text = $"{(int)Math.Round(LogoYPercent)}%";
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+
+            if (CmbLogoPosition != null)
+            {
+                _isUpdatingLogoUi = true;
+                try
+                {
+                    foreach (ComboBoxItem item in CmbLogoPosition.Items)
+                    {
+                        if (string.Equals(item.Content?.ToString(), "Custom", StringComparison.OrdinalIgnoreCase))
+                        {
+                            CmbLogoPosition.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+                finally
+                {
+                    _isUpdatingLogoUi = false;
+                }
+            }
+
+            UpdateLogoPreviewElement();
+            SaveCurrentSettings();
+        }
+
+        public static unsafe void ApplyLogoOverlayUyvy(byte* uyvyBuffer)
+        {
+            if (!IsLogoOverlayEnabled || uyvyBuffer == null) return;
+            var ov = CurrentLogoOverlay;
+            if (ov == null) return;
+
+            int logoW = ov.Width;
+            int logoH = ov.Height;
+            if (logoW <= 0 || logoH <= 0) return;
+
+            int opacityScale = (int)Math.Round(Math.Clamp(LogoOpacityPercent, 0.0, 100.0) * 255.0 / 100.0);
+            if (opacityScale <= 0) return;
+
+            int startX = (int)Math.Round((1920 - logoW) * (Math.Clamp(LogoXPercent, 0.0, 100.0) / 100.0));
+            int startY = (int)Math.Round((1080 - logoH) * (Math.Clamp(LogoYPercent, 0.0, 100.0) / 100.0));
+            startX &= ~1;
+            if (startX < 0) startX = 0;
+            if (startY < 0) startY = 0;
+            if (startX + logoW > 1920) startX = (1920 - logoW) & ~1;
+            if (startY + logoH > 1080) startY = 1080 - logoH;
+
+            fixed (byte* pY = ov.Y)
+            fixed (byte* pU = ov.U)
+            fixed (byte* pV = ov.V)
+            fixed (byte* pA = ov.A)
+            {
+                for (int ly = 0; ly < logoH; ly++)
+                {
+                    byte* dstRow = uyvyBuffer + ((startY + ly) * 1920 + startX) * 2;
+                    int rowIdx = ly * logoW;
+                    for (int lx = 0; lx < logoW; lx += 2)
+                    {
+                        int idx0 = rowIdx + lx;
+                        int idx1 = idx0 + 1;
+                        int a0 = (pA[idx0] * opacityScale) >> 8;
+                        int a1 = (pA[idx1] * opacityScale) >> 8;
+                        if ((a0 | a1) == 0) continue;
+
+                        int d = lx * 2;
+                        if (a0 > 0)
+                        {
+                            dstRow[d + 1] = (byte)((pY[idx0] * a0 + dstRow[d + 1] * (255 - a0)) >> 8);
+                        }
+                        if (a1 > 0)
+                        {
+                            dstRow[d + 3] = (byte)((pY[idx1] * a1 + dstRow[d + 3] * (255 - a1)) >> 8);
+                        }
+                        int aChroma = (a0 + a1) >> 1;
+                        if (aChroma > 0)
+                        {
+                            int uLogo = (pU[idx0] + pU[idx1]) >> 1;
+                            int vLogo = (pV[idx0] + pV[idx1]) >> 1;
+                            dstRow[d + 0] = (byte)((uLogo * aChroma + dstRow[d + 0] * (255 - aChroma)) >> 8);
+                            dstRow[d + 2] = (byte)((vLogo * aChroma + dstRow[d + 2] * (255 - aChroma)) >> 8);
+                        }
+                    }
+                }
+            }
+        }
+
+        public static unsafe void ApplyLogoOverlayUyvy(byte[]? uyvyBytes)
+        {
+            if (!IsLogoOverlayEnabled || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
+            fixed (byte* ptr = uyvyBytes)
+            {
+                ApplyLogoOverlayUyvy(ptr);
+            }
+        }
+
+        #endregion
         
         private void BtnBrowseRecordingDir_Click(object sender, RoutedEventArgs e)
         {
@@ -2549,6 +3022,7 @@ namespace DecklinkSwitcher
                                 {
                                     DeckLinkDevice.ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, rowBytes, dest, 1920 * 2);
                                 }
+                                ApplyLogoOverlayUyvy(dest);
                             }
                         }
                     }
@@ -2717,6 +3191,7 @@ namespace DecklinkSwitcher
                                             else if (_latestPgmFrame != null) uyvyBytes = ConvertBgraToUyvy1080(_latestPgmFrame); 
                                         }
                                     }
+                                    ApplyLogoOverlayUyvy(uyvyBytes);
                                     OutputProgramAudioAndVideo(modifiedAudioBuffer, audioSampleCount, uyvyBytes);
                                     System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                                 }
@@ -3273,6 +3748,10 @@ namespace DecklinkSwitcher
                             ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, rowBytes, (byte*)outputBuffer, 1920 * 2);
                         }
                     }
+                    unsafe
+                    {
+                        MainWindow.ApplyLogoOverlayUyvy((byte*)outputBuffer);
+                    }
                 }
                 finally
                 {
@@ -3360,6 +3839,10 @@ namespace DecklinkSwitcher
                     {
                         ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, rowBytes, (byte*)outputBuffer, 1920 * 2);
                     }
+                }
+                unsafe
+                {
+                    MainWindow.ApplyLogoOverlayUyvy((byte*)outputBuffer);
                 }
             }
             finally
@@ -3510,6 +3993,8 @@ namespace DecklinkSwitcher
                             System.Runtime.InteropServices.Marshal.Copy(deskUyvy, 0, outputBuffer, deskUyvy.Length);
                         }
                     }
+
+                    MainWindow.ApplyLogoOverlayUyvy(ptr);
                 }
             }
             finally

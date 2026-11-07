@@ -58,6 +58,14 @@ namespace DecklinkSwitcher
         public bool SystemAudioMonitorEnabled { get; set; } = false;
         public bool LoopMediaEnabled { get; set; } = false;
         public System.Collections.Generic.List<string> SourceOrder { get; set; } = new();
+
+        public string LogoFilePath { get; set; } = "";
+        public bool LogoOverlayEnabled { get; set; } = false;
+        public string LogoPositionPreset { get; set; } = "Top-Right";
+        public double LogoSizePercent { get; set; } = 15.0;
+        public double LogoOpacityPercent { get; set; } = 100.0;
+        public double LogoXPercent { get; set; } = 96.0;
+        public double LogoYPercent { get; set; } = 4.0;
         
         private static string GetSettingsPath()
         {
