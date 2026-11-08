@@ -30,8 +30,7 @@
         "runtime": {
           "lib/net10.0/FlashCap.dll": {
             "assemblyVersion": "1.12.0.0",
-            "fileVersion": "2026.8.24.34791",
-            "localPath": "FlashCap.dll"
+            "fileVersion": "2026.8.24.34791"
           }
         }
       },
@@ -39,8 +38,7 @@
         "runtime": {
           "lib/net10.0/FlashCap.Core.dll": {
             "assemblyVersion": "1.12.0.0",
-            "fileVersion": "2026.8.24.34791",
-            "localPath": "FlashCap.Core.dll"
+            "fileVersion": "2026.8.24.34791"
           }
         }
       },
@@ -48,16 +46,14 @@
         "runtime": {
           "lib/net10.0/LibVLCSharp.dll": {
             "assemblyVersion": "3.10.1.0",
-            "fileVersion": "3.10.1.0",
-            "localPath": "LibVLCSharp.dll"
+            "fileVersion": "3.10.1.0"
           }
         }
       },
       "Microsoft.Web.WebView2/1.0.4314.35": {
         "native": {
           "runtimes/win-x64/native/WebView2Loader.dll": {
-            "fileVersion": "1.0.4314.35",
-            "localPath": "WebView2Loader.dll"
+            "fileVersion": "1.0.4314.35"
           }
         }
       },
@@ -74,8 +70,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -86,8 +81,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.Asio.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Asio.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -98,8 +92,7 @@
         "runtime": {
           "lib/net9.0/NAudio.Core.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Core.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -110,8 +103,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.Dmo.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Dmo.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -122,8 +114,7 @@
         "runtime": {
           "lib/net9.0/NAudio.Midi.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Midi.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -134,8 +125,7 @@
         "runtime": {
           "lib/net9.0/NAudio.Wasapi.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Wasapi.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -146,8 +136,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.WinForms.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.WinForms.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -159,8 +148,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.WinMM.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.WinMM.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -168,8 +156,7 @@
         "runtime": {
           "lib/net9.0/System.Numerics.Tensors.dll": {
             "assemblyVersion": "9.0.0.0",
-            "fileVersion": "9.0.24.52809",
-            "localPath": "System.Numerics.Tensors.dll"
+            "fileVersion": "9.0.24.52809"
           }
         }
       },
@@ -177,8 +164,7 @@
         "runtime": {
           "lib/net10.0/YoutubeExplode.dll": {
             "assemblyVersion": "6.6.3.0",
-            "fileVersion": "6.6.3.0",
-            "localPath": "YoutubeExplode.dll"
+            "fileVersion": "6.6.3.0"
           }
         }
       },

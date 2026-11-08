@@ -2941,6 +2941,37 @@ namespace DecklinkSwitcher
             }
         }
 
+        private static readonly byte[,] SyntheticBarsUyvy = new byte[8, 4] {
+            { 128, 235, 128, 235 }, { 44, 210, 171, 210 }, { 156, 170, 44, 170 }, { 74, 145, 84, 145 },
+            { 182, 106, 172, 106 }, { 98, 81, 212, 81 }, { 212, 41, 114, 41 }, { 128, 16, 128, 16 }
+        };
+
+        /// <summary>Builds a 1080p UYVY frame for Color Bars (1) or Matte (2) for software outputs (NDI/SRT/etc).</summary>
+        private static byte[] BuildSyntheticUyvy1080(int sourceType)
+        {
+            const int w = 1920, h = 1080, rowBytes = w * 2;
+            byte[] frame = new byte[rowBytes * h];
+            if (sourceType == 2)
+            {
+                for (int i = 0; i < frame.Length; i += 4)
+                {
+                    frame[i] = MatteU; frame[i + 1] = MatteY; frame[i + 2] = MatteV; frame[i + 3] = MatteY;
+                }
+            }
+            else
+            {
+                for (int x = 0; x < w; x += 2)
+                {
+                    int bar = (x * 8) / w;
+                    int o = x * 2;
+                    frame[o] = SyntheticBarsUyvy[bar, 0]; frame[o + 1] = SyntheticBarsUyvy[bar, 1];
+                    frame[o + 2] = SyntheticBarsUyvy[bar, 2]; frame[o + 3] = SyntheticBarsUyvy[bar, 3];
+                }
+                for (int y = 1; y < h; y++) Buffer.BlockCopy(frame, 0, frame, y * rowBytes, rowBytes);
+            }
+            return frame;
+        }
+
         private void UpdatePgmPreviewSynthetic()
         {
             if (_activeSourceType == 0 || _bmpOutput == null) return;
@@ -3483,6 +3514,10 @@ namespace DecklinkSwitcher
                                         {
                                             uyvyBytes = (byte[])LatestHtmlSourceUyvy.Clone();
                                         }
+                                    }
+                                    else if (_activeSourceType == 1 || _activeSourceType == 2)
+                                    {
+                                        uyvyBytes = BuildSyntheticUyvy1080(_activeSourceType);
                                     }
                                     else
                                     {
