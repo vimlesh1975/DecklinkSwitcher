@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -172,6 +172,7 @@ namespace DecklinkSwitcher
             Loaded += async (s, e) => { try { await RefreshNdiSourcesAsync(); } catch { } };
             PreviewHtmlSource.Source = _bmpHtmlSource;
             PreviewHtmlOverlay.Source = _bmpHtmlOverlay;
+            if (PreviewHtmlOverlayDedicated != null) PreviewHtmlOverlayDedicated.Source = _bmpHtmlOverlay;
             
             try
             {
@@ -361,6 +362,8 @@ namespace DecklinkSwitcher
                 _htmlOverlaySource.OnPreviewBufferUpdated = (buf) => {
                     Application.Current.Dispatcher.BeginInvoke(() => {
                         _bmpHtmlOverlay.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        if (TxtHtmlOverlayPreviewPlaceholder != null && TxtHtmlOverlayPreviewPlaceholder.Visibility != Visibility.Collapsed)
+                            TxtHtmlOverlayPreviewPlaceholder.Visibility = Visibility.Collapsed;
                     });
                 };
                 _htmlOverlaySource.OnStatusChanged = (status, isLive, isError) => {
@@ -372,6 +375,8 @@ namespace DecklinkSwitcher
                                 ? System.Windows.Media.Brushes.IndianRed
                                 : (isLive ? System.Windows.Media.Brushes.LimeGreen : (System.Windows.Media.Brush)FindResource("TextDim"));
                         }
+                        if (!isLive && TxtHtmlOverlayPreviewPlaceholder != null)
+                            TxtHtmlOverlayPreviewPlaceholder.Visibility = Visibility.Visible;
                     });
                 };
             }
