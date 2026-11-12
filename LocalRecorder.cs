@@ -47,8 +47,8 @@ namespace DecklinkSwitcher
             
             _cts = new CancellationTokenSource();
             
-            _videoQueue = new BlockingCollection<byte[]>(30);
-            _audioQueue = new BlockingCollection<byte[]>(200);
+            _videoQueue = new BlockingCollection<byte[]>(75);
+            _audioQueue = new BlockingCollection<byte[]>(300);
 
             // Create named pipes BEFORE launching FFmpeg so it can connect
             string uniqueId = Guid.NewGuid().ToString("N");
@@ -117,25 +117,44 @@ namespace DecklinkSwitcher
         public void Stop()
         {
             if (!IsRecording) return;
+            IsRecording = false;
+            
+            _cts?.Cancel();
             
             try 
             { 
                 if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
                 {
-                    try { _ffmpegProcess.StandardInput.WriteLine("q"); } catch { }
-                    _ffmpegProcess.WaitForExit(3000);
-                    if (!_ffmpegProcess.HasExited) _ffmpegProcess.Kill();
+                    try 
+                    { 
+                        _ffmpegProcess.StandardInput.WriteLine("q"); 
+                        _ffmpegProcess.StandardInput.Flush();
+                    } 
+                    catch { }
                 }
             } 
             catch { }
 
-            IsRecording = false;
-            _cts?.Cancel();
-            
+            // Immediately close and dispose the named pipes!
+            // This unblocks FFmpeg's ReadFile calls with EOF (ERROR_BROKEN_PIPE),
+            // allowing FFmpeg to finalize the MP4 moov atom and exit cleanly without hanging.
             try { _videoPipe?.Dispose(); } catch { }
             try { _audioPipe?.Dispose(); } catch { }
             _videoPipe = null;
             _audioPipe = null;
+
+            try 
+            { 
+                if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
+                {
+                    bool exited = _ffmpegProcess.WaitForExit(5000);
+                    if (!exited && !_ffmpegProcess.HasExited)
+                    {
+                        try { _ffmpegProcess.Kill(); } catch { }
+                    }
+                }
+            } 
+            catch { }
             
             OnLog?.Invoke("Recording stopped.");
         }

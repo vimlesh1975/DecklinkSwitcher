@@ -141,6 +141,12 @@ namespace DecklinkSwitcher
             try
             {
                 InitializeComponent();
+                try
+                {
+                    string exeName = System.IO.Path.GetFileName(Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "DecklinkSwitcher.exe");
+                    this.Title = exeName;
+                }
+                catch { }
                 ((App)Application.Current).SetTheme(true);
                 Task.Run(() => 
                 {
@@ -944,19 +950,19 @@ namespace DecklinkSwitcher
                 var profiles = new[]
                 {
                     new RecordingProfileDefinition("XDCAM HD422", ".mxf", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -rc_init_occupancy 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a pcm_s16le -ar 48000 -ac 2", null, "XDCAM_HD422"),
-                    new RecordingProfileDefinition("MP4 High Quality", ".mp4", "-c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "MP4_High"),
-                    new RecordingProfileDefinition("MP4 Low Bitrate", ".mp4", "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -profile:v high -movflags +faststart -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "MP4_Low"),
-                    new RecordingProfileDefinition("TS H.264 High Quality", ".ts", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_High"),
-                    new RecordingProfileDefinition("TS H.264 Low Bitrate", ".ts", "-c:v libx264 -preset veryfast -crf 25 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", "bwdif=mode=send_frame:parity=auto,scale=1920:1080:flags=lanczos,fps=25", "TS_H264_Low"),
+                    new RecordingProfileDefinition("MP4 High Quality", ".mp4", "-c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", null, "MP4_High"),
+                    new RecordingProfileDefinition("MP4 Low Bitrate", ".mp4", "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", null, "MP4_Low"),
+                    new RecordingProfileDefinition("TS H.264 High Quality", ".ts", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", null, "TS_H264_High"),
+                    new RecordingProfileDefinition("TS H.264 Low Bitrate", ".ts", "-c:v libx264 -preset veryfast -crf 25 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", null, "TS_H264_Low"),
                     new RecordingProfileDefinition("TS MPEG-2 4:2:2 50M", ".ts", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a mp2 -b:a 384k -ar 48000 -ac 2", null, "TS_MPEG2_50M"),
                     new RecordingProfileDefinition("ProRes Proxy (Small)", ".mov", "-c:v prores_ks -profile:v 0 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 400 -c:a pcm_s16le -ar 48000", null, "ProRes_Proxy"),
                     new RecordingProfileDefinition("ProRes LT (Light)", ".mov", "-c:v prores_ks -profile:v 1 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1000 -c:a pcm_s16le -ar 48000", null, "ProRes_LT"),
                     new RecordingProfileDefinition("ProRes 422 (Medium)", ".mov", "-c:v prores_ks -profile:v 2 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1600 -c:a pcm_s16le -ar 48000", null, "ProRes_422"),
                     new RecordingProfileDefinition("ProRes 422 HQ (High)", ".mov", "-c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 2400 -c:a pcm_s16le -ar 48000", null, "ProRes_422_HQ"),
-                    new RecordingProfileDefinition("MP4 4K H.264 (NVENC)", ".mp4", "-c:v h264_nvenc -preset p4 -cq 22 -pix_fmt yuv420p -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_H264_NVENC"),
-                    new RecordingProfileDefinition("MP4 4K HEVC (NVENC)", ".mp4", "-c:v hevc_nvenc -preset p4 -cq 24 -pix_fmt yuv420p -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_HEVC_NVENC"),
-                    new RecordingProfileDefinition("MP4 4K H.264 (CPU)", ".mp4", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_H264_CPU"),
-                    new RecordingProfileDefinition("MP4 4K HEVC (CPU)", ".mp4", "-c:v libx265 -preset veryfast -crf 24 -pix_fmt yuv420p -r 25 -movflags +faststart -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_HEVC_CPU"),
+                    new RecordingProfileDefinition("MP4 4K H.264 (NVENC)", ".mp4", "-c:v h264_nvenc -preset p4 -cq 22 -pix_fmt yuv420p -r 25 -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_H264_NVENC"),
+                    new RecordingProfileDefinition("MP4 4K HEVC (NVENC)", ".mp4", "-c:v hevc_nvenc -preset p4 -cq 24 -pix_fmt yuv420p -r 25 -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_HEVC_NVENC"),
+                    new RecordingProfileDefinition("MP4 4K H.264 (CPU)", ".mp4", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -r 25 -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_H264_CPU"),
+                    new RecordingProfileDefinition("MP4 4K HEVC (CPU)", ".mp4", "-c:v libx265 -preset veryfast -crf 24 -pix_fmt yuv420p -r 25 -c:a aac -b:a 256k -ar 48000 -ac 2", null, "4K_HEVC_CPU"),
                     new RecordingProfileDefinition("ProRes 4K 422", ".mov", "-c:v prores_ks -profile:v 2 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 1600 -c:a pcm_s16le -ar 48000", null, "ProRes_4K_422"),
                     new RecordingProfileDefinition("ProRes 4K 422 HQ", ".mov", "-c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le -vendor apl0 -bits_per_mb 2400 -c:a pcm_s16le -ar 48000", null, "ProRes_4K_422_HQ"),
                     new RecordingProfileDefinition("DNxHD 36 (Proxy)", ".mxf", "-c:v dnxhd -b:v 36M -pix_fmt yuv422p -c:a pcm_s16le -ar 48000", null, "DNxHD_36"),
