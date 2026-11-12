@@ -1,4 +1,4 @@
-<Window x:Class="DecklinkSwitcher.MainWindow"
+﻿<Window x:Class="DecklinkSwitcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -244,6 +244,14 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="300" VerticalAlignment="Top" Margin="0,0,15,0" Focusable="False"><StackPanel Margin="0,0,6,0">
                     <TextBlock Text="PGM HTML CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
+                    <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Margin="0,0,0,8" HorizontalAlignment="Center">
+                        <Grid Width="216" Height="121" ClipToBounds="True">
+                            <!-- Checkerboard/Dark backdrop to see transparency -->
+                            <Border Background="#1a1a24"/>
+                            <Image Name="PreviewHtmlOverlayDedicated" Stretch="Uniform" Width="216" Height="121"/>
+                            <TextBlock Name="TxtHtmlOverlayPreviewPlaceholder" Text="CG PREVIEW" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                        </Grid>
+                    </Border>
                     <TextBlock Text="Overlay HTML URL / File (Transparent BG):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
@@ -264,7 +272,7 @@
                             <ColumnDefinition Width="72"/>
                         </Grid.ColumnDefinitions>
                         <Button Name="BtnConnectHtmlOverlay" Grid.Column="0" Content="Load" Height="28" FontSize="11" FontWeight="Bold" Background="#2e7d32" Foreground="White" Click="BtnConnectHtmlOverlay_Click" Cursor="Hand"/>
-                        <Button Name="BtnReloadHtmlOverlay" Grid.Column="2" Content="â†»" Height="28" FontSize="12" FontWeight="Bold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnReloadHtmlOverlay_Click" Cursor="Hand" ToolTip="Reload HTML CG"/>
+                        <Button Name="BtnReloadHtmlOverlay" Grid.Column="2" Content="↻" Height="28" FontSize="12" FontWeight="Bold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnReloadHtmlOverlay_Click" Cursor="Hand" ToolTip="Reload HTML CG"/>
                         <Button Name="BtnDisconnectHtmlOverlay" Grid.Column="4" Content="Stop" Height="28" FontSize="11" FontWeight="Bold" Background="#c62828" Foreground="White" Click="BtnDisconnectHtmlOverlay_Click" Cursor="Hand"/>
                         <Button Name="BtnToggleHtmlOverlay" Grid.Column="6" Content="CG: OFF" Height="28" FontSize="11" FontWeight="Bold" Background="#424242" Foreground="White" Click="BtnToggleHtmlOverlay_Click" Cursor="Hand"/>
                     </Grid>
@@ -426,7 +434,7 @@
                                 <Grid Width="158" Height="100">
                                     <Image Name="PreviewYouTube" Stretch="Uniform" MouseDown="PreviewYouTube_MouseDown" Cursor="Hand"/>
                                     <StackPanel Name="PnlYouTubeStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <TextBlock Name="TxtYouTubeStatusIcon" Text="â–¶" FontSize="20" HorizontalAlignment="Center" Foreground="#ff3333" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtYouTubeStatusIcon" Text="▶" FontSize="20" HorizontalAlignment="Center" Foreground="#ff3333" Margin="0,0,0,2"/>
                                         <TextBlock Name="TxtYouTubeStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
@@ -472,7 +480,7 @@
                                 <Grid Width="158" Height="100">
                                     <Image Name="PreviewNdi" Stretch="Uniform" MouseDown="PreviewNdi_MouseDown" Cursor="Hand"/>
                                     <StackPanel Name="PnlNdiStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
-                                        <TextBlock Name="TxtNdiStatusIcon" Text="ðŸ“¡" FontSize="20" HorizontalAlignment="Center" Foreground="#ab47bc" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtNdiStatusIcon" Text="📡" FontSize="20" HorizontalAlignment="Center" Foreground="#ab47bc" Margin="0,0,0,2"/>
                                         <TextBlock Name="TxtNdiStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
@@ -506,7 +514,7 @@
                                 <Grid Width="158" Height="100">
                                     <Image Name="PreviewHtmlSource" Stretch="Uniform" MouseDown="PreviewHtmlSource_MouseDown" Cursor="Hand"/>
                                     <StackPanel Name="PnlHtmlStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
-                                        <TextBlock Name="TxtHtmlStatusIcon" Text="ðŸŒ" FontSize="20" HorizontalAlignment="Center" Foreground="#29b6f6" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtHtmlStatusIcon" Text="🌐" FontSize="20" HorizontalAlignment="Center" Foreground="#29b6f6" Margin="0,0,0,2"/>
                                         <TextBlock Name="TxtHtmlStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
@@ -527,7 +535,7 @@
                                 </Grid>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
                                     <Button Name="BtnConnectHtmlSource" Content="Load" FontSize="11" FontWeight="Bold" Height="26" Width="64" Click="BtnConnectHtmlSource_Click" Background="#2e7d32" Foreground="White" Margin="0,0,4,0" Cursor="Hand"/>
-                                    <Button Name="BtnReloadHtmlSource" Content="â†»" FontSize="12" FontWeight="Bold" Height="26" Width="32" Click="BtnReloadHtmlSource_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand" ToolTip="Reload Page"/>
+                                    <Button Name="BtnReloadHtmlSource" Content="↻" FontSize="12" FontWeight="Bold" Height="26" Width="32" Click="BtnReloadHtmlSource_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand" ToolTip="Reload Page"/>
                                     <Button Name="BtnDisconnectHtmlSource" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="54" Click="BtnDisconnectHtmlSource_Click" Background="#c62828" Foreground="White" IsEnabled="False" Cursor="Hand"/>
                                 </StackPanel>
                             </StackPanel>
@@ -586,7 +594,7 @@
                             <ProgressBar Name="AudioBarSysL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Width="158" Height="100">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4">
-                                    <TextBlock Text="ðŸ”Š" FontSize="26" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                    <TextBlock Text="🔊" FontSize="26" HorizontalAlignment="Center" Margin="0,0,0,2"/>
                                     <TextBlock Text="Loopback Capture" FontSize="10" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                     <ComboBox Name="CmbSystemAudioDevice" Width="144" Height="24" FontSize="10" DisplayMemberPath="Name" SelectionChanged="CmbSystemAudioDevice_SelectionChanged"/>
                                 </StackPanel>

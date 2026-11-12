@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -81,7 +81,7 @@ namespace DecklinkSwitcher
         public static NdiSender NdiOut = new NdiSender();
         public static SrtStreamer SrtOut = new SrtStreamer();
         
-        // Latest PGM frame (BGRA 1920x1080 or 480x270) â€” updated by all PGM sources, read by streaming loop
+        // Latest PGM frame (BGRA 1920x1080 or 480x270) — updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
         internal static byte[]? LatestYouTubeUyvy = new byte[1920 * 1080 * 2];
         internal static byte[]? LatestHtmlSourceUyvy = new byte[1920 * 1080 * 2];
@@ -2650,7 +2650,7 @@ namespace DecklinkSwitcher
             var barR = new System.Windows.Controls.ProgressBar { Name = "BarR_" + device.DeviceNumber, Orientation = System.Windows.Controls.Orientation.Vertical, Minimum = 0, Maximum = 100, Width = 10, Height = 100, Margin = new System.Windows.Thickness(5, 0, 5, 0), Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 255, 0)), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)) };
             
             var border = new System.Windows.Controls.Border { Width = 130, Height = 100, Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(17, 17, 17)), BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)), BorderThickness = new System.Windows.Thickness(1) };
-            var txt = new System.Windows.Controls.TextBlock { Text = "ðŸŽ™\n" + device.Name, Foreground = System.Windows.Media.Brushes.DarkGray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center, FontWeight = System.Windows.FontWeights.Bold, FontSize = 10, TextAlignment = System.Windows.TextAlignment.Center, TextWrapping = System.Windows.TextWrapping.Wrap };
+            var txt = new System.Windows.Controls.TextBlock { Text = "🎙\n" + device.Name, Foreground = System.Windows.Media.Brushes.DarkGray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center, FontWeight = System.Windows.FontWeights.Bold, FontSize = 10, TextAlignment = System.Windows.TextAlignment.Center, TextWrapping = System.Windows.TextWrapping.Wrap };
             border.Child = txt;
             
             var sld = new System.Windows.Controls.Slider { Orientation = System.Windows.Controls.Orientation.Vertical, Height = 100, Minimum = 0, Maximum = 1.5, Value = initialLevel, SmallChange = 0.05, LargeChange = 0.1 };

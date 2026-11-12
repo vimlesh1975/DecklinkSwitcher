@@ -3,7 +3,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$projectRoot = "D:\_projects\decklinkswitcher"
+$projectRoot = $PSScriptRoot
+if (-not (Test-Path (Join-Path $projectRoot "DecklinkSwitcher.csproj"))) {
+    $projectRoot = "D:\___newp\DecklinkSwitcher"
+}
 $projectFile = Join-Path $projectRoot "DecklinkSwitcher.csproj"
 $binDir = Join-Path $projectRoot "bin\$Configuration\net10.0-windows\win-x64"
 

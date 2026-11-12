@@ -120,7 +120,8 @@ namespace DecklinkSwitcher
                     var device = devices[i];
                     string name = device.FriendlyName;
                     if (name.IndexOf("DeckLink", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        name.IndexOf("Blackmagic", StringComparison.OrdinalIgnoreCase) >= 0)
+                        name.IndexOf("Blackmagic", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        name.IndexOf("NDI Webcam Audio", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         continue;
                     }
