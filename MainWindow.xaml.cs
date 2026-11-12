@@ -950,6 +950,7 @@ namespace DecklinkSwitcher
                 var profiles = new[]
                 {
                     new RecordingProfileDefinition("XDCAM HD422", ".mxf", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -rc_init_occupancy 17825792 -g 12 -bf 2 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a pcm_s16le -ar 48000 -ac 2", null, "XDCAM_HD422"),
+                    new RecordingProfileDefinition("XDCAM Sony Compatible", ".mxf", "-c:v mpeg2video -pix_fmt yuv422p -b:v 50000k -minrate 50000k -maxrate 50000k -bufsize 17825792 -rc_init_occupancy 17825792 -g 12 -bf 2 -mpv_flags +strict_gop -sc_threshold 1000000000 -flags +ildct+ilme -top 1 -qmin 1 -qmax 12 -dc 10 -intra_vlc 1 -non_linear_quant 1 -tag:v xd5c -c:a pcm_s24le -ar 48000 -signal_standard smpte274m", null, "xdcamhd422_sony_compatible"),
                     new RecordingProfileDefinition("MP4 High Quality", ".mp4", "-c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", null, "MP4_High"),
                     new RecordingProfileDefinition("MP4 Low Bitrate", ".mp4", "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 128k -ar 48000 -ac 2", null, "MP4_Low"),
                     new RecordingProfileDefinition("TS H.264 High Quality", ".ts", "-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 192k -ar 48000 -ac 2", null, "TS_H264_High"),
@@ -974,7 +975,9 @@ namespace DecklinkSwitcher
                 foreach (var p in profiles)
                 {
                     CmbRecordingProfile.Items.Add(p);
-                    if (p.DisplayName == settings.SelectedRecordingProfile)
+                    if (p.DisplayName == settings.SelectedRecordingProfile ||
+                        p.FileNameSuffix == settings.SelectedRecordingProfile ||
+                        (p.DisplayName == "XDCAM Sony Compatible" && settings.SelectedRecordingProfile == "xdcamhd422_sony_compatible"))
                     {
                         CmbRecordingProfile.SelectedItem = p;
                     }
