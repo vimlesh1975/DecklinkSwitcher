@@ -77,6 +77,10 @@ namespace DecklinkSwitcher
         public string HtmlOverlayUrl { get; set; } = "";
         public bool HtmlOverlayEnabled { get; set; } = false;
         public double HtmlOverlayOpacityPercent { get; set; } = 100.0;
+
+        public string NdiOverlaySourceName { get; set; } = "";
+        public bool NdiOverlayEnabled { get; set; } = false;
+        public double NdiOverlayOpacityPercent { get; set; } = 100.0;
         
         private static string GetSettingsPath()
         {

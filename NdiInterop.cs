@@ -130,7 +130,12 @@ namespace DecklinkSwitcher
         public static extern IntPtr NDIlib_find_get_current_sources(IntPtr p_instance, out uint p_no_sources);
 
         // ---------------- Receiver ----------------
+        public const int RecvColorFormat_BGRX_BGRA = 0;
         public const int RecvColorFormat_UYVY_BGRA = 1;
+        public const int RecvColorFormat_RGBX_RGBA = 2;
+        public const int RecvColorFormat_UYVY_RGBA = 3;
+        public const int RecvColorFormat_fastest = 100;
+        public const int RecvColorFormat_best = 101;
         public const int RecvBandwidth_Highest = 100;
 
         [StructLayout(LayoutKind.Sequential)]

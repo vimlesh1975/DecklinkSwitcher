@@ -61,6 +61,11 @@ namespace DecklinkSwitcher
         internal static byte[]? LatestNdiUyvy = new byte[1920 * 1080 * 2];
         private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlSource;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlOverlay;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpNdiOverlay;
+        private NdiOverlaySource _ndiOverlaySource = new NdiOverlaySource();
+        public static volatile bool IsNdiOverlayEnabled = false;
+        internal static volatile PreparedHtmlOverlayFrame? CurrentNdiOverlay = null;
+        public static double NdiOverlayOpacityPercent = 100.0;
         private ScreenInputViewModel? _activeScreen;
         private WebcamInputViewModel? _activeWebcam;
         private SystemAudioSource _systemAudioSource = new();
@@ -162,6 +167,7 @@ namespace DecklinkSwitcher
             _bmpYouTube = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpHtmlSource = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpHtmlOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpNdiOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
@@ -169,10 +175,13 @@ namespace DecklinkSwitcher
             _bmpNdi = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewNdi.Source = _bmpNdi;
             SetupNdiSource();
-            Loaded += async (s, e) => { try { await RefreshNdiSourcesAsync(); } catch { } };
+            Loaded += async (s, e) => { try { await RefreshNdiSourcesAsync(); await RefreshNdiOverlaySourcesAsync(); } catch { } };
             PreviewHtmlSource.Source = _bmpHtmlSource;
             PreviewHtmlOverlay.Source = _bmpHtmlOverlay;
             if (PreviewHtmlOverlayDedicated != null) PreviewHtmlOverlayDedicated.Source = _bmpHtmlOverlay;
+            if (PreviewNdiOverlay != null) PreviewNdiOverlay.Source = _bmpNdiOverlay;
+            if (PreviewNdiOverlayDedicated != null) PreviewNdiOverlayDedicated.Source = _bmpNdiOverlay;
+            SetupNdiOverlaySource();
             
             try
             {
@@ -517,6 +526,10 @@ namespace DecklinkSwitcher
                     settings.HtmlOverlayEnabled = IsHtmlOverlayEnabled;
                     if (SldHtmlOverlayOpacity != null) settings.HtmlOverlayOpacityPercent = SldHtmlOverlayOpacity.Value;
 
+                    settings.NdiOverlaySourceName = (CmbNdiOverlaySources?.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiOverlaySourceName ?? settings.NdiOverlaySourceName;
+                    settings.NdiOverlayEnabled = IsNdiOverlayEnabled;
+                    if (SldNdiOverlayOpacity != null) settings.NdiOverlayOpacityPercent = SldNdiOverlayOpacity.Value;
+
                     settings.SourceOrder = SwitcherPanel.Children
                         .OfType<FrameworkElement>()
                         .Select(GetTileIdentifier)
@@ -563,6 +576,7 @@ namespace DecklinkSwitcher
                 if (_mediaSource != null) _mediaSource.Dispose();
                 if (_youtubeSource != null) _youtubeSource.Dispose();
                 try { _ndiSource?.Dispose(); } catch { }
+                try { _ndiOverlaySource?.Dispose(); } catch { }
                 if (_htmlSource != null) _htmlSource.Dispose();
                 if (_htmlOverlaySource != null) _htmlOverlaySource.Dispose();
                 _systemAudioSource?.Dispose();
@@ -1015,6 +1029,12 @@ namespace DecklinkSwitcher
                     if (SldHtmlOverlayOpacity != null) SldHtmlOverlayOpacity.Value = HtmlOverlayOpacityPercent;
                     if (TxtHtmlOverlayOpacityVal != null) TxtHtmlOverlayOpacityVal.Text = $"{(int)Math.Round(HtmlOverlayOpacityPercent)}%";
                     SetHtmlOverlayActiveState(false);
+
+                    _pendingNdiOverlaySourceName = settings.NdiOverlaySourceName;
+                    NdiOverlayOpacityPercent = settings.NdiOverlayOpacityPercent > 0 ? Math.Clamp(settings.NdiOverlayOpacityPercent, 10.0, 100.0) : 100.0;
+                    if (SldNdiOverlayOpacity != null) SldNdiOverlayOpacity.Value = NdiOverlayOpacityPercent;
+                    if (TxtNdiOverlayOpacityVal != null) TxtNdiOverlayOpacityVal.Text = $"{(int)Math.Round(NdiOverlayOpacityPercent)}%";
+                    SetNdiOverlayActiveState(false);
                 }
                 finally
                 {
@@ -1389,6 +1409,15 @@ namespace DecklinkSwitcher
         {
             if (uyvyBuffer == null) return;
 
+            if (IsNdiOverlayEnabled)
+            {
+                var ndiOv = CurrentNdiOverlay;
+                if (ndiOv != null)
+                {
+                    BlendPreparedRegionUyvy(uyvyBuffer, ndiOv.StartX, ndiOv.StartY, ndiOv.Width, ndiOv.Height, ndiOv.Y, ndiOv.U, ndiOv.V, ndiOv.A, NdiOverlayOpacityPercent);
+                }
+            }
+
             if (IsHtmlOverlayEnabled)
             {
                 var htmlOv = CurrentHtmlOverlay;
@@ -1412,7 +1441,7 @@ namespace DecklinkSwitcher
 
         public static unsafe void ApplyLogoOverlayUyvy(byte[]? uyvyBytes)
         {
-            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
+            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled && !IsNdiOverlayEnabled) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
             fixed (byte* ptr = uyvyBytes)
             {
                 ApplyLogoOverlayUyvy(ptr);
@@ -1527,6 +1556,161 @@ namespace DecklinkSwitcher
             if (TxtHtmlOverlayOpacityVal != null) TxtHtmlOverlayOpacityVal.Text = $"{(int)Math.Round(e.NewValue)}%";
             if (_isUpdatingLogoUi || !IsLoaded) return;
             UpdateHtmlOverlayPreviewElement();
+            SaveCurrentSettings();
+        }
+
+        // ---------------- NDI CG Overlay Controls ----------------
+        private string? _pendingNdiOverlaySourceName;
+
+        private void SetupNdiOverlaySource()
+        {
+            _ndiOverlaySource.OnLog = Log;
+            _ndiOverlaySource.OnOverlayFrameUpdated = (frame) => {
+                CurrentNdiOverlay = frame;
+            };
+            _ndiOverlaySource.OnPreviewBufferUpdated = (buf) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    _bmpNdiOverlay.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                    if (TxtNdiOverlayPreviewPlaceholder != null && TxtNdiOverlayPreviewPlaceholder.Visibility != Visibility.Collapsed)
+                        TxtNdiOverlayPreviewPlaceholder.Visibility = Visibility.Collapsed;
+                });
+            };
+            _ndiOverlaySource.OnStatusChanged = (status, isLive, isError) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    if (TxtNdiOverlayStatus != null)
+                    {
+                        TxtNdiOverlayStatus.Text = "Status: " + status;
+                        TxtNdiOverlayStatus.Foreground = isError
+                            ? System.Windows.Media.Brushes.IndianRed
+                            : (isLive ? System.Windows.Media.Brushes.LimeGreen : (System.Windows.Media.Brush)FindResource("TextDim"));
+                    }
+                    if (!isLive && TxtNdiOverlayPreviewPlaceholder != null)
+                        TxtNdiOverlayPreviewPlaceholder.Visibility = Visibility.Visible;
+
+                    bool offline = status == "OFFLINE";
+                    BtnConnectNdiOverlay.IsEnabled = offline;
+                    BtnDisconnectNdiOverlay.IsEnabled = !offline;
+                });
+            };
+        }
+
+        private async void BtnRefreshNdiOverlay_Click(object sender, RoutedEventArgs e) => await RefreshNdiOverlaySourcesAsync();
+
+        private async Task RefreshNdiOverlaySourcesAsync()
+        {
+            string? previous = (CmbNdiOverlaySources.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiOverlaySourceName;
+            BtnRefreshNdiOverlay.IsEnabled = false;
+            if (TxtNdiOverlayStatus != null) TxtNdiOverlayStatus.Text = "Status: Searching...";
+            try
+            {
+                var sources = await Task.Run(() => NdiSource.FindSources(2000, Log));
+                if (NdiOut.IsRunning)
+                    sources.RemoveAll(s => s.Name.Contains(NdiOut.StreamName, StringComparison.OrdinalIgnoreCase));
+
+                CmbNdiOverlaySources.ItemsSource = sources;
+                CmbNdiOverlaySources.DisplayMemberPath = "Name";
+                var match = sources.FirstOrDefault(s => s.Name == previous);
+                CmbNdiOverlaySources.SelectedItem = match ?? (sources.Count > 0 ? sources[0] : null);
+                Log($"NDI Overlay: found {sources.Count} source(s)");
+                if (!_ndiOverlaySource.IsRunning && TxtNdiOverlayStatus != null)
+                    TxtNdiOverlayStatus.Text = sources.Count > 0 ? "Status: OFFLINE" : "Status: No sources";
+            }
+            catch (Exception ex)
+            {
+                Log("NDI Overlay refresh error: " + ex.Message);
+            }
+            finally
+            {
+                BtnRefreshNdiOverlay.IsEnabled = true;
+            }
+        }
+
+        private void BtnConnectNdiOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            if (CmbNdiOverlaySources.SelectedItem is not NdiSourceInfo info)
+            {
+                if (TxtNdiOverlayStatus != null) TxtNdiOverlayStatus.Text = "Status: Select source";
+                return;
+            }
+            _pendingNdiOverlaySourceName = info.Name;
+            BtnConnectNdiOverlay.IsEnabled = false;
+            BtnDisconnectNdiOverlay.IsEnabled = true;
+            _ndiOverlaySource.Start(info.Name, info.Url);
+            SetNdiOverlayActiveState(true);
+            SaveCurrentSettings();
+        }
+
+        private void BtnDisconnectNdiOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            _ndiOverlaySource.Stop();
+            SetNdiOverlayActiveState(false);
+            BtnConnectNdiOverlay.IsEnabled = true;
+            BtnDisconnectNdiOverlay.IsEnabled = false;
+            SaveCurrentSettings();
+        }
+
+        private async void BtnToggleNdiOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsNdiOverlayEnabled && !_ndiOverlaySource.IsRunning)
+            {
+                if (CmbNdiOverlaySources.SelectedItem is NdiSourceInfo)
+                {
+                    BtnConnectNdiOverlay_Click(sender, e);
+                    return;
+                }
+                else
+                {
+                    await RefreshNdiOverlaySourcesAsync();
+                    if (CmbNdiOverlaySources.SelectedItem is NdiSourceInfo)
+                    {
+                        BtnConnectNdiOverlay_Click(sender, e);
+                        return;
+                    }
+                }
+            }
+            SetNdiOverlayActiveState(!IsNdiOverlayEnabled);
+            SaveCurrentSettings();
+        }
+
+        private void SetNdiOverlayActiveState(bool enabled)
+        {
+            IsNdiOverlayEnabled = enabled && _ndiOverlaySource != null && _ndiOverlaySource.IsRunning;
+            _isUpdatingLogoUi = true;
+            try
+            {
+                if (BtnToggleNdiOverlay != null)
+                {
+                    BtnToggleNdiOverlay.Content = IsNdiOverlayEnabled ? "CG: ON" : "CG: OFF";
+                    BtnToggleNdiOverlay.Background = IsNdiOverlayEnabled
+                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2e, 0x7d, 0x32))
+                        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x42, 0x42, 0x42));
+                }
+            }
+            finally
+            {
+                _isUpdatingLogoUi = false;
+            }
+            UpdateNdiOverlayPreviewElement();
+        }
+
+        private void UpdateNdiOverlayPreviewElement()
+        {
+            if (PreviewNdiOverlay == null) return;
+            if (!IsNdiOverlayEnabled)
+            {
+                PreviewNdiOverlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+            PreviewNdiOverlay.Opacity = Math.Clamp(NdiOverlayOpacityPercent / 100.0, 0.0, 1.0);
+            PreviewNdiOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void SldNdiOverlayOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            NdiOverlayOpacityPercent = e.NewValue;
+            if (TxtNdiOverlayOpacityVal != null) TxtNdiOverlayOpacityVal.Text = $"{(int)Math.Round(e.NewValue)}%";
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            UpdateNdiOverlayPreviewElement();
             SaveCurrentSettings();
         }
 
