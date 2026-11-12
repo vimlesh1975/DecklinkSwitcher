@@ -344,8 +344,10 @@
                                     </Canvas>
                                 </Grid>
                             </Border>
-                            <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,10,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
-                            <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R (DeckLink phase fix)" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" Margin="0,6,0,0" HorizontalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,0,16,0" VerticalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                                <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R (DeckLink phase fix)" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
+                            </StackPanel>
                         </StackPanel>
                         <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="15,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         

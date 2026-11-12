@@ -2578,7 +2578,22 @@ namespace DecklinkSwitcher
                 if (_cpuCounter != null)
                 {
                     float cpu = _cpuCounter.NextValue();
-                    TxtCpuUsage.Text = $"{(int)cpu}%";
+                    int cpuInt = (int)Math.Round(cpu);
+                    TxtCpuUsage.Text = $"{cpuInt}%";
+
+                    // Color grading: Good (Green < 60%), Warning (Yellow 60% - 84%), Danger (Red >= 85%)
+                    if (cpuInt < 60)
+                    {
+                        TxtCpuUsage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xe6, 0x76)); // Vibrant Green
+                    }
+                    else if (cpuInt < 85)
+                    {
+                        TxtCpuUsage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xff, 0xd6, 0x00)); // Vivid Yellow/Amber
+                    }
+                    else
+                    {
+                        TxtCpuUsage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xff, 0x17, 0x44)); // Bright Red
+                    }
                 }
             }
             catch { }
