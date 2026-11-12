@@ -2087,18 +2087,27 @@ namespace DecklinkSwitcher
                 cam.BgColor = (_activeSourceType == 5 && _activeWebcam == cam) ? "#d32f2f" : "#2962ff";
             }
 
-            var defaultBrush = (System.Windows.Media.Brush)FindResource("ButtonBg");
+            var defaultBrush = (System.Windows.Media.Brush)FindResource("SourceButtonBg");
+            var defaultTextBrush = (System.Windows.Media.Brush)FindResource("SourceButtonText");
             var activeBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xd3, 0x2f, 0x2f));
+            var activeTextBrush = System.Windows.Media.Brushes.White;
 
-            if (BtnColorBars != null) BtnColorBars.Background = (_activeSourceType == 1) ? activeBrush : defaultBrush;
-            if (BtnMatte != null) BtnMatte.Background = (_activeSourceType == 2) ? activeBrush : defaultBrush;
-            if (BtnMedia != null) BtnMedia.Background = (_activeSourceType == 3) ? activeBrush : defaultBrush;
-            if (BtnYouTube != null) BtnYouTube.Background = (_activeSourceType == 6) ? activeBrush : defaultBrush;
-            if (BtnNdiSource != null) BtnNdiSource.Background = (_activeSourceType == 8) ? activeBrush : defaultBrush;
-            if (BtnHtmlSource != null) BtnHtmlSource.Background = (_activeSourceType == 7) ? activeBrush : defaultBrush;
+            Action<System.Windows.Controls.Button?, bool> applySourceButtonStyle = (btn, isActive) =>
+            {
+                if (btn == null) return;
+                btn.Background = isActive ? activeBrush : defaultBrush;
+                btn.Foreground = isActive ? activeTextBrush : defaultTextBrush;
+            };
+
+            applySourceButtonStyle(BtnColorBars, _activeSourceType == 1);
+            applySourceButtonStyle(BtnMatte, _activeSourceType == 2);
+            applySourceButtonStyle(BtnMedia, _activeSourceType == 3);
+            applySourceButtonStyle(BtnYouTube, _activeSourceType == 6);
+            applySourceButtonStyle(BtnNdiSource, _activeSourceType == 8);
+            applySourceButtonStyle(BtnHtmlSource, _activeSourceType == 7);
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
-            if (BtnSystemAudio != null) BtnSystemAudio.Background = isSysAudioActive ? activeBrush : defaultBrush;
+            applySourceButtonStyle(BtnSystemAudio, isSysAudioActive);
 
             UpdateHtmlSourceMuteState();
         }
@@ -2633,11 +2642,13 @@ namespace DecklinkSwitcher
         private void ChkDarkMode_Checked(object sender, RoutedEventArgs e)
         {
             if (Application.Current is App app) app.SetTheme(true);
+            UpdateProgramSourceFlags();
         }
 
         private void ChkDarkMode_Unchecked(object sender, RoutedEventArgs e)
         {
             if (Application.Current is App app) app.SetTheme(false);
+            UpdateProgramSourceFlags();
         }
 
         private static float _pgmAudioLevel = 1.0f;

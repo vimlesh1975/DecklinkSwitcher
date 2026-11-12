@@ -26,7 +26,7 @@
                         <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         <Slider Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="{Binding AudioLevel, Mode=TwoWay}" SmallChange="0.05" LargeChange="0.1"/>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
                     <ComboBox FontSize="12" Height="26" Margin="0,8,0,0" SelectedIndex="{Binding AudioStateIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="AFV"/>
                         <ComboBoxItem Content="ON"/>
@@ -48,7 +48,7 @@
                             </Image>
                         </Border>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
                 </StackPanel>
             </Border>
         </DataTemplate>
@@ -68,7 +68,7 @@
                         <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         <Slider Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="{Binding AudioLevel, Mode=TwoWay}" SmallChange="0.05" LargeChange="0.1"/>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" ToolTip="{Binding DeviceName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" ToolTip="{Binding DeviceName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
                     <ComboBox FontSize="12" Height="26" Margin="0,8,0,0" SelectedIndex="{Binding AudioStateIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="AFV"/>
                         <ComboBoxItem Content="ON"/>
@@ -441,7 +441,7 @@
                             <ProgressBar Name="AudioBarMediaR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Slider Name="SldMediaAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldMediaAudio_ValueChanged"/>
                         </StackPanel>
-                        <Button Name="BtnMedia" Content="Local Video" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMedia_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnMedia" Content="Local Video" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMedia_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
                         <!-- Media Control Buttons -->
                         <Grid Margin="0,0,0,6" Width="184">
                             <Grid.ColumnDefinitions>
@@ -486,7 +486,7 @@
                             <ProgressBar Name="AudioBarYTR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Slider Name="SldYouTubeAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldYouTubeAudio_ValueChanged"/>
                         </StackPanel>
-                        <Button Name="BtnYouTube" Content="YouTube Live" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnYouTube_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnYouTube" Content="YouTube Live" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnYouTube_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
                         <Expander Name="ExpanderYouTubeUrl" Header="Stream URL / Live" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,8" IsExpanded="True" MaxWidth="200">
                             <StackPanel Orientation="Vertical" Margin="0,4,0,0">
                                 <TextBox Name="TxtYouTubeUrl" Height="24" FontSize="11" Margin="0,0,0,6" 
@@ -532,7 +532,7 @@
                             <ProgressBar Name="AudioBarNdiR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Slider Name="SldNdiAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldNdiAudio_ValueChanged"/>
                         </StackPanel>
-                        <Button Name="BtnNdiSource" Content="NDI Source" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnNdiSource_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnNdiSource" Content="NDI Source" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnNdiSource_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
                         <Expander Name="ExpanderNdi" Header="NDI Sources" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,8" IsExpanded="True" MaxWidth="200">
                             <StackPanel Orientation="Vertical" Margin="0,4,0,0">
                                 <ComboBox Name="CmbNdiSources" Height="24" FontSize="11" Margin="0,0,0,6" ToolTip="NDI sources found on the network"/>
@@ -564,7 +564,7 @@
                                 </Grid>
                             </Border>
                         </StackPanel>
-                        <Button Name="BtnHtmlSource" Content="HTML / Web" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnHtmlSource_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnHtmlSource" Content="HTML / Web" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnHtmlSource_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
                         <Expander Name="ExpanderHtmlUrl" Header="HTML URL / File" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,8" IsExpanded="True" MaxWidth="200">
                             <StackPanel Orientation="Vertical" Margin="0,4,0,0">
                                 <Grid Margin="0,0,0,6">
@@ -602,7 +602,7 @@
                             <ProgressBar Name="AudioBarCBR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Slider Name="SldColorBarsAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldColorBarsAudio_ValueChanged"/>
                         </StackPanel>
-                        <Button Name="BtnColorBars" Content="Color Bars" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnColorBars_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
+                        <Button Name="BtnColorBars" Content="Color Bars" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnColorBars_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Cursor="Hand"/>
                         <ComboBox Name="CmbAudioStateColorBars" FontSize="12" Height="26" Margin="0,8,0,0" SelectionChanged="CmbAudioState_SelectionChanged">
                             <ComboBoxItem Content="AFV"/>
                             <ComboBoxItem Content="ON"/>
@@ -618,7 +618,7 @@
                                 <Image Name="PreviewMatte" Stretch="Uniform" Height="100" Width="158" MouseDown="PreviewMatte_MouseDown" Cursor="Hand"/>
                             </Border>
                         </StackPanel>
-                        <Button Name="BtnMatte" Content="Matte Color" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMatte_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnMatte" Content="Matte Color" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMatte_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
                         <ComboBox Name="CmbMatteColor" FontSize="12" Height="26" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
                             <ComboBoxItem Content="Black"/>
                             <ComboBoxItem Content="White"/>
