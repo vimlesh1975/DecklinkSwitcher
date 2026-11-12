@@ -1482,7 +1482,6 @@ namespace DecklinkSwitcher
             }
             SaveCurrentSettings();
             await _htmlOverlaySource.StartAsync(url);
-            SetHtmlOverlayActiveState(true);
             SaveCurrentSettings();
         }
 
@@ -1636,7 +1635,6 @@ namespace DecklinkSwitcher
             BtnConnectNdiOverlay.IsEnabled = false;
             BtnDisconnectNdiOverlay.IsEnabled = true;
             _ndiOverlaySource.Start(info.Name, info.Url);
-            SetNdiOverlayActiveState(true);
             SaveCurrentSettings();
         }
 
