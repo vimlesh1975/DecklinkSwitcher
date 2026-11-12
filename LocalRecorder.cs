@@ -72,11 +72,15 @@ namespace DecklinkSwitcher
             string videoPipePath = $"\\\\.\\pipe\\{videoPipeName}";
             string audioPipePath = $"\\\\.\\pipe\\{audioPipeName}";
             
+            string audioMappingArgs = profile.UseDualMonoAudio
+                ? "-filter_complex \"[1:a]asplit=2[rec_a1_src][rec_a2_src];[rec_a1_src]pan=mono|c0=c0[rec_a1];[rec_a2_src]pan=mono|c0=c1[rec_a2]\" -map 0:v -map \"[rec_a1]\" -map \"[rec_a2]\" "
+                : "";
+
             // Input is native 1920x1080 UYVY
             string args = $"-y " +
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
-                          $"{videoFilterArg}{profile.OutputOptions} \"{outputPath}\"";
+                          $"{audioMappingArgs}{videoFilterArg}{profile.OutputOptions} \"{outputPath}\"";
 
             OnLog?.Invoke($"FFmpeg args: {args}");
 
