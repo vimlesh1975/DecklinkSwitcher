@@ -72,7 +72,7 @@ namespace DecklinkSwitcher
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
                           $"-c:v libx264 -preset ultrafast -b:v 6800k -maxrate 6800k -bufsize 13600k -pix_fmt yuv420p -g {Framerate * 2} " +
-                          $"-c:a aac -b:a 128k -f flv \"{rtmpUrl}\"";
+                          $"-af aresample=async=1000:first_pts=0 -c:a aac -profile:a aac_low -ar 48000 -ac 2 -b:a 128k -f flv \"{rtmpUrl}\"";
 
             OnLog?.Invoke($"FFmpeg args: {args}");
 

@@ -1,4 +1,4 @@
-﻿<Window x:Class="DecklinkSwitcher.MainWindow"
+<Window x:Class="DecklinkSwitcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -293,6 +293,7 @@
                                 </Grid>
                             </Border>
                             <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,10,0,0" HorizontalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                            <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R (DeckLink phase fix)" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" Margin="0,6,0,0" HorizontalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
                         </StackPanel>
                         <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="15,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         

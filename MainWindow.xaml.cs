@@ -444,6 +444,7 @@ namespace DecklinkSwitcher
                         settings.AudioStateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
                     if (SldYouTubeAudio != null) settings.AudioLevelYouTube = SldYouTubeAudio.Value;
                     if (SldYouTubeAudioDelay != null) settings.YouTubeAudioDelayMs = (int)SldYouTubeAudioDelay.Value;
+                    if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
@@ -721,6 +722,8 @@ namespace DecklinkSwitcher
                     if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = $"{settings.YouTubeAudioDelayMs}ms";
                 }
                 if (_youtubeSource != null) _youtubeSource.AudioDelayMs = settings.YouTubeAudioDelayMs;
+                InvertDeckLinkRight = settings.InvertDeckLinkRightChannel;
+                if (ChkInvertDeckLinkR != null) ChkInvertDeckLinkR.IsChecked = settings.InvertDeckLinkRightChannel;
 
                 // System Audio Setup
                 var renderDevices = SystemAudioSource.GetRenderDevices();
@@ -2272,6 +2275,14 @@ namespace DecklinkSwitcher
             if (IsLoaded) SaveCurrentSettings();
         }
         
+        public static volatile bool InvertDeckLinkRight = false;
+
+        private void ChkInvertDeckLinkR_Changed(object sender, RoutedEventArgs e)
+        {
+            InvertDeckLinkRight = ChkInvertDeckLinkR.IsChecked == true;
+            if (IsLoaded) SaveCurrentSettings();
+        }
+
         private void ChkDarkMode_Checked(object sender, RoutedEventArgs e)
         {
             if (Application.Current is App app) app.SetTheme(true);
@@ -4474,6 +4485,11 @@ namespace DecklinkSwitcher
                         
                         short[] arr = new short[sampleCount * 2];
                         System.Runtime.InteropServices.Marshal.Copy(audioPtr, arr, 0, sampleCount * 2);
+                        if (MainWindow.InvertDeckLinkRight)
+                        {
+                            for (int i = 1; i < arr.Length; i += 2)
+                                arr[i] = arr[i] == short.MinValue ? short.MaxValue : (short)(-arr[i]);
+                        }
                         MainWindow.PushAudioPacket(_roleName, arr);
 
                         if (OnAudioLevelArrived != null && Environment.TickCount - _lastPreviewTicks <= 200) 
