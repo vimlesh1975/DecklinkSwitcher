@@ -264,7 +264,7 @@
                             <ColumnDefinition Width="72"/>
                         </Grid.ColumnDefinitions>
                         <Button Name="BtnConnectHtmlOverlay" Grid.Column="0" Content="Load" Height="28" FontSize="11" FontWeight="Bold" Background="#2e7d32" Foreground="White" Click="BtnConnectHtmlOverlay_Click" Cursor="Hand"/>
-                        <Button Name="BtnReloadHtmlOverlay" Grid.Column="2" Content="↻" Height="28" FontSize="12" FontWeight="Bold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnReloadHtmlOverlay_Click" Cursor="Hand" ToolTip="Reload HTML CG"/>
+                        <Button Name="BtnReloadHtmlOverlay" Grid.Column="2" Content="â†»" Height="28" FontSize="12" FontWeight="Bold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnReloadHtmlOverlay_Click" Cursor="Hand" ToolTip="Reload HTML CG"/>
                         <Button Name="BtnDisconnectHtmlOverlay" Grid.Column="4" Content="Stop" Height="28" FontSize="11" FontWeight="Bold" Background="#c62828" Foreground="White" Click="BtnDisconnectHtmlOverlay_Click" Cursor="Hand"/>
                         <Button Name="BtnToggleHtmlOverlay" Grid.Column="6" Content="CG: OFF" Height="28" FontSize="11" FontWeight="Bold" Background="#424242" Foreground="White" Click="BtnToggleHtmlOverlay_Click" Cursor="Hand"/>
                     </Grid>
@@ -426,7 +426,7 @@
                                 <Grid Width="158" Height="100">
                                     <Image Name="PreviewYouTube" Stretch="Uniform" MouseDown="PreviewYouTube_MouseDown" Cursor="Hand"/>
                                     <StackPanel Name="PnlYouTubeStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <TextBlock Name="TxtYouTubeStatusIcon" Text="▶" FontSize="20" HorizontalAlignment="Center" Foreground="#ff3333" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtYouTubeStatusIcon" Text="â–¶" FontSize="20" HorizontalAlignment="Center" Foreground="#ff3333" Margin="0,0,0,2"/>
                                         <TextBlock Name="TxtYouTubeStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
@@ -464,6 +464,41 @@
                     </StackPanel>
                 </Border>
 
+                <Border Name="TileNdi" Style="{StaticResource MixerPanel}">
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <ProgressBar Name="AudioBarNdiL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
+                                <Grid Width="158" Height="100">
+                                    <Image Name="PreviewNdi" Stretch="Uniform" MouseDown="PreviewNdi_MouseDown" Cursor="Hand"/>
+                                    <StackPanel Name="PnlNdiStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
+                                        <TextBlock Name="TxtNdiStatusIcon" Text="ðŸ“¡" FontSize="20" HorizontalAlignment="Center" Foreground="#ab47bc" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtNdiStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <ProgressBar Name="AudioBarNdiR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Slider Name="SldNdiAudio" Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldNdiAudio_ValueChanged"/>
+                        </StackPanel>
+                        <Button Name="BtnNdiSource" Content="NDI Source" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnNdiSource_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Expander Name="ExpanderNdi" Header="NDI Sources" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,8" IsExpanded="True" MaxWidth="200">
+                            <StackPanel Orientation="Vertical" Margin="0,4,0,0">
+                                <ComboBox Name="CmbNdiSources" Height="24" FontSize="11" Margin="0,0,0,6" ToolTip="NDI sources found on the network"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Button Name="BtnRefreshNdi" Content="Refresh" FontSize="11" FontWeight="Bold" Height="26" Width="55" Click="BtnRefreshNdi_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,6,0" Cursor="Hand"/>
+                                    <Button Name="BtnConnectNdi" Content="Connect" FontSize="11" FontWeight="Bold" Height="26" Width="60" Click="BtnConnectNdi_Click" Background="#2e7d32" Foreground="White" Margin="0,0,6,0" Cursor="Hand"/>
+                                    <Button Name="BtnDisconnectNdi" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="45" Click="BtnDisconnectNdi_Click" Background="#c62828" Foreground="White" IsEnabled="False" Cursor="Hand"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+                        <ComboBox Name="CmbAudioStateNdi" FontSize="12" Height="26" SelectionChanged="CmbAudioState_SelectionChanged">
+                            <ComboBoxItem Content="AFV"/>
+                            <ComboBoxItem Content="ON"/>
+                            <ComboBoxItem Content="OFF"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
                 <Border Name="TileHtmlSource" Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
@@ -471,7 +506,7 @@
                                 <Grid Width="158" Height="100">
                                     <Image Name="PreviewHtmlSource" Stretch="Uniform" MouseDown="PreviewHtmlSource_MouseDown" Cursor="Hand"/>
                                     <StackPanel Name="PnlHtmlStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
-                                        <TextBlock Name="TxtHtmlStatusIcon" Text="🌐" FontSize="20" HorizontalAlignment="Center" Foreground="#29b6f6" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtHtmlStatusIcon" Text="ðŸŒ" FontSize="20" HorizontalAlignment="Center" Foreground="#29b6f6" Margin="0,0,0,2"/>
                                         <TextBlock Name="TxtHtmlStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
@@ -492,7 +527,7 @@
                                 </Grid>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
                                     <Button Name="BtnConnectHtmlSource" Content="Load" FontSize="11" FontWeight="Bold" Height="26" Width="64" Click="BtnConnectHtmlSource_Click" Background="#2e7d32" Foreground="White" Margin="0,0,4,0" Cursor="Hand"/>
-                                    <Button Name="BtnReloadHtmlSource" Content="↻" FontSize="12" FontWeight="Bold" Height="26" Width="32" Click="BtnReloadHtmlSource_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand" ToolTip="Reload Page"/>
+                                    <Button Name="BtnReloadHtmlSource" Content="â†»" FontSize="12" FontWeight="Bold" Height="26" Width="32" Click="BtnReloadHtmlSource_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand" ToolTip="Reload Page"/>
                                     <Button Name="BtnDisconnectHtmlSource" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="54" Click="BtnDisconnectHtmlSource_Click" Background="#c62828" Foreground="White" IsEnabled="False" Cursor="Hand"/>
                                 </StackPanel>
                             </StackPanel>
@@ -551,7 +586,7 @@
                             <ProgressBar Name="AudioBarSysL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                             <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Width="158" Height="100">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4">
-                                    <TextBlock Text="🔊" FontSize="26" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                    <TextBlock Text="ðŸ”Š" FontSize="26" HorizontalAlignment="Center" Margin="0,0,0,2"/>
                                     <TextBlock Text="Loopback Capture" FontSize="10" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                     <ComboBox Name="CmbSystemAudioDevice" Width="144" Height="24" FontSize="10" DisplayMemberPath="Name" SelectionChanged="CmbSystemAudioDevice_SelectionChanged"/>
                                 </StackPanel>

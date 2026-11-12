@@ -50,6 +50,9 @@ namespace DecklinkSwitcher
         public AudioState AudioStateYouTube { get; set; } = AudioState.AFV;
         public int YouTubeAudioDelayMs { get; set; } = 200;
         public bool InvertDeckLinkRightChannel { get; set; } = false;
+        public string NdiSourceName { get; set; } = "";
+        public double AudioLevelNdi { get; set; } = 1.0;
+        public AudioState AudioStateNdi { get; set; } = AudioState.AFV;
         
         public System.Collections.Generic.Dictionary<string, double> MicLevels { get; set; } = new();
         public System.Collections.Generic.Dictionary<string, AudioState> MicStates { get; set; } = new();

@@ -54,6 +54,11 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpYouTube;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpNdi;
+        private NdiSource _ndiSource = new NdiSource();
+        public static float NdiAudioLevel = 1.0f;
+        public static AudioState StateNdi = AudioState.AFV;
+        internal static byte[]? LatestNdiUyvy = new byte[1920 * 1080 * 2];
         private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlSource;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlOverlay;
         private ScreenInputViewModel? _activeScreen;
@@ -76,7 +81,7 @@ namespace DecklinkSwitcher
         public static NdiSender NdiOut = new NdiSender();
         public static SrtStreamer SrtOut = new SrtStreamer();
         
-        // Latest PGM frame (BGRA 1920x1080 or 480x270) — updated by all PGM sources, read by streaming loop
+        // Latest PGM frame (BGRA 1920x1080 or 480x270) â€” updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
         internal static byte[]? LatestYouTubeUyvy = new byte[1920 * 1080 * 2];
         internal static byte[]? LatestHtmlSourceUyvy = new byte[1920 * 1080 * 2];
@@ -161,6 +166,10 @@ namespace DecklinkSwitcher
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
             PreviewYouTube.Source = _bmpYouTube;
+            _bmpNdi = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            PreviewNdi.Source = _bmpNdi;
+            SetupNdiSource();
+            Loaded += async (s, e) => { try { await RefreshNdiSourcesAsync(); } catch { } };
             PreviewHtmlSource.Source = _bmpHtmlSource;
             PreviewHtmlOverlay.Source = _bmpHtmlOverlay;
             
@@ -443,6 +452,10 @@ namespace DecklinkSwitcher
                     if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
                         settings.AudioStateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
                     if (SldYouTubeAudio != null) settings.AudioLevelYouTube = SldYouTubeAudio.Value;
+                    if (SldNdiAudio != null) settings.AudioLevelNdi = SldNdiAudio.Value;
+                    if (CmbAudioStateNdi != null && CmbAudioStateNdi.SelectedIndex >= 0)
+                        settings.AudioStateNdi = (AudioState)CmbAudioStateNdi.SelectedIndex;
+                    settings.NdiSourceName = (CmbNdiSources?.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiSourceName ?? settings.NdiSourceName;
                     if (SldYouTubeAudioDelay != null) settings.YouTubeAudioDelayMs = (int)SldYouTubeAudioDelay.Value;
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
@@ -544,6 +557,7 @@ namespace DecklinkSwitcher
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
                 if (_youtubeSource != null) _youtubeSource.Dispose();
+                try { _ndiSource?.Dispose(); } catch { }
                 if (_htmlSource != null) _htmlSource.Dispose();
                 if (_htmlOverlaySource != null) _htmlOverlaySource.Dispose();
                 _systemAudioSource?.Dispose();
@@ -716,6 +730,11 @@ namespace DecklinkSwitcher
                 YouTubeAudioLevel = (float)settings.AudioLevelYouTube;
                 CmbAudioStateYouTube.SelectedIndex = (int)settings.AudioStateYouTube;
                 StateYouTube = settings.AudioStateYouTube;
+                SldNdiAudio.Value = settings.AudioLevelNdi;
+                NdiAudioLevel = (float)settings.AudioLevelNdi;
+                CmbAudioStateNdi.SelectedIndex = (int)settings.AudioStateNdi;
+                StateNdi = settings.AudioStateNdi;
+                _pendingNdiSourceName = settings.NdiSourceName;
                 if (SldYouTubeAudioDelay != null)
                 {
                     SldYouTubeAudioDelay.Value = settings.YouTubeAudioDelayMs;
@@ -1888,6 +1907,7 @@ namespace DecklinkSwitcher
             if (BtnMatte != null) BtnMatte.Background = (_activeSourceType == 2) ? activeBrush : defaultBrush;
             if (BtnMedia != null) BtnMedia.Background = (_activeSourceType == 3) ? activeBrush : defaultBrush;
             if (BtnYouTube != null) BtnYouTube.Background = (_activeSourceType == 6) ? activeBrush : defaultBrush;
+            if (BtnNdiSource != null) BtnNdiSource.Background = (_activeSourceType == 8) ? activeBrush : defaultBrush;
             if (BtnHtmlSource != null) BtnHtmlSource.Background = (_activeSourceType == 7) ? activeBrush : defaultBrush;
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
@@ -1962,6 +1982,146 @@ namespace DecklinkSwitcher
             }
         }
         private void PreviewYouTube_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnYouTube_Click(null, null);
+
+        // ---------------- NDI Source ----------------
+        private void SetupNdiSource()
+        {
+            _ndiSource.OnLog = Log;
+            _ndiSource.OnPreviewBufferUpdated = (buf) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    _bmpNdi.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                    if (_activeSourceType == 8)
+                    {
+                        _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                    }
+                });
+            };
+            _ndiSource.OnAudioLevelArrived = (l, r) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    double nL = l * _ndiSource.AudioLevel;
+                    double nR = r * _ndiSource.AudioLevel;
+                    AudioBarNdiL.Value = nL; AudioBarNdiR.Value = nR;
+                    if (_activeSourceType == 8)
+                    {
+                        AudioOutputL.Value = nL * PgmAudioLevel;
+                        AudioOutputR.Value = nR * PgmAudioLevel;
+                    }
+                });
+            };
+            _ndiSource.OnStatusChanged = (status, isLive, isError) => {
+                Application.Current.Dispatcher.BeginInvoke(() => {
+                    TxtNdiStatus.Text = status;
+                    if (isError)
+                    {
+                        TxtNdiStatus.Foreground = System.Windows.Media.Brushes.IndianRed;
+                        TxtNdiStatusIcon.Foreground = System.Windows.Media.Brushes.IndianRed;
+                        PnlNdiStatusOverlay.Visibility = Visibility.Visible;
+                        BtnConnectNdi.IsEnabled = true;
+                        BtnDisconnectNdi.IsEnabled = false;
+                    }
+                    else if (isLive)
+                    {
+                        TxtNdiStatus.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                        TxtNdiStatusIcon.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                        PnlNdiStatusOverlay.Visibility = Visibility.Collapsed;
+                        BtnConnectNdi.IsEnabled = false;
+                        BtnDisconnectNdi.IsEnabled = true;
+                    }
+                    else
+                    {
+                        TxtNdiStatus.Foreground = (System.Windows.Media.Brush)FindResource("TextDim");
+                        TxtNdiStatusIcon.Foreground = System.Windows.Media.Brushes.MediumOrchid;
+                        PnlNdiStatusOverlay.Visibility = Visibility.Visible;
+                        // "Connecting..." / "No signal" keep Stop available; OFFLINE re-enables Connect
+                        bool offline = status == "OFFLINE";
+                        BtnConnectNdi.IsEnabled = offline;
+                        BtnDisconnectNdi.IsEnabled = !offline;
+                    }
+                });
+            };
+        }
+
+        private void BtnNdiSource_Click(object sender, RoutedEventArgs e)
+        {
+            _activeSourceType = 8; ActiveSourceType = 8; ActiveInputName = "NDI"; Log("Switched to NDI Source");
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
+            UpdateProgramSourceFlags();
+            _ = AutoConnectNdiAsync();
+        }
+
+        // Scans for sources if needed and connects to the selected / last used one.
+        private async Task AutoConnectNdiAsync()
+        {
+            try
+            {
+                if (_ndiSource.IsStreaming) return;
+                if (CmbNdiSources.Items.Count == 0) await RefreshNdiSourcesAsync();
+                if (!_ndiSource.IsStreaming && CmbNdiSources.SelectedItem is NdiSourceInfo)
+                    BtnConnectNdi_Click(null, null);
+            }
+            catch (Exception ex) { Log("NDI auto-connect error: " + ex.Message); }
+        }
+        private void PreviewNdi_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnNdiSource_Click(null, null);
+
+        private async void BtnRefreshNdi_Click(object sender, RoutedEventArgs e) => await RefreshNdiSourcesAsync();
+
+        private async Task RefreshNdiSourcesAsync()
+        {
+            string? previous = (CmbNdiSources.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiSourceName;
+            BtnRefreshNdi.IsEnabled = false;
+            TxtNdiStatus.Text = "Searching...";
+            try
+            {
+                var sources = await Task.Run(() => NdiSource.FindSources(2000, Log));
+                // Don't list our own NDI program output (would create a feedback loop)
+                if (NdiOut.IsRunning)
+                    sources.RemoveAll(s => s.Name.Contains(NdiOut.StreamName, StringComparison.OrdinalIgnoreCase));
+
+                CmbNdiSources.ItemsSource = sources;
+                CmbNdiSources.DisplayMemberPath = "Name";
+                var match = sources.FirstOrDefault(s => s.Name == previous);
+                CmbNdiSources.SelectedItem = match ?? (sources.Count > 0 ? sources[0] : null);
+                Log($"NDI: found {sources.Count} source(s)");
+                if (!_ndiSource.IsStreaming) TxtNdiStatus.Text = sources.Count > 0 ? "OFFLINE" : "No sources";
+            }
+            catch (Exception ex)
+            {
+                Log("NDI refresh error: " + ex.Message);
+            }
+            finally
+            {
+                BtnRefreshNdi.IsEnabled = true;
+            }
+        }
+
+        private string? _pendingNdiSourceName;
+
+        private void BtnConnectNdi_Click(object sender, RoutedEventArgs e)
+        {
+            if (CmbNdiSources.SelectedItem is not NdiSourceInfo info)
+            {
+                TxtNdiStatus.Text = "Select a source";
+                return;
+            }
+            _pendingNdiSourceName = info.Name;
+            BtnConnectNdi.IsEnabled = false;
+            BtnDisconnectNdi.IsEnabled = true;
+            _ndiSource.Start(info);
+            SaveCurrentSettings();
+        }
+
+        private void BtnDisconnectNdi_Click(object sender, RoutedEventArgs e)
+        {
+            _ndiSource.Stop();
+            BtnConnectNdi.IsEnabled = true;
+            BtnDisconnectNdi.IsEnabled = false;
+        }
+
+        private void SldNdiAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_ndiSource != null) _ndiSource.AudioLevel = (float)e.NewValue;
+            NdiAudioLevel = (float)e.NewValue;
+        }
 
         private async void BtnConnectYouTube_Click(object sender, RoutedEventArgs e)
         {
@@ -2443,6 +2603,8 @@ namespace DecklinkSwitcher
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
             if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
                 StateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
+            if (CmbAudioStateNdi != null && CmbAudioStateNdi.SelectedIndex >= 0)
+                StateNdi = (AudioState)CmbAudioStateNdi.SelectedIndex;
             if (CmbAudioStateHtml != null && CmbAudioStateHtml.SelectedIndex >= 0)
                 StateHtml = (AudioState)CmbAudioStateHtml.SelectedIndex;
             UpdateHtmlSourceMuteState();
@@ -2488,7 +2650,7 @@ namespace DecklinkSwitcher
             var barR = new System.Windows.Controls.ProgressBar { Name = "BarR_" + device.DeviceNumber, Orientation = System.Windows.Controls.Orientation.Vertical, Minimum = 0, Maximum = 100, Width = 10, Height = 100, Margin = new System.Windows.Thickness(5, 0, 5, 0), Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 255, 0)), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)) };
             
             var border = new System.Windows.Controls.Border { Width = 130, Height = 100, Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(17, 17, 17)), BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51)), BorderThickness = new System.Windows.Thickness(1) };
-            var txt = new System.Windows.Controls.TextBlock { Text = "🎙\n" + device.Name, Foreground = System.Windows.Media.Brushes.DarkGray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center, FontWeight = System.Windows.FontWeights.Bold, FontSize = 10, TextAlignment = System.Windows.TextAlignment.Center, TextWrapping = System.Windows.TextWrapping.Wrap };
+            var txt = new System.Windows.Controls.TextBlock { Text = "ðŸŽ™\n" + device.Name, Foreground = System.Windows.Media.Brushes.DarkGray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center, FontWeight = System.Windows.FontWeights.Bold, FontSize = 10, TextAlignment = System.Windows.TextAlignment.Center, TextWrapping = System.Windows.TextWrapping.Wrap };
             border.Child = txt;
             
             var sld = new System.Windows.Controls.Slider { Orientation = System.Windows.Controls.Orientation.Vertical, Height = 100, Minimum = 0, Maximum = 1.5, Value = initialLevel, SmallChange = 0.05, LargeChange = 0.1 };
@@ -2567,6 +2729,7 @@ namespace DecklinkSwitcher
         {
             if (fe == TileMedia) return "TileMedia";
             if (fe == TileYouTube) return "TileYouTube";
+            if (fe == TileNdi) return "TileNdi";
             if (fe == TileHtmlSource) return "TileHtmlSource";
             if (fe == TileColorBars) return "TileColorBars";
             if (fe == TileMatte) return "TileMatte";
@@ -2852,6 +3015,7 @@ namespace DecklinkSwitcher
             }
             mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
             mixSource("YouTube", YouTubeAudioLevel, StateYouTube, activeSourceType == 6);
+            mixSource("NDI", NdiAudioLevel, StateNdi, activeSourceType == 8);
             mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
             foreach (var cam in DynamicWebcams)
             {
@@ -3018,7 +3182,7 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
-            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7) // Media, Desktop, Webcam, YouTube, or HTML
+            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8) // Media, Desktop, Webcam, YouTube, HTML, or NDI
             {
                 // Handled continuously by streaming/capture callbacks
                 return;
@@ -3496,7 +3660,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8)
                         {
                             // Keep _latestPgmFrame fresh for streaming loop
                             UpdatePgmPreviewSynthetic();
@@ -3517,6 +3681,13 @@ namespace DecklinkSwitcher
                                         lock (MainWindow._pgmLock)
                                         {
                                             uyvyBytes = (byte[])LatestYouTubeUyvy.Clone();
+                                        }
+                                    }
+                                    else if (_activeSourceType == 8 && LatestNdiUyvy != null)
+                                    {
+                                        lock (MainWindow._pgmLock)
+                                        {
+                                            uyvyBytes = (byte[])LatestNdiUyvy.Clone();
                                         }
                                     }
                                     else if (_activeSourceType == 7 && LatestHtmlSourceUyvy != null)
@@ -4319,6 +4490,16 @@ namespace DecklinkSwitcher
                             if (MainWindow.LatestYouTubeUyvy != null)
                             {
                                 System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestYouTubeUyvy, 0, outputBuffer, MainWindow.LatestYouTubeUyvy.Length);
+                            }
+                        }
+                    }
+                    else if (sourceType == 8) // NDI source direct 1080p UYVY
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestNdiUyvy != null)
+                            {
+                                System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestNdiUyvy, 0, outputBuffer, MainWindow.LatestNdiUyvy.Length);
                             }
                         }
                     }
