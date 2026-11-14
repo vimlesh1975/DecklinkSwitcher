@@ -33,6 +33,8 @@ namespace DecklinkSwitcher
         
         public string SelectedRecordingProfile { get; set; } = "MP4 High Quality";
         public string RecordingDirectory { get; set; } = "";
+        public string RecordingMode { get; set; } = "Infinite Record";
+        public int RecordingIntervalSeconds { get; set; } = 60;
         
         public string SelectedWebcam { get; set; } = "";
         public double AudioLevelWebcam { get; set; } = 1.0;

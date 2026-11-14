@@ -34,7 +34,19 @@ namespace DecklinkSwitcher
         private volatile bool _hasRealFrames = false;
         private long _lastVideoPushTick = 0;
         
-        public void Start(RecordingProfileDefinition profile, string outputDirectory, int width, int height, double fps)
+        private static string GetSegmentFormat(string containerExtension)
+        {
+            string ext = (containerExtension ?? ".mp4").Trim().TrimStart('.').ToLowerInvariant();
+            return ext switch
+            {
+                "ts" => "mpegts",
+                "mkv" => "matroska",
+                "" => "mp4",
+                _ => ext
+            };
+        }
+
+        public void Start(RecordingProfileDefinition profile, string outputDirectory, int width, int height, double fps, bool intervalMode = false, int intervalSeconds = 60)
         {
             if (IsRecording) return;
             
@@ -63,9 +75,31 @@ namespace DecklinkSwitcher
             
             string ffmpegPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
 
-            string timestamp = DateTime.Now.ToString("ddMMyyyy_HHmmss");
-            string fileName = $"{profile.FileNameSuffix}_{timestamp}{profile.ContainerExtension}";
-            string outputPath = Path.Combine(outputDirectory, fileName);
+            string outputOptions = profile.OutputOptions;
+            string outputTargetArgs;
+            string logTarget;
+            if (intervalMode)
+            {
+                int safeInterval = Math.Max(1, intervalSeconds);
+                string pattern = Path.Combine(outputDirectory, $"{profile.FileNameSuffix}_%d%m%Y_%H%M%S{profile.ContainerExtension}");
+                logTarget = pattern;
+                string keyframeArg = profile.UseDualMonoAudio ? "" : $"-force_key_frames \"expr:gte(t,n_forced*{safeInterval})\" ";
+                string segOptsArg = "";
+                if (profile.UseDualMonoAudio && outputOptions.Contains("-signal_standard smpte274m", StringComparison.Ordinal))
+                {
+                    outputOptions = outputOptions.Replace("-signal_standard smpte274m", "").Trim();
+                    segOptsArg = "-segment_format_options \"signal_standard=smpte274m\" ";
+                }
+                outputTargetArgs = $"{keyframeArg}-f segment -segment_time {safeInterval} -reset_timestamps 1 -segment_start_number 0 -segment_format \"{GetSegmentFormat(profile.ContainerExtension)}\" {segOptsArg}-strftime 1 \"{pattern}\"";
+            }
+            else
+            {
+                string timestamp = DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                string fileName = $"{profile.FileNameSuffix}_{timestamp}{profile.ContainerExtension}";
+                string outputPath = Path.Combine(outputDirectory, fileName);
+                logTarget = outputPath;
+                outputTargetArgs = $"\"{outputPath}\"";
+            }
             
             string videoFilterArg = string.IsNullOrWhiteSpace(profile.VideoFilter) ? "" : $"-vf \"{profile.VideoFilter}\" ";
             
@@ -80,7 +114,7 @@ namespace DecklinkSwitcher
             string args = $"-y " +
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
-                          $"{audioMappingArgs}{videoFilterArg}{profile.OutputOptions} \"{outputPath}\"";
+                          $"{audioMappingArgs}{videoFilterArg}{outputOptions} {outputTargetArgs}";
 
             OnLog?.Invoke($"FFmpeg args: {args}");
 
@@ -115,7 +149,7 @@ namespace DecklinkSwitcher
             // Fallback frame feeder - keeps FFmpeg alive even when no DeckLink frames arrive
             _feedTask = Task.Run(() => FallbackFeeder(_cts.Token));
             
-            OnLog?.Invoke($"Recording started. Resolution: {Width}x{Height} @ {Framerate}fps -> {outputPath}");
+            OnLog?.Invoke($"Recording started ({(intervalMode ? $"Interval {Math.Max(1, intervalSeconds)}s" : "Infinite")}). Resolution: {Width}x{Height} @ {Framerate}fps -> {logTarget}");
         }
         
         public void Stop()

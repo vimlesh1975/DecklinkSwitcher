@@ -505,6 +505,10 @@ namespace DecklinkSwitcher
                     settings.YouTubeStreamKey = TxtStreamKey.Text;
                     settings.SelectedRecordingProfile = (CmbRecordingProfile.SelectedItem as RecordingProfileDefinition)?.DisplayName ?? "MP4 High Quality";
                     settings.RecordingDirectory = TxtRecordingDirectory.Text;
+                    if (CmbRecordingMode != null)
+                        settings.RecordingMode = (CmbRecordingMode.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Infinite Record";
+                    if (TxtRecordingIntervalSec != null && int.TryParse(TxtRecordingIntervalSec.Text.Trim(), out int recInt) && recInt > 0)
+                        settings.RecordingIntervalSeconds = recInt;
 
                     if (CmbSrtMode != null) settings.SrtMode = (CmbSrtMode.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Caller";
                     if (TxtSrtHost != null) settings.SrtHost = TxtSrtHost.Text.Trim();
@@ -993,6 +997,24 @@ namespace DecklinkSwitcher
                 }
                 
                 TxtRecordingDirectory.Text = settings.RecordingDirectory;
+
+                if (TxtRecordingIntervalSec != null)
+                {
+                    TxtRecordingIntervalSec.Text = Math.Max(1, settings.RecordingIntervalSeconds > 0 ? settings.RecordingIntervalSeconds : 60).ToString();
+                }
+                if (CmbRecordingMode != null)
+                {
+                    string modeText = string.IsNullOrWhiteSpace(settings.RecordingMode) ? "Infinite Record" : settings.RecordingMode;
+                    foreach (ComboBoxItem item in CmbRecordingMode.Items)
+                    {
+                        if (string.Equals(item.Content?.ToString(), modeText, StringComparison.OrdinalIgnoreCase))
+                        {
+                            CmbRecordingMode.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+                UpdateRecordingModeUiState();
 
                 // Restore PGM Logo Overlay settings
                 _isUpdatingLogoUi = true;
@@ -2059,12 +2081,44 @@ namespace DecklinkSwitcher
             }
         }
         
+        private bool IsIntervalRecordingModeSelected()
+        {
+            string mode = (CmbRecordingMode?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Infinite Record";
+            return string.Equals(mode, "Interval Record", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void UpdateRecordingModeUiState()
+        {
+            bool isInterval = IsIntervalRecordingModeSelected();
+            bool isRec = LclRecorder?.IsRecording == true;
+            if (PnlRecordingInterval != null)
+                PnlRecordingInterval.Visibility = isInterval ? Visibility.Visible : Visibility.Collapsed;
+            if (CmbRecordingMode != null)
+                CmbRecordingMode.IsEnabled = !isRec;
+            if (TxtRecordingIntervalSec != null)
+                TxtRecordingIntervalSec.IsEnabled = !isRec && isInterval;
+        }
+
+        private void CmbRecordingMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            UpdateRecordingModeUiState();
+            SaveCurrentSettings();
+        }
+
+        private void TxtRecordingIntervalSec_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded || _isLoadingSettings) return;
+            SaveCurrentSettings();
+        }
+
         private void BtnRecord_Click(object sender, RoutedEventArgs e)
         {
             if (LclRecorder.IsRecording)
             {
                 LclRecorder.Stop();
                 ApplyOutputButtonStyle(BtnRecord, false, "STOP RECORDING", "START RECORDING");
+                UpdateRecordingModeUiState();
                 TxtStatus.Text = "Recording stopped.";
             }
             else
@@ -2078,10 +2132,24 @@ namespace DecklinkSwitcher
                         try { System.IO.Directory.CreateDirectory(dir); }
                         catch { System.Windows.MessageBox.Show("Invalid recording directory."); return; }
                     }
+
+                    bool intervalMode = IsIntervalRecordingModeSelected();
+                    int intervalSec = 60;
+                    if (intervalMode)
+                    {
+                        if (!int.TryParse(TxtRecordingIntervalSec?.Text.Trim(), out intervalSec) || intervalSec < 1)
+                        {
+                            System.Windows.MessageBox.Show("Please enter a valid recording interval in seconds (1 or more).");
+                            return;
+                        }
+                    }
+
+                    SaveCurrentSettings();
                     UpdatePgmPreviewSynthetic();
-                    LclRecorder.Start(profile, dir, 1920, 1080, 25);
+                    LclRecorder.Start(profile, dir, 1920, 1080, 25, intervalMode, intervalSec);
                     ApplyOutputButtonStyle(BtnRecord, true, "STOP RECORDING", "START RECORDING");
-                    TxtStatus.Text = "Recording started...";
+                    UpdateRecordingModeUiState();
+                    TxtStatus.Text = intervalMode ? $"Interval recording started ({intervalSec}s clips)..." : "Infinite recording started...";
                 }
             }
         }
