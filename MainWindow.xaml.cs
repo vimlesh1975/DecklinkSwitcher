@@ -763,7 +763,7 @@ namespace DecklinkSwitcher
                 if (SldYouTubeAudioDelay != null)
                 {
                     SldYouTubeAudioDelay.Value = settings.YouTubeAudioDelayMs;
-                    if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = $"{settings.YouTubeAudioDelayMs}ms";
+                    if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = FormatDelayText(settings.YouTubeAudioDelayMs);
                 }
                 if (_youtubeSource != null) _youtubeSource.AudioDelayMs = settings.YouTubeAudioDelayMs;
                 InvertDeckLinkRight = settings.InvertDeckLinkRightChannel;
@@ -1034,6 +1034,7 @@ namespace DecklinkSwitcher
 
                     if (!string.IsNullOrEmpty(settings.HtmlOverlayUrl) && TxtHtmlOverlayUrl != null)
                         TxtHtmlOverlayUrl.Text = settings.HtmlOverlayUrl;
+                    _pendingHtmlOverlayEnabled = settings.HtmlOverlayEnabled;
                     HtmlOverlayOpacityPercent = settings.HtmlOverlayOpacityPercent > 0 ? Math.Clamp(settings.HtmlOverlayOpacityPercent, 10.0, 100.0) : 100.0;
                     if (SldHtmlOverlayOpacity != null) SldHtmlOverlayOpacity.Value = HtmlOverlayOpacityPercent;
                     if (TxtHtmlOverlayOpacityVal != null) TxtHtmlOverlayOpacityVal.Text = $"{(int)Math.Round(HtmlOverlayOpacityPercent)}%";
@@ -1062,6 +1063,81 @@ namespace DecklinkSwitcher
             finally
             {
                 _isLoadingSettings = false;
+            }
+
+            _ = AutoStartSavedSourcesAsync();
+        }
+
+        private async Task AutoStartSavedSourcesAsync()
+        {
+            var tasks = new List<Task>();
+
+            string htmlUrl = TxtHtmlSourceUrl?.Text?.Trim() ?? string.Empty;
+            if (_htmlSource != null && !string.IsNullOrEmpty(htmlUrl))
+            {
+                tasks.Add(StartHtmlSourceAtStartupAsync(htmlUrl));
+            }
+
+            string htmlOverlayUrl = TxtHtmlOverlayUrl?.Text?.Trim() ?? string.Empty;
+            if (_htmlOverlaySource != null && !string.IsNullOrEmpty(htmlOverlayUrl))
+            {
+                bool restoreOverlayEnabled = _pendingHtmlOverlayEnabled;
+                tasks.Add(StartHtmlOverlayAtStartupAsync(htmlOverlayUrl, restoreOverlayEnabled));
+            }
+
+            string youtubeUrl = TxtYouTubeUrl?.Text?.Trim() ?? string.Empty;
+            if (_youtubeSource != null && !string.IsNullOrEmpty(youtubeUrl))
+            {
+                tasks.Add(StartYouTubeAtStartupAsync(youtubeUrl));
+            }
+
+            if (tasks.Count > 0)
+            {
+                await Task.WhenAll(tasks);
+            }
+        }
+
+        private async Task StartHtmlSourceAtStartupAsync(string url)
+        {
+            try
+            {
+                if (BtnDisconnectHtmlSource != null) BtnDisconnectHtmlSource.IsEnabled = true;
+                await _htmlSource!.StartAsync(url);
+                UpdateHtmlSourceMuteState();
+                Log($"Auto-started HTML Source: {url}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Auto-start HTML Source error: {ex.Message}");
+            }
+        }
+
+        private async Task StartHtmlOverlayAtStartupAsync(string url, bool restoreEnabled)
+        {
+            try
+            {
+                await _htmlOverlaySource!.StartAsync(url);
+                SetHtmlOverlayActiveState(restoreEnabled);
+                Log($"Auto-started HTML Overlay: {url} (enabled={restoreEnabled})");
+            }
+            catch (Exception ex)
+            {
+                Log($"Auto-start HTML Overlay error: {ex.Message}");
+            }
+        }
+
+        private async Task StartYouTubeAtStartupAsync(string url)
+        {
+            try
+            {
+                if (BtnConnectYouTube != null) BtnConnectYouTube.IsEnabled = false;
+                if (BtnDisconnectYouTube != null) BtnDisconnectYouTube.IsEnabled = true;
+                await _youtubeSource!.StartAsync(url);
+                Log($"Auto-started YouTube Source: {url}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Auto-start YouTube Source error: {ex.Message}");
             }
         }
 
@@ -1579,6 +1655,7 @@ namespace DecklinkSwitcher
         }
 
         // ---------------- NDI CG Overlay Controls ----------------
+        private bool _pendingHtmlOverlayEnabled;
         private string? _pendingNdiOverlaySourceName;
 
         private void SetupNdiOverlaySource()
@@ -2361,10 +2438,12 @@ namespace DecklinkSwitcher
             YouTubeAudioLevel = (float)e.NewValue;
         }
 
+        private static string FormatDelayText(int ms) => ms >= 1000 ? $"{ms / 1000.0:0.0}s" : $"{ms}ms";
+
         private void SldYouTubeAudioDelay_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             int ms = (int)e.NewValue;
-            if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = $"{ms}ms";
+            if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = FormatDelayText(ms);
             if (_youtubeSource != null) _youtubeSource.AudioDelayMs = ms;
             SaveCurrentSettings();
         }

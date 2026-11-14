@@ -24,6 +24,22 @@
                     <SolidColorBrush x:Key="TextBoxBg" Color="#1a1a20"/>
                     <SolidColorBrush x:Key="DividerBrush" Color="#2a2a35"/>
                     <SolidColorBrush x:Key="ButtonBorder" Color="#555555"/>
+                    <SolidColorBrush x:Key="OutputCardYouTubeBg" Color="#341f25"/>
+                    <SolidColorBrush x:Key="OutputCardRecordBg" Color="#1e302a"/>
+                    <SolidColorBrush x:Key="OutputCardNdiBg" Color="#1d2b3e"/>
+                    <SolidColorBrush x:Key="OutputCardSrtBg" Color="#2b233a"/>
+                    <SolidColorBrush x:Key="PgmSectionBg" Color="#162231"/>
+                    <SolidColorBrush x:Key="SettingsSectionBg" Color="#262833"/>
+                    <SolidColorBrush x:Key="OutputSectionBg" Color="#15161c"/>
+                    <SolidColorBrush x:Key="PgmSectionBorder" Color="#2e6da4"/>
+                    <SolidColorBrush x:Key="SettingsSectionBorder" Color="#6c757d"/>
+                    <SolidColorBrush x:Key="OutputSectionBorder" Color="#7c5cdb"/>
+                    <SolidColorBrush x:Key="SourcesSectionBg" Color="#151c1a"/>
+                    <SolidColorBrush x:Key="SourcesSectionBorder" Color="#2e8b6d"/>
+                    <SolidColorBrush x:Key="OverlayCardNdiBg" Color="#232436"/>
+                    <SolidColorBrush x:Key="OverlayCardHtmlBg" Color="#1e2d33"/>
+                    <SolidColorBrush x:Key="OverlayCardPgmBg" Color="#1f2633"/>
+                    <SolidColorBrush x:Key="OverlayCardLogoBg" Color="#2a2622"/>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

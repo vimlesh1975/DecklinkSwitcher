@@ -224,10 +224,10 @@
             <CheckBox Name="ChkDarkMode" IsChecked="True" VerticalAlignment="Center" Checked="ChkDarkMode_Checked" Unchecked="ChkDarkMode_Unchecked" Foreground="{DynamicResource TextPrimary}"/>
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="25">
+        <Grid Grid.Row="1" Margin="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="250"/>
+            <ColumnDefinition Width="335"/>
         </Grid.ColumnDefinitions>
         
         <!-- LEFT COLUMN: Previews and Switcher -->
@@ -238,12 +238,13 @@
             </Grid.RowDefinitions>
             
             <!-- Output Preview -->
-            <Border Grid.Row="0" Style="{StaticResource MixerPanel}" Margin="0,0,0,25">
+            <Border Grid.Row="0" Style="{StaticResource MixerPanel}" Background="{DynamicResource PgmSectionBg}" BorderBrush="{DynamicResource PgmSectionBorder}" BorderThickness="1.5" Margin="0,0,0,25">
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                     <TextBlock Text="PROGRAM OUTPUT" FontSize="22" FontWeight="Black" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,15"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <!-- PGM NDI CG OVERLAY (Left side) -->
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="300" VerticalAlignment="Top" Margin="0,0,15,0" Focusable="False">
+                        <Border Background="{DynamicResource OverlayCardNdiBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,10,0" VerticalAlignment="Top">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False">
                             <StackPanel Margin="0,0,6,0">
                                 <TextBlock Text="PGM NDI CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
                                 <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Margin="0,0,0,8" HorizontalAlignment="Center">
@@ -283,9 +284,11 @@
                                 </Grid>
                             </StackPanel>
                         </ScrollViewer>
+                        </Border>
 
                         <!-- PGM HTML CG OVERLAY -->
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="300" VerticalAlignment="Top" Margin="0,0,15,0" Focusable="False"><StackPanel Margin="0,0,6,0">
+                        <Border Background="{DynamicResource OverlayCardHtmlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,12,0" VerticalAlignment="Top">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False"><StackPanel Margin="0,0,6,0">
                     <TextBlock Text="PGM HTML CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
                     <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Margin="0,0,0,8" HorizontalAlignment="Center">
                         <Grid Width="216" Height="121" ClipToBounds="True">
@@ -332,30 +335,37 @@
                     </Grid>
 
 </StackPanel></ScrollViewer>
-                        <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="0,0,15,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
-                        <StackPanel Orientation="Vertical">
-                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource ImageBg}" Padding="2">
-                                <Grid Width="480" Height="270" ClipToBounds="True">
-                                    <Image Name="PreviewOutput" Stretch="Uniform" Height="270" Width="480"/>
-                                    <Image Name="PreviewNdiOverlay" Stretch="Fill" Height="270" Width="480" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                    <Image Name="PreviewHtmlOverlay" Stretch="Fill" Height="270" Width="480" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                    <Canvas Width="480" Height="270" IsHitTestVisible="False" ClipToBounds="True">
-                                        <Image Name="PreviewLogoOverlay" Stretch="Fill" Visibility="Collapsed" IsHitTestVisible="False"/>
-                                    </Canvas>
-                                </Grid>
-                            </Border>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                                <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,0,16,0" VerticalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
-                                <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R (DeckLink phase fix)" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
+                        </Border>
+                        <!-- PGM PREVIEW CARD -->
+                        <Border Background="{DynamicResource OverlayCardPgmBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" VerticalAlignment="Top">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <ProgressBar Name="AudioOutputL" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="0,0,10,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                                <StackPanel Orientation="Vertical">
+                                    <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource ImageBg}" Padding="2">
+                                        <Grid Width="480" Height="270" ClipToBounds="True">
+                                            <Image Name="PreviewOutput" Stretch="Uniform" Height="270" Width="480"/>
+                                            <Image Name="PreviewNdiOverlay" Stretch="Fill" Height="270" Width="480" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                            <Image Name="PreviewHtmlOverlay" Stretch="Fill" Height="270" Width="480" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                            <Canvas Width="480" Height="270" IsHitTestVisible="False" ClipToBounds="True">
+                                                <Image Name="PreviewLogoOverlay" Stretch="Fill" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                            </Canvas>
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                        <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,0,16,0" VerticalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                                        <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R (DeckLink phase fix)" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="10,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                                
+                                <StackPanel Orientation="Vertical" Margin="15,0,0,0" HorizontalAlignment="Center">
+                                    <TextBlock Text="VOL" Foreground="{DynamicResource TextMuted}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                    <Slider Name="SldPgmAudio" Orientation="Vertical" Height="250" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldPgmAudio_ValueChanged"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                        <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="15,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
-                        
-                        <StackPanel Orientation="Vertical" Margin="25,0,0,0" HorizontalAlignment="Center">
-                            <TextBlock Text="VOL" Foreground="{DynamicResource TextMuted}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                            <Slider Name="SldPgmAudio" Orientation="Vertical" Height="250" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldPgmAudio_ValueChanged"/>
-                        </StackPanel>
-<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="300" VerticalAlignment="Top" Margin="15,0,0,0" Focusable="False"><StackPanel Margin="0,0,6,0">
+                        </Border>
+<Border Background="{DynamicResource OverlayCardLogoBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="12,0,0,0" VerticalAlignment="Top">
+<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False"><StackPanel Margin="0,0,6,0">
                     <TextBlock Text="PGM LOGO OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
@@ -423,13 +433,15 @@
                     </Grid>
                     
 </StackPanel></ScrollViewer>
+</Border>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
             <!-- SWITCHER SCROLL VIEWER -->
-            <ScrollViewer Grid.Row="1" Name="SwitcherScrollViewer" AllowDrop="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" PanningMode="VerticalOnly" CanContentScroll="False">
-                <WrapPanel Name="SwitcherPanel" IsEnabled="False" Orientation="Horizontal" HorizontalAlignment="Center" AllowDrop="True">
+            <Border Grid.Row="1" Background="{DynamicResource SourcesSectionBg}" BorderBrush="{DynamicResource SourcesSectionBorder}" BorderThickness="1.5" CornerRadius="10" Padding="8">
+                <ScrollViewer Name="SwitcherScrollViewer" AllowDrop="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" PanningMode="VerticalOnly" CanContentScroll="False">
+                    <WrapPanel Name="SwitcherPanel" IsEnabled="False" Orientation="Horizontal" HorizontalAlignment="Center" AllowDrop="True" ItemWidth="245" MaxWidth="1470">
 
 
             <!-- Special Sources -->
@@ -502,10 +514,10 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="42"/>
+                                        <ColumnDefinition Width="46"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Sync:" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <Slider Name="SldYouTubeAudioDelay" Grid.Column="1" Minimum="0" Maximum="1000" Value="200" SmallChange="10" LargeChange="50" TickFrequency="50" IsSnapToTickEnabled="False" VerticalAlignment="Center" ValueChanged="SldYouTubeAudioDelay_ValueChanged"/>
+                                    <Slider Name="SldYouTubeAudioDelay" Grid.Column="1" Minimum="0" Maximum="60000" Value="200" SmallChange="50" LargeChange="500" TickFrequency="1000" IsSnapToTickEnabled="False" VerticalAlignment="Center" ValueChanged="SldYouTubeAudioDelay_ValueChanged"/>
                                     <TextBlock Name="TxtYouTubeAudioDelay" Grid.Column="2" Text="200ms" FontSize="10" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                 </Grid>
                             </StackPanel>
@@ -657,126 +669,173 @@
                     </StackPanel>
                 </Border>
 
-            </WrapPanel>
-            </ScrollViewer>
+                </WrapPanel>
+                </ScrollViewer>
+            </Border>
         </Grid>
 
-        <!-- SETTINGS PANEL -->
-        <Border Grid.Column="1" Style="{StaticResource MixerPanel}" Margin="25,0,0,0">
+        <!-- SETTINGS & OUTPUT PANEL -->
+        <Border Grid.Column="1" Style="{StaticResource MixerPanel}" Margin="16,0,0,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                 <StackPanel Margin="0,0,5,0">
-                    <TextBlock Text="SETTINGS" FontSize="16" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,20" FontWeight="Black"/>
-                    
-                    <TextBlock Text="Output Device:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <ComboBox Name="CmbOutput" Height="28" Margin="0,0,0,20" DisplayMemberPath="DisplayName"/>
-                    
-                    <ItemsControl Name="InputSelectorsControl">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="0,0,0,12">
-                                    <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                                    <ComboBox ItemsSource="{Binding AvailableDevices}" 
-                                              SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" 
-                                              DisplayMemberPath="DisplayName" Height="28"/>
-                                    <Grid Margin="0,4,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Format:" Foreground="{DynamicResource TextDim}" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableFormats}" 
-                                                  SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" 
-                                                  Height="24" FontSize="11"/>
-                                    </Grid>
+                    <!-- SETTINGS SECTION -->
+                    <Border Background="{DynamicResource SettingsSectionBg}" BorderBrush="{DynamicResource SettingsSectionBorder}" BorderThickness="1.5" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="SETTINGS" FontSize="15" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,14" FontWeight="Black"/>
+                            
+                            <TextBlock Text="Output Device:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox Name="CmbOutput" Height="28" Margin="0,0,0,14" DisplayMemberPath="DisplayName"/>
+                            
+                            <ItemsControl Name="InputSelectorsControl">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,10">
+                                            <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="6"/>
+                                                    <ColumnDefinition Width="118"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableDevices}" 
+                                                          SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" 
+                                                          DisplayMemberPath="DisplayName" Height="26" FontSize="11"
+                                                          ToolTip="{Binding SelectedDevice.DisplayName}"/>
+                                                <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableFormats}" 
+                                                          SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" 
+                                                          Height="26" FontSize="11"
+                                                          ToolTip="{Binding SelectedFormat}"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            
+                            <Grid Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Name="BtnApplySettings" Grid.Column="0" Content="Apply Settings &amp; Start" Height="34" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" Click="BtnApplySettings_Click" Cursor="Hand"/>
+                                <TextBlock Name="TxtStatus" Grid.Column="2" Foreground="#00e676" TextWrapping="Wrap" MaxWidth="110" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- OUTPUT SECTION -->
+                    <Border Background="{DynamicResource OutputSectionBg}" BorderBrush="{DynamicResource OutputSectionBorder}" BorderThickness="1.5" CornerRadius="8" Padding="10" Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="OUTPUTS" FontSize="15" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
+
+                    <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="YOUTUBE STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <TextBlock Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="118"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Name="TxtStreamKey" Grid.Column="0" Height="32" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
+                                <Button Name="BtnStream" Grid.Column="2" Content="START STREAM" Height="32" FontSize="11" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource OutputCardRecordBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="RECORDING PROFILES" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <TextBlock Text="Profile:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="124"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Name="CmbRecordingProfile" Grid.Column="0" Height="32" FontSize="11" DisplayMemberPath="DisplayName"/>
+                                <Button Name="BtnRecord" Grid.Column="2" Content="START RECORDING" Height="32" FontSize="10" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnRecord_Click" FontWeight="Black" Cursor="Hand"/>
+                            </Grid>
+                            
+                            <TextBlock Text="Recording Directory:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Name="TxtRecordingDirectory" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
+                                <Button Name="BtnBrowseRecordingDir" Grid.Column="1" Content="..." Width="30" Height="28" Margin="5,0,0,0" Background="#333333" Foreground="{DynamicResource TextPrimary}" Click="BtnBrowseRecordingDir_Click" Cursor="Hand"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource OutputCardNdiBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="NDI OUTPUT" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <TextBlock Text="Stream Name:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="118"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Name="TxtNdiName" Grid.Column="0" Text="DeckLink Switcher - Program" Height="32" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
+                                <Button Name="BtnNdi" Grid.Column="2" Content="START NDI" Height="32" FontSize="11" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{DynamicResource OutputCardSrtBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="SRT OUTPUT" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,4,0">
+                                    <TextBlock Text="Mode:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                                    <ComboBox Name="CmbSrtMode" Height="28" SelectionChanged="CmbSrtMode_SelectionChanged">
+                                        <ComboBoxItem Content="Caller" IsSelected="True"/>
+                                        <ComboBoxItem Content="Listener"/>
+                                    </ComboBox>
                                 </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    
-                    <Button Name="BtnApplySettings" Content="Apply Settings &amp; Start" Height="36" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" Click="BtnApplySettings_Click" Cursor="Hand" Margin="0,10,0,0"/>
-                    
-                    <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,20,0,15"/>
-                    
+                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                    <TextBlock Text="Port:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                                    <TextBox Name="TxtSrtPort" Text="9000" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                                </StackPanel>
+                            </Grid>
+                            
+                            <TextBlock Name="LblSrtHost" Text="Host / IP (Caller Mode):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtSrtHost" Text="127.0.0.1" Height="28" Margin="0,0,0,8" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                            
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,4,0">
+                                    <TextBlock Text="Latency (ms):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                                    <TextBox Name="TxtSrtLatency" Text="200" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                    <TextBlock Text="Stream ID (Optional):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                                    <TextBox Name="TxtSrtStreamId" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                                </StackPanel>
+                            </Grid>
 
-                    
-                    <TextBlock Text="YOUTUBE STREAMING" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
-                    <TextBlock Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtStreamKey" Margin="0,0,0,12" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
-                    <Button Name="BtnStream" Content="START STREAM" Height="40" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
-                    
-                    <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,20,0,15"/>
-                    
-                    <TextBlock Text="RECORDING PROFILES" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
-                    <TextBlock Text="Profile:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <ComboBox Name="CmbRecordingProfile" Height="28" Margin="0,0,0,12" DisplayMemberPath="DisplayName"/>
-                    
-                    <TextBlock Text="Recording Directory:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox Name="TxtRecordingDirectory" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
-                        <Button Name="BtnBrowseRecordingDir" Grid.Column="1" Content="..." Width="30" Height="28" Margin="5,0,0,0" Background="#333333" Foreground="{DynamicResource TextPrimary}" Click="BtnBrowseRecordingDir_Click" Cursor="Hand"/>
-                    </Grid>
-                    
-                    <Button Name="BtnRecord" Content="START RECORDING" Height="40" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnRecord_Click" FontWeight="Black" Cursor="Hand"/>
-                    
-                    <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,20,0,15"/>
-                    
-                    <TextBlock Text="NDI OUTPUT" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
-                    <TextBlock Text="Stream Name:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtNdiName" Text="DeckLink Switcher - Program" Height="28" Margin="0,0,0,12" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
-                    <Button Name="BtnNdi" Content="START NDI" Height="40" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
-                    
-                    <Rectangle Height="1" Fill="{DynamicResource DividerBrush}" Margin="0,20,0,15"/>
-                    
-                    <TextBlock Text="SRT OUTPUT" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,4,0">
-                            <TextBlock Text="Mode:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <ComboBox Name="CmbSrtMode" Height="28" SelectionChanged="CmbSrtMode_SelectionChanged">
-                                <ComboBoxItem Content="Caller" IsSelected="True"/>
-                                <ComboBoxItem Content="Listener"/>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="4,0,0,0">
-                            <TextBlock Text="Port:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtSrtPort" Text="9000" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
-                        </StackPanel>
-                    </Grid>
-                    
-                    <TextBlock Name="LblSrtHost" Text="Host / IP (Caller Mode):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtSrtHost" Text="127.0.0.1" Height="28" Margin="0,0,0,8" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
-                    
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,4,0">
-                            <TextBlock Text="Latency (ms):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtSrtLatency" Text="200" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="4,0,0,0">
-                            <TextBlock Text="Stream ID (Optional):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtSrtStreamId" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
-                        </StackPanel>
-                    </Grid>
+                            <TextBlock Text="Passphrase (Optional):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtSrtPassphrase" Height="28" Margin="0,0,0,8" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
 
-                    <TextBlock Text="Passphrase (Optional):" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtSrtPassphrase" Height="28" Margin="0,0,0,8" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" TextChanged="SrtInput_TextChanged"/>
+                            <TextBlock Text="SRT URL:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtSrtUrl" Text="srt://127.0.0.1:9000?mode=caller&amp;latency=200000" Height="28" Margin="0,0,0,12" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
 
-                    <TextBlock Text="SRT URL:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtSrtUrl" Text="srt://127.0.0.1:9000?mode=caller&amp;latency=200000" Height="28" Margin="0,0,0,12" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
-
-                    <Button Name="BtnSrt" Content="START SRT" Height="40" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnSrt_Click" FontWeight="Black" Cursor="Hand"/>
-                    
-                    <TextBlock Name="TxtStatus" Foreground="#00e676" TextWrapping="Wrap" Margin="0,15,0,0" FontSize="12" HorizontalAlignment="Center"/>
+                            <Button Name="BtnSrt" Content="START SRT" Height="36" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnSrt_Click" FontWeight="Black" Cursor="Hand"/>
+                        </StackPanel>
+                    </Border>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </Border>

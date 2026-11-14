@@ -297,7 +297,7 @@ namespace DecklinkSwitcher
                 return;
             }
 
-            int targetDelayShorts = (delayMs * 48000 / 1000) * 2;
+            long targetDelayShorts = ((long)delayMs * 48000L / 1000L) * 2L;
             lock (_delayLock)
             {
                 _delayQueue.Enqueue(packet);
