@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using System.Threading;
 using System.Threading.Tasks;
 using CefSharp;
@@ -26,7 +29,26 @@ namespace DecklinkSwitcher
         private const int FrameHeight = 1080;
         private const int BgraFrameBytes = FrameWidth * FrameHeight * 4;
         private const int UyvyFrameBytes = FrameWidth * FrameHeight * 2;
-        private const int TargetFps = 25;
+        private volatile int _targetFps = 60;
+
+        public int TargetFps
+        {
+            get => _targetFps;
+            set
+            {
+                int clamped = Math.Clamp(value, 5, 60);
+                _targetFps = clamped;
+                try
+                {
+                    if (_browser != null && !_browser.IsDisposed && _browser.IsBrowserInitialized)
+                    {
+                        var host = _browser.GetBrowserHost();
+                        if (host != null) host.WindowlessFrameRate = clamped;
+                    }
+                }
+                catch { }
+            }
+        }
 
         private static readonly object _cefInitLock = new object();
         private static bool _cefInitialized = false;
@@ -37,19 +59,42 @@ namespace DecklinkSwitcher
         private volatile bool _isRunning = false;
         private volatile bool _isDisposed = false;
         private bool _isMuted = false;
+        private readonly D3D11SharedTextureReader _d3d11Reader = new D3D11SharedTextureReader();
+        private bool _loggedAcceleratedPaint = false;
 
-        private readonly byte[] _paintCopy1080 = new byte[BgraFrameBytes];
-        private readonly byte[] _work1080 = new byte[BgraFrameBytes];
+        private byte[] _paintCopy1080 = new byte[BgraFrameBytes];
+        private byte[] _work1080 = new byte[BgraFrameBytes];
         private readonly object _paintSwapLock = new object();
         private volatile bool _hasPendingPaint = false;
         private int _isProcessingFrame = 0;
 
+        // Lightweight OSR telemetry (logged every 5s while painting)
+        private long _statWindowStartMs = 0;
+        private long _statLastPaintMs = 0;
+        private int _statPaintCount = 0;
+        private int _statDropCount = 0;
+        private long _statMaxPaintGapMs = 0;
+        private long _statProcTicksTotal = 0;
+        private int _statProcCount = 0;
+
         private readonly byte[] _latestPreview480 = new byte[480 * 270 * 4];
+        private readonly byte[][] _previewBuffers = { new byte[480 * 270 * 4], new byte[480 * 270 * 4] };
+        private int _previewPingPong = 0;
         private readonly byte[] _latestPgm1080Bgra = new byte[BgraFrameBytes];
         private readonly byte[] _latestUyvy1080 = new byte[UyvyFrameBytes];
+        private readonly byte[] _uyvyScratch1080 = new byte[UyvyFrameBytes];
         private readonly byte[] _deflickerUyvy1080 = new byte[UyvyFrameBytes];
+        private readonly int[] _rowMinX = new int[FrameHeight];
+        private readonly int[] _rowMaxX = new int[FrameHeight];
+        private byte[]? _ovScratchY, _ovScratchU, _ovScratchV, _ovScratchA;
+        private readonly byte[][] _ovPoolY = new byte[2][];
+        private readonly byte[][] _ovPoolU = new byte[2][];
+        private readonly byte[][] _ovPoolV = new byte[2][];
+        private readonly byte[][] _ovPoolA = new byte[2][];
+        private int _ovPingPong = 0;
         private readonly object _bufferLock = new object();
         private bool _hasCapturedFrame = false;
+        private long _lastPreviewDispatchMs = 0;
 
         public Action<byte[]>? OnPreviewBufferUpdated;
         public Action<string, bool, bool>? OnStatusChanged; // (status, isLive, isError)
@@ -127,6 +172,7 @@ namespace DecklinkSwitcher
                         settings.CefCommandLineArgs.Add("disable-renderer-backgrounding", "1");
                         settings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
                         settings.CefCommandLineArgs.Add("force-device-scale-factor", "1");
+                        settings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
 
                         initResult = Cef.Initialize(settings, performDependencyCheck: true, browserProcessHandler: null);
                     };
@@ -191,13 +237,13 @@ namespace DecklinkSwitcher
 
             var browserSettings = new BrowserSettings
             {
-                WindowlessFrameRate = TargetFps,
+                WindowlessFrameRate = _targetFps,
                 BackgroundColor = _isTransparentOverlay ? 0x00000000u : 0xFF000000u
             };
 
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var browser = new ChromiumWebBrowser(initialUrl, browserSettings)
+            var browser = new ChromiumWebBrowser(initialUrl, browserSettings, requestContext: null, automaticallyCreateBrowser: false)
             {
                 Size = new System.Drawing.Size(FrameWidth, FrameHeight)
             };
@@ -206,7 +252,9 @@ namespace DecklinkSwitcher
             {
                 try
                 {
-                    browser.GetBrowserHost()?.SetAudioMuted(_isMuted);
+                    var host = browser.GetBrowserHost();
+                    host?.SetAudioMuted(_isMuted);
+                    if (host != null) host.WindowlessFrameRate = _targetFps;
                 }
                 catch { }
                 tcs.TrySetResult(true);
@@ -243,11 +291,23 @@ namespace DecklinkSwitcher
             };
 
             browser.Paint += OnBrowserPaint;
+            browser.RenderHandler = new AcceleratedRenderHandler(browser, this);
             _browser = browser;
+
+            var windowInfo = new WindowInfo();
+            windowInfo.SetAsWindowless(IntPtr.Zero);
+            windowInfo.SharedTextureEnabled = true;
+            browser.CreateBrowser(windowInfo, browserSettings);
 
             if (browser.IsBrowserInitialized)
             {
-                try { browser.GetBrowserHost()?.SetAudioMuted(_isMuted); } catch { }
+                try
+                {
+                    var host = browser.GetBrowserHost();
+                    host?.SetAudioMuted(_isMuted);
+                    if (host != null) host.WindowlessFrameRate = _targetFps;
+                }
+                catch { }
                 tcs.TrySetResult(true);
             }
 
@@ -280,8 +340,10 @@ namespace DecklinkSwitcher
 
             try
             {
-                _browser.GetBrowserHost()?.WasHidden(false);
-                _browser.GetBrowserHost()?.SetAudioMuted(_isMuted);
+                var host = _browser.GetBrowserHost();
+                host?.WasHidden(false);
+                host?.SetAudioMuted(_isMuted);
+                if (host != null) host.WindowlessFrameRate = _targetFps;
                 if (!wasCreated)
                 {
                     _browser.Load(url);
@@ -323,6 +385,67 @@ namespace DecklinkSwitcher
             OnStatusChanged?.Invoke("OFFLINE", false, false);
         }
 
+        private void RecordPaintStatsLocked()
+        {
+            long nowMs = Environment.TickCount64;
+            if (_statWindowStartMs == 0) _statWindowStartMs = nowMs;
+            if (_statLastPaintMs != 0)
+            {
+                long gap = nowMs - _statLastPaintMs;
+                if (gap > _statMaxPaintGapMs) _statMaxPaintGapMs = gap;
+            }
+            _statLastPaintMs = nowMs;
+            _statPaintCount++;
+            if (_hasPendingPaint) _statDropCount++;
+        }
+
+        internal void HandleAcceleratedPaint(AcceleratedPaintInfo info)
+        {
+            if (!_isRunning || _isDisposed || info.SharedTextureHandle == IntPtr.Zero) return;
+
+            bool copied;
+            lock (_paintSwapLock)
+            {
+                copied = _d3d11Reader.TryCopySharedTexture(info.SharedTextureHandle, FrameWidth, FrameHeight, _paintCopy1080);
+                if (copied)
+                {
+                    RecordPaintStatsLocked();
+                    _hasPendingPaint = true;
+                }
+            }
+
+            if (copied)
+            {
+                if (!_loggedAcceleratedPaint)
+                {
+                    _loggedAcceleratedPaint = true;
+                    MainWindow.Log($"[HtmlBrowserSource:{_instanceName}] Using D3D11 OnAcceleratedPaint (SharedTextureEnabled)");
+                }
+                if (Interlocked.CompareExchange(ref _isProcessingFrame, 1, 0) == 0)
+                {
+                    Task.Run(ProcessPendingFramesLoop);
+                }
+            }
+        }
+
+        private sealed class AcceleratedRenderHandler : DefaultRenderHandler
+        {
+            private readonly HtmlBrowserSource _owner;
+
+            public AcceleratedRenderHandler(ChromiumWebBrowser browser, HtmlBrowserSource owner) : base(browser)
+            {
+                _owner = owner;
+            }
+
+            public override void OnAcceleratedPaint(PaintElementType type, CefSharp.Structs.Rect dirtyRect, AcceleratedPaintInfo acceleratedPaintInfo)
+            {
+                if (type == PaintElementType.View)
+                {
+                    _owner.HandleAcceleratedPaint(acceleratedPaintInfo);
+                }
+            }
+        }
+
         private unsafe void OnBrowserPaint(object? sender, OnPaintEventArgs e)
         {
             if (!_isRunning || e.IsPopup || e.BufferHandle == IntPtr.Zero) return;
@@ -330,6 +453,8 @@ namespace DecklinkSwitcher
 
             lock (_paintSwapLock)
             {
+                RecordPaintStatsLocked();
+
                 fixed (byte* dst = _paintCopy1080)
                 {
                     Buffer.MemoryCopy((void*)e.BufferHandle, dst, BgraFrameBytes, BgraFrameBytes);
@@ -355,13 +480,44 @@ namespace DecklinkSwitcher
                         hasFrame = _hasPendingPaint;
                         if (hasFrame)
                         {
-                            Buffer.BlockCopy(_paintCopy1080, 0, _work1080, 0, BgraFrameBytes);
+                            // Zero-copy reference swap instead of 8.3 MB BlockCopy
+                            (_paintCopy1080, _work1080) = (_work1080, _paintCopy1080);
                             _hasPendingPaint = false;
                         }
                     }
 
                     if (!hasFrame) break;
+                    long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     ProcessBgra1080Frame(_work1080);
+                    long elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+                    _statProcTicksTotal += elapsed;
+                    _statProcCount++;
+
+                    long nowMs = Environment.TickCount64;
+                    long winStart = _statWindowStartMs;
+                    if (winStart != 0 && (nowMs - winStart) >= 5000)
+                    {
+                        int paints, drops;
+                        long maxGap;
+                        lock (_paintSwapLock)
+                        {
+                            paints = _statPaintCount;
+                            drops = _statDropCount;
+                            maxGap = _statMaxPaintGapMs;
+                            _statPaintCount = 0;
+                            _statDropCount = 0;
+                            _statMaxPaintGapMs = 0;
+                            _statWindowStartMs = nowMs;
+                        }
+                        double secs = (nowMs - winStart) / 1000.0;
+                        double fps = paints / secs;
+                        double avgProcMs = _statProcCount > 0
+                            ? (_statProcTicksTotal * 1000.0 / System.Diagnostics.Stopwatch.Frequency) / _statProcCount
+                            : 0.0;
+                        _statProcTicksTotal = 0;
+                        _statProcCount = 0;
+                        MainWindow.Log($"[HtmlBrowserSource:{_instanceName}] OSR 5s: targetFps={_targetFps}, paintFps={fps:F1}, dropped={drops}, maxGap={maxGap}ms, avgProc={avgProcMs:F2}ms");
+                    }
                 }
             }
             catch (Exception ex)
@@ -406,27 +562,62 @@ namespace DecklinkSwitcher
 
         private unsafe void ProcessBgra1080Frame(byte[] bgra1080)
         {
-            byte[] prevCopy = new byte[480 * 270 * 4];
-            Downsample480x270(bgra1080, prevCopy);
+            long nowMs = Environment.TickCount64;
+            bool emitPreview = (nowMs - _lastPreviewDispatchMs) >= 15;
+            byte[]? prevCopy = null;
+            if (emitPreview)
+            {
+                _lastPreviewDispatchMs = nowMs;
+                _previewPingPong ^= 1;
+                prevCopy = _previewBuffers[_previewPingPong];
+                Downsample480x270(bgra1080, prevCopy);
+            }
 
             if (_isTransparentOverlay)
             {
                 fixed (byte* scan0 = bgra1080)
                 {
                     const int stride = FrameWidth * 4;
+                    byte* basePtr = scan0;
+                    int[] rowMinX = _rowMinX;
+                    int[] rowMaxX = _rowMaxX;
+                    Parallel.For(0, FrameHeight, y =>
+                    {
+                        uint* row32 = (uint*)(basePtr + y * stride);
+                        int rMin = FrameWidth;
+                        int rMax = -1;
+                        for (int x = 0; x < FrameWidth; x++)
+                        {
+                            if ((row32[x] & 0xFF000000u) != 0)
+                            {
+                                rMin = x;
+                                break;
+                            }
+                        }
+                        if (rMin < FrameWidth)
+                        {
+                            for (int x = FrameWidth - 1; x >= rMin; x--)
+                            {
+                                if ((row32[x] & 0xFF000000u) != 0)
+                                {
+                                    rMax = x;
+                                    break;
+                                }
+                            }
+                        }
+                        rowMinX[y] = rMin;
+                        rowMaxX[y] = rMax;
+                    });
+
                     int minX = FrameWidth, maxX = -1, minY = FrameHeight, maxY = -1;
                     for (int y = 0; y < FrameHeight; y++)
                     {
-                        byte* row = scan0 + y * stride;
-                        for (int x = 0; x < FrameWidth; x++)
+                        if (rowMaxX[y] >= 0)
                         {
-                            if (row[x * 4 + 3] > 0)
-                            {
-                                if (x < minX) minX = x;
-                                if (x > maxX) maxX = x;
-                                if (y < minY) minY = y;
-                                if (y > maxY) maxY = y;
-                            }
+                            if (rowMinX[y] < minX) minX = rowMinX[y];
+                            if (rowMaxX[y] > maxX) maxX = rowMaxX[y];
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
                         }
                     }
 
@@ -446,19 +637,63 @@ namespace DecklinkSwitcher
                         int boxH = maxY - minY + 1;
                         int total = boxW * boxH;
 
-                        byte[] yArr = new byte[total];
-                        byte[] uArr = new byte[total];
-                        byte[] vArr = new byte[total];
-                        byte[] aArr = new byte[total];
-
-                        for (int by = 0; by < boxH; by++)
+                        int slot = _ovPingPong ^ 1;
+                        _ovPingPong = slot;
+                        if (_ovPoolY[slot] == null || _ovPoolY[slot].Length < total)
                         {
-                            byte* row = scan0 + (minY + by) * stride + minX * 4;
+                            const int maxTotal = FrameWidth * FrameHeight;
+                            _ovPoolY[slot] = new byte[maxTotal];
+                            _ovPoolU[slot] = new byte[maxTotal];
+                            _ovPoolV[slot] = new byte[maxTotal];
+                            _ovPoolA[slot] = new byte[maxTotal];
+                        }
+
+                        byte[] yOut = _ovPoolY[slot];
+                        byte[] uOut = _ovPoolU[slot];
+                        byte[] vOut = _ovPoolV[slot];
+                        byte[] aOut = _ovPoolA[slot];
+
+                        byte[] yArr;
+                        byte[] uArr;
+                        byte[] vArr;
+                        byte[] aArr;
+
+                        if (boxH >= 3)
+                        {
+                            if (_ovScratchY == null || _ovScratchY.Length < total)
+                            {
+                                const int maxTotal = FrameWidth * FrameHeight;
+                                _ovScratchY = new byte[maxTotal];
+                                _ovScratchU = new byte[maxTotal];
+                                _ovScratchV = new byte[maxTotal];
+                                _ovScratchA = new byte[maxTotal];
+                            }
+                            yArr = _ovScratchY;
+                            uArr = _ovScratchU!;
+                            vArr = _ovScratchV!;
+                            aArr = _ovScratchA!;
+                        }
+                        else
+                        {
+                            yArr = yOut;
+                            uArr = uOut;
+                            vArr = vOut;
+                            aArr = aOut;
+                        }
+
+                        Action<int> convertRow = (by) =>
+                        {
+                            byte* row = basePtr + (minY + by) * stride + minX * 4;
                             int rowOffset = by * boxW;
                             for (int bx = 0; bx < boxW; bx++)
                             {
+                                int idx = rowOffset + bx;
                                 byte a = row[bx * 4 + 3];
-                                if (a == 0) continue;
+                                if (a == 0)
+                                {
+                                    aArr[idx] = 0;
+                                    continue;
+                                }
 
                                 byte b = row[bx * 4 + 0];
                                 byte g = row[bx * 4 + 1];
@@ -472,22 +707,21 @@ namespace DecklinkSwitcher
                                 if (uVal < 16) uVal = 16; else if (uVal > 240) uVal = 240;
                                 if (vVal < 16) vVal = 16; else if (vVal > 240) vVal = 240;
 
-                                int idx = rowOffset + bx;
                                 yArr[idx] = (byte)yVal;
                                 uArr[idx] = (byte)uVal;
                                 vArr[idx] = (byte)vVal;
                                 aArr[idx] = a;
                             }
-                        }
+                        };
+
+                        if (boxH >= 64)
+                            Parallel.For(0, boxH, convertRow);
+                        else
+                            for (int by = 0; by < boxH; by++) convertRow(by);
 
                         // 1080i vertical 1-2-1 broadcast deflicker
                         if (boxH >= 3)
                         {
-                            byte[] yOut = new byte[total];
-                            byte[] uOut = new byte[total];
-                            byte[] vOut = new byte[total];
-                            byte[] aOut = new byte[total];
-
                             Action<int> filterRow = (by) =>
                             {
                                 int topRow = (by > 0 ? by - 1 : 0) * boxW;
@@ -501,7 +735,11 @@ namespace DecklinkSwitcher
                                     int aT = aArr[tIdx];
                                     int aM = aArr[mIdx];
                                     int aB = aArr[bIdx];
-                                    if ((aT | aM | aB) == 0) continue;
+                                    if ((aT | aM | aB) == 0)
+                                    {
+                                        aOut[mIdx] = 0;
+                                        continue;
+                                    }
 
                                     if (aT == 255 && aM == 255 && aB == 255)
                                     {
@@ -526,11 +764,6 @@ namespace DecklinkSwitcher
                                 Parallel.For(0, boxH, filterRow);
                             else
                                 for (int by = 0; by < boxH; by++) filterRow(by);
-
-                            yArr = yOut;
-                            uArr = uOut;
-                            vArr = vOut;
-                            aArr = aOut;
                         }
 
                         OnOverlayFrameUpdated?.Invoke(new PreparedHtmlOverlayFrame
@@ -539,53 +772,69 @@ namespace DecklinkSwitcher
                             StartY = minY,
                             Width = boxW,
                             Height = boxH,
-                            Y = yArr,
-                            U = uArr,
-                            V = vArr,
-                            A = aArr
+                            Y = yOut,
+                            U = uOut,
+                            V = vOut,
+                            A = aOut
                         });
                     }
                 }
 
-                OnPreviewBufferUpdated?.Invoke(prevCopy);
+                if (prevCopy != null)
+                {
+                    OnPreviewBufferUpdated?.Invoke(prevCopy);
+                }
             }
             else
             {
-                lock (_bufferLock)
+                bool isPgmActive = MainWindow.ActiveSourceType == 7;
+                if (isPgmActive)
                 {
-                    Buffer.BlockCopy(bgra1080, 0, _latestPgm1080Bgra, 0, BgraFrameBytes);
-                    Buffer.BlockCopy(prevCopy, 0, _latestPreview480, 0, prevCopy.Length);
-                    _hasCapturedFrame = true;
-                }
+                    MainWindow.ConvertBgra1080ToUyvy1080(bgra1080, _uyvyScratch1080);
+                    ApplyVerticalDeflickerUyvy1080(_uyvyScratch1080, _deflickerUyvy1080);
 
-                byte[] uyvy = MainWindow.ConvertBgra1080ToUyvy1080(_latestPgm1080Bgra);
-                ApplyVerticalDeflickerUyvy1080(uyvy, _deflickerUyvy1080);
-                lock (_bufferLock)
-                {
-                    Buffer.BlockCopy(_deflickerUyvy1080, 0, _latestUyvy1080, 0, _deflickerUyvy1080.Length);
-                }
-
-                lock (MainWindow._pgmLock)
-                {
-                    if (MainWindow.LatestHtmlSourceUyvy == null || MainWindow.LatestHtmlSourceUyvy.Length != UyvyFrameBytes)
-                        MainWindow.LatestHtmlSourceUyvy = new byte[UyvyFrameBytes];
-                    Buffer.BlockCopy(_deflickerUyvy1080, 0, MainWindow.LatestHtmlSourceUyvy, 0, _deflickerUyvy1080.Length);
-
-                    if (MainWindow.ActiveSourceType == 7)
+                    lock (_bufferLock)
                     {
-                        if (MainWindow._latestPgmFrame == null || MainWindow._latestPgmFrame.Length != BgraFrameBytes)
-                            MainWindow._latestPgmFrame = new byte[BgraFrameBytes];
-                        Buffer.BlockCopy(_latestPgm1080Bgra, 0, MainWindow._latestPgmFrame, 0, BgraFrameBytes);
+                        if (prevCopy != null)
+                        {
+                            Buffer.BlockCopy(bgra1080, 0, _latestPgm1080Bgra, 0, BgraFrameBytes);
+                            Buffer.BlockCopy(prevCopy, 0, _latestPreview480, 0, prevCopy.Length);
+                        }
+                        Buffer.BlockCopy(_deflickerUyvy1080, 0, _latestUyvy1080, 0, _deflickerUyvy1080.Length);
+                        _hasCapturedFrame = true;
+                    }
+
+                    lock (MainWindow._pgmLock)
+                    {
+                        if (MainWindow.LatestHtmlSourceUyvy == null || MainWindow.LatestHtmlSourceUyvy.Length != UyvyFrameBytes)
+                            MainWindow.LatestHtmlSourceUyvy = new byte[UyvyFrameBytes];
+                        Buffer.BlockCopy(_deflickerUyvy1080, 0, MainWindow.LatestHtmlSourceUyvy, 0, _deflickerUyvy1080.Length);
+                    }
+                }
+                else
+                {
+                    lock (_bufferLock)
+                    {
+                        if (prevCopy != null)
+                        {
+                            Buffer.BlockCopy(bgra1080, 0, _latestPgm1080Bgra, 0, BgraFrameBytes);
+                            Buffer.BlockCopy(prevCopy, 0, _latestPreview480, 0, prevCopy.Length);
+                        }
+                        _hasCapturedFrame = true;
                     }
                 }
 
-                OnPreviewBufferUpdated?.Invoke(prevCopy);
+                if (prevCopy != null)
+                {
+                    OnPreviewBufferUpdated?.Invoke(prevCopy);
+                }
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe void ApplyVerticalDeflickerUyvy1080(byte[] src, byte[] dst)
         {
-            const int rowBytes = FrameWidth * 2;
+            const int rowBytes = FrameWidth * 2; // 3840 (multiple of 32 and 16)
             const int height = FrameHeight;
             Buffer.BlockCopy(src, 0, dst, 0, rowBytes);
             Buffer.BlockCopy(src, (height - 1) * rowBytes, dst, (height - 1) * rowBytes, rowBytes);
@@ -595,13 +844,39 @@ namespace DecklinkSwitcher
             {
                 byte* srcPtr = pSrc;
                 byte* dstPtr = pDst;
+                bool useAvx2 = Avx2.IsSupported;
+                bool useSse2 = !useAvx2 && Sse2.IsSupported;
+
                 Parallel.For(1, height - 1, y =>
                 {
                     byte* sTop = srcPtr + (y - 1) * rowBytes;
                     byte* sMid = srcPtr + y * rowBytes;
                     byte* sBot = srcPtr + (y + 1) * rowBytes;
                     byte* dRow = dstPtr + y * rowBytes;
-                    for (int i = 0; i < rowBytes; i++)
+                    int i = 0;
+                    if (useAvx2)
+                    {
+                        for (; i <= rowBytes - 32; i += 32)
+                        {
+                            Vector256<byte> vTop = Avx.LoadVector256(sTop + i);
+                            Vector256<byte> vMid = Avx.LoadVector256(sMid + i);
+                            Vector256<byte> vBot = Avx.LoadVector256(sBot + i);
+                            Vector256<byte> vAvg = Avx2.Average(Avx2.Average(vTop, vBot), vMid);
+                            Avx.Store(dRow + i, vAvg);
+                        }
+                    }
+                    else if (useSse2)
+                    {
+                        for (; i <= rowBytes - 16; i += 16)
+                        {
+                            Vector128<byte> vTop = Sse2.LoadVector128(sTop + i);
+                            Vector128<byte> vMid = Sse2.LoadVector128(sMid + i);
+                            Vector128<byte> vBot = Sse2.LoadVector128(sBot + i);
+                            Vector128<byte> vAvg = Sse2.Average(Sse2.Average(vTop, vBot), vMid);
+                            Sse2.Store(dRow + i, vAvg);
+                        }
+                    }
+                    for (; i < rowBytes; i++)
                     {
                         dRow[i] = (byte)((sTop[i] + (sMid[i] << 1) + sBot[i] + 2) >> 2);
                     }
@@ -634,6 +909,7 @@ namespace DecklinkSwitcher
             Stop();
             try { _browser?.Dispose(); } catch { }
             _browser = null;
+            _d3d11Reader.Dispose();
         }
     }
 }

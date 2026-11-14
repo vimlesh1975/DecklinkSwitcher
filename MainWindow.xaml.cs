@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
@@ -597,15 +598,23 @@ namespace DecklinkSwitcher
                 HtmlBrowserSource.ShutdownCef();
                 _systemAudioSource?.Dispose();
                 SystemAudioPlayer.Shutdown();
+                try { timeEndPeriod(1); } catch { }
                 Log("Resources released.");
                 Environment.Exit(0);
             });
         }
 
+        [DllImport("winmm.dll")]
+        private static extern uint timeBeginPeriod(uint uMilliseconds);
+
+        [DllImport("winmm.dll")]
+        private static extern uint timeEndPeriod(uint uMilliseconds);
+
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
+                try { timeBeginPeriod(1); } catch { }
                 StartDesktopCaptureLoop();
                 Log("Window loaded. Discovering hardware...");
                 
@@ -1852,6 +1861,26 @@ namespace DecklinkSwitcher
             _htmlOverlaySource?.Stop();
             SetHtmlOverlayActiveState(false);
             SaveCurrentSettings();
+        }
+
+        private void CmbHtmlOverlayFps_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_htmlOverlaySource != null && CmbHtmlOverlayFps.SelectedItem is ComboBoxItem item &&
+                int.TryParse(item.Tag?.ToString(), out int fps))
+            {
+                _htmlOverlaySource.TargetFps = fps;
+                Log($"[HtmlOverlay] TargetFps set to {fps}");
+            }
+        }
+
+        private void CmbHtmlSourceFps_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_htmlSource != null && CmbHtmlSourceFps.SelectedItem is ComboBoxItem item &&
+                int.TryParse(item.Tag?.ToString(), out int fps))
+            {
+                _htmlSource.TargetFps = fps;
+                Log($"[HtmlSource] TargetFps set to {fps}");
+            }
         }
 
         private async void BtnToggleHtmlOverlay_Click(object sender, RoutedEventArgs e)
@@ -3952,10 +3981,17 @@ namespace DecklinkSwitcher
             return uyvy;
         }
 
-        internal static unsafe byte[] ConvertBgra1080ToUyvy1080(byte[] bgra)
+        internal static byte[] ConvertBgra1080ToUyvy1080(byte[] bgra)
         {
-            int dstW = 1920, dstH = 1080;
-            byte[] uyvy = new byte[dstH * dstW * 2];
+            byte[] uyvy = new byte[1080 * 1920 * 2];
+            ConvertBgra1080ToUyvy1080(bgra, uyvy);
+            return uyvy;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        internal static unsafe void ConvertBgra1080ToUyvy1080(byte[] bgra, byte[] uyvy)
+        {
+            const int dstW = 1920, dstH = 1080;
             fixed (byte* pBgra = bgra)
             fixed (byte* pUyvy = uyvy)
             {
@@ -3963,22 +3999,22 @@ namespace DecklinkSwitcher
                 IntPtr ptrUyvy = (IntPtr)pUyvy;
                 Parallel.For(0, dstH, y =>
                 {
-                    byte* srcBase = (byte*)ptrBgra;
-                    byte* dstBase = (byte*)ptrUyvy;
-                    int rowOffset = y * dstW * 4;
-                    int dstRow = y * dstW * 2;
-                    byte* srcRow = srcBase + rowOffset;
-                    byte* dstRowPtr = dstBase + dstRow;
-                    for (int x = 0; x < dstW; x += 2)
+                    uint* srcRow32 = (uint*)((byte*)ptrBgra + y * (dstW * 4));
+                    uint* dstRow32 = (uint*)((byte*)ptrUyvy + y * (dstW * 2));
+                    int pairs = dstW >> 1;
+                    for (int p = 0; p < pairs; p++)
                     {
-                        byte b1 = srcRow[x * 4];
-                        byte g1 = srcRow[x * 4 + 1];
-                        byte r1 = srcRow[x * 4 + 2];
-                        
-                        byte b2 = srcRow[x * 4 + 4];
-                        byte g2 = srcRow[x * 4 + 5];
-                        byte r2 = srcRow[x * 4 + 6];
-                        
+                        uint px1 = srcRow32[p * 2];
+                        uint px2 = srcRow32[p * 2 + 1];
+
+                        int b1 = (int)(px1 & 0xFF);
+                        int g1 = (int)((px1 >> 8) & 0xFF);
+                        int r1 = (int)((px1 >> 16) & 0xFF);
+
+                        int b2 = (int)(px2 & 0xFF);
+                        int g2 = (int)((px2 >> 8) & 0xFF);
+                        int r2 = (int)((px2 >> 16) & 0xFF);
+
                         int rAvg = (r1 + r2) >> 1;
                         int gAvg = (g1 + g2) >> 1;
                         int bAvg = (b1 + b2) >> 1;
@@ -3993,14 +4029,10 @@ namespace DecklinkSwitcher
                         if (U1 < 16) U1 = 16; else if (U1 > 240) U1 = 240;
                         if (V1 < 16) V1 = 16; else if (V1 > 240) V1 = 240;
 
-                        dstRowPtr[x * 2] = (byte)U1;
-                        dstRowPtr[x * 2 + 1] = (byte)Y1;
-                        dstRowPtr[x * 2 + 2] = (byte)V1;
-                        dstRowPtr[x * 2 + 3] = (byte)Y2;
+                        dstRow32[p] = (uint)(U1 | (Y1 << 8) | (V1 << 16) | (Y2 << 24));
                     }
                 });
             }
-            return uyvy;
         }
 
         private void StartDesktopCaptureLoop()
