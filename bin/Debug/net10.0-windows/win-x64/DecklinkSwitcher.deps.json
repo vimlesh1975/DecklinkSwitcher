@@ -9,18 +9,130 @@
     ".NETCoreApp,Version=v10.0/win-x64": {
       "DecklinkSwitcher/1.0.0": {
         "dependencies": {
+          "CefSharp.OffScreen.NETCore": "156.0.150",
           "FlashCap": "1.12.0",
           "LibVLCSharp": "3.10.1",
-          "Microsoft.Web.WebView2": "1.0.4314.35",
           "NAudio": "3.1.0",
           "YoutubeExplode": "6.6.3",
-          "DeckLinkAPI.Interop": "1.0.0.0",
-          "Microsoft.Web.WebView2.Core": "1.0.4314.35",
-          "Microsoft.Web.WebView2.WinForms": "1.0.4314.35",
-          "Microsoft.Web.WebView2.Wpf": "1.0.4314.35"
+          "DeckLinkAPI.Interop": "1.0.0.0"
         },
         "runtime": {
           "DecklinkSwitcher.dll": {}
+        }
+      },
+      "CefSharp.Common.NETCore/156.0.150": {
+        "dependencies": {
+          "chromiumembeddedframework.runtime": "156.0.15"
+        },
+        "runtime": {
+          "runtimes/win-x64/lib/net6.0/CefSharp.Core.Runtime.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.Core.Runtime.dll"
+          },
+          "runtimes/win-x64/lib/net6.0/CefSharp.Core.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.Core.dll"
+          },
+          "runtimes/win-x64/lib/net6.0/CefSharp.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.dll"
+          },
+          "runtimes/win-x64/lib/net6.0/Ijwhost.dll": {
+            "fileVersion": "6.0.3324.36610",
+            "localPath": "Ijwhost.dll"
+          }
+        },
+        "native": {
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.Core.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.BrowserSubprocess.Core.dll"
+          },
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.BrowserSubprocess.dll"
+          },
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.exe": {
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.BrowserSubprocess.exe"
+          },
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.runtimeconfig.json": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "CefSharp.BrowserSubprocess.runtimeconfig.json"
+          }
+        }
+      },
+      "CefSharp.OffScreen.NETCore/156.0.150": {
+        "dependencies": {
+          "CefSharp.Common.NETCore": "156.0.150"
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/CefSharp.OffScreen.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.OffScreen.dll"
+          }
+        }
+      },
+      "chromiumembeddedframework.runtime/156.0.15": {
+        "dependencies": {
+          "chromiumembeddedframework.runtime.win-x64": "156.0.15"
+        }
+      },
+      "chromiumembeddedframework.runtime.win-x64/156.0.15": {
+        "native": {
+          "runtimes/win-x64/native/chrome_100_percent.pak": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "chrome_100_percent.pak"
+          },
+          "runtimes/win-x64/native/chrome_200_percent.pak": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "chrome_200_percent.pak"
+          },
+          "runtimes/win-x64/native/chrome_elf.dll": {
+            "fileVersion": "156.0.8078.80",
+            "localPath": "chrome_elf.dll"
+          },
+          "runtimes/win-x64/native/d3dcompiler_47.dll": {
+            "fileVersion": "10.0.28000.2270",
+            "localPath": "d3dcompiler_47.dll"
+          },
+          "runtimes/win-x64/native/dxcompiler.dll": {
+            "fileVersion": "1.9.2609.0",
+            "localPath": "dxcompiler.dll"
+          },
+          "runtimes/win-x64/native/icudtl.dat": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "icudtl.dat"
+          },
+          "runtimes/win-x64/native/libcef.dll": {
+            "fileVersion": "156.0.15.0",
+            "localPath": "libcef.dll"
+          },
+          "runtimes/win-x64/native/resources.pak": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "resources.pak"
+          },
+          "runtimes/win-x64/native/v8_context_snapshot.bin": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "v8_context_snapshot.bin"
+          },
+          "runtimes/win-x64/native/vk_swiftshader.dll": {
+            "fileVersion": "5.0.0.1",
+            "localPath": "vk_swiftshader.dll"
+          },
+          "runtimes/win-x64/native/vk_swiftshader_icd.json": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "vk_swiftshader_icd.json"
+          },
+          "runtimes/win-x64/native/vulkan-1.dll": {
+            "fileVersion": "1.4.364.0",
+            "localPath": "vulkan-1.dll"
+          }
         }
       },
       "FlashCap/1.12.0": {
@@ -30,7 +142,8 @@
         "runtime": {
           "lib/net10.0/FlashCap.dll": {
             "assemblyVersion": "1.12.0.0",
-            "fileVersion": "2026.8.24.34791"
+            "fileVersion": "2026.8.24.34791",
+            "localPath": "FlashCap.dll"
           }
         }
       },
@@ -38,7 +151,8 @@
         "runtime": {
           "lib/net10.0/FlashCap.Core.dll": {
             "assemblyVersion": "1.12.0.0",
-            "fileVersion": "2026.8.24.34791"
+            "fileVersion": "2026.8.24.34791",
+            "localPath": "FlashCap.Core.dll"
           }
         }
       },
@@ -46,14 +160,8 @@
         "runtime": {
           "lib/net10.0/LibVLCSharp.dll": {
             "assemblyVersion": "3.10.1.0",
-            "fileVersion": "3.10.1.0"
-          }
-        }
-      },
-      "Microsoft.Web.WebView2/1.0.4314.35": {
-        "native": {
-          "runtimes/win-x64/native/WebView2Loader.dll": {
-            "fileVersion": "1.0.4314.35"
+            "fileVersion": "3.10.1.0",
+            "localPath": "LibVLCSharp.dll"
           }
         }
       },
@@ -70,7 +178,8 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.dll"
           }
         }
       },
@@ -81,7 +190,8 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.Asio.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Asio.dll"
           }
         }
       },
@@ -92,7 +202,8 @@
         "runtime": {
           "lib/net9.0/NAudio.Core.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Core.dll"
           }
         }
       },
@@ -103,7 +214,8 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.Dmo.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Dmo.dll"
           }
         }
       },
@@ -114,7 +226,8 @@
         "runtime": {
           "lib/net9.0/NAudio.Midi.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Midi.dll"
           }
         }
       },
@@ -125,7 +238,8 @@
         "runtime": {
           "lib/net9.0/NAudio.Wasapi.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Wasapi.dll"
           }
         }
       },
@@ -136,7 +250,8 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.WinForms.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.WinForms.dll"
           }
         }
       },
@@ -148,7 +263,8 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.WinMM.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0"
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.WinMM.dll"
           }
         }
       },
@@ -156,7 +272,8 @@
         "runtime": {
           "lib/net9.0/System.Numerics.Tensors.dll": {
             "assemblyVersion": "9.0.0.0",
-            "fileVersion": "9.0.24.52809"
+            "fileVersion": "9.0.24.52809",
+            "localPath": "System.Numerics.Tensors.dll"
           }
         }
       },
@@ -164,7 +281,8 @@
         "runtime": {
           "lib/net10.0/YoutubeExplode.dll": {
             "assemblyVersion": "6.6.3.0",
-            "fileVersion": "6.6.3.0"
+            "fileVersion": "6.6.3.0",
+            "localPath": "YoutubeExplode.dll"
           }
         }
       },
@@ -175,30 +293,6 @@
             "fileVersion": "1.0.0.0"
           }
         }
-      },
-      "Microsoft.Web.WebView2.Core/1.0.4314.35": {
-        "runtime": {
-          "Microsoft.Web.WebView2.Core.dll": {
-            "assemblyVersion": "1.0.4314.35",
-            "fileVersion": "1.0.4314.35"
-          }
-        }
-      },
-      "Microsoft.Web.WebView2.WinForms/1.0.4314.35": {
-        "runtime": {
-          "Microsoft.Web.WebView2.WinForms.dll": {
-            "assemblyVersion": "1.0.4314.35",
-            "fileVersion": "1.0.4314.35"
-          }
-        }
-      },
-      "Microsoft.Web.WebView2.Wpf/1.0.4314.35": {
-        "runtime": {
-          "Microsoft.Web.WebView2.Wpf.dll": {
-            "assemblyVersion": "1.0.4314.35",
-            "fileVersion": "1.0.4314.35"
-          }
-        }
       }
     }
   },
@@ -207,6 +301,34 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "CefSharp.Common.NETCore/156.0.150": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iNnn1q6xZKK59KQyzj6PTECoS2/a0wy+RTzCEYecg97Y4pwQUxyeKlz4RbfECsJaXhf22/5buDIXaqglTvYYsw==",
+      "path": "cefsharp.common.netcore/156.0.150",
+      "hashPath": "cefsharp.common.netcore.156.0.150.nupkg.sha512"
+    },
+    "CefSharp.OffScreen.NETCore/156.0.150": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bZWJmjcfOzg6+pFbVGBQ8ZF4gKIb/Ep5zAr55U58KcXCJVMp+bYjlPnxWEyjYyTbO2h30VmFbtD0U1Kpw8ZUJg==",
+      "path": "cefsharp.offscreen.netcore/156.0.150",
+      "hashPath": "cefsharp.offscreen.netcore.156.0.150.nupkg.sha512"
+    },
+    "chromiumembeddedframework.runtime/156.0.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-j92Q4ba/hqW43O+v5PJ9teWdJ6cq27zYFxW9gYifR+wvzjqNI7uIXCcxYmBSxM1LC6276hxbTbTP+MzmdB/azA==",
+      "path": "chromiumembeddedframework.runtime/156.0.15",
+      "hashPath": "chromiumembeddedframework.runtime.156.0.15.nupkg.sha512"
+    },
+    "chromiumembeddedframework.runtime.win-x64/156.0.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ppEQqOgkjPxfzcVzBukgJRY9M/2C9npnuroHu2hh6ZqZfrYl2Xtirc5F25Br8S4/eUIWUxvLBEY8VQCb8FAW0A==",
+      "path": "chromiumembeddedframework.runtime.win-x64/156.0.15",
+      "hashPath": "chromiumembeddedframework.runtime.win-x64.156.0.15.nupkg.sha512"
     },
     "FlashCap/1.12.0": {
       "type": "package",
@@ -228,13 +350,6 @@
       "sha512": "sha512-6iSrYMk6RU8fyftdXrfR1TW3xpR/WhEmliORuWvAu2N05wECb8k2hykWiU53/1zqx616v/qUlDbJJyqv78MDkQ==",
       "path": "libvlcsharp/3.10.1",
       "hashPath": "libvlcsharp.3.10.1.nupkg.sha512"
-    },
-    "Microsoft.Web.WebView2/1.0.4314.35": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-x5MFf2W03xueU1mMNvivXfHSsQ+ODo7vJ36qw/dLtU5Gs+8d7+7N7zzmNNDoT3ffosmcvZNBtUnlzyiDUuBkSQ==",
-      "path": "microsoft.web.webview2/1.0.4314.35",
-      "hashPath": "microsoft.web.webview2.1.0.4314.35.nupkg.sha512"
     },
     "NAudio/3.1.0": {
       "type": "package",
@@ -307,21 +422,6 @@
       "hashPath": "youtubeexplode.6.6.3.nupkg.sha512"
     },
     "DeckLinkAPI.Interop/1.0.0.0": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "Microsoft.Web.WebView2.Core/1.0.4314.35": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "Microsoft.Web.WebView2.WinForms/1.0.4314.35": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "Microsoft.Web.WebView2.Wpf/1.0.4314.35": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""

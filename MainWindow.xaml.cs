@@ -594,6 +594,7 @@ namespace DecklinkSwitcher
                 try { _ndiOverlaySource?.Dispose(); } catch { }
                 if (_htmlSource != null) _htmlSource.Dispose();
                 if (_htmlOverlaySource != null) _htmlOverlaySource.Dispose();
+                HtmlBrowserSource.ShutdownCef();
                 _systemAudioSource?.Dispose();
                 SystemAudioPlayer.Shutdown();
                 Log("Resources released.");

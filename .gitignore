@@ -26,6 +26,22 @@ bin/Debug/*
 bin/Debug/net10.0-windows/*
 !bin/Debug/net10.0-windows/win-x64/
 
+# Ignore CefSharp / Chromium runtime binaries (restored automatically by NuGet)
+bin/Debug/net10.0-windows/win-x64/CefSharp*
+bin/Debug/net10.0-windows/win-x64/libcef.dll
+bin/Debug/net10.0-windows/win-x64/chrome_elf.dll
+bin/Debug/net10.0-windows/win-x64/chrome_*.pak
+bin/Debug/net10.0-windows/win-x64/resources.pak
+bin/Debug/net10.0-windows/win-x64/icudtl.dat
+bin/Debug/net10.0-windows/win-x64/v8_context_snapshot.bin
+bin/Debug/net10.0-windows/win-x64/d3dcompiler_47.dll
+bin/Debug/net10.0-windows/win-x64/dxcompiler.dll
+bin/Debug/net10.0-windows/win-x64/dxil.dll
+bin/Debug/net10.0-windows/win-x64/vk_swiftshader*
+bin/Debug/net10.0-windows/win-x64/vulkan-1.dll
+bin/Debug/net10.0-windows/win-x64/Ijwhost.dll
+bin/Debug/net10.0-windows/win-x64/locales/
+
 # Do NOT ignore root interop DLL required for DeckLink SDK
 !DeckLinkAPI.Interop.dll
 
