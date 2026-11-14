@@ -236,8 +236,17 @@ namespace DecklinkSwitcher
 
             if (_isInitialized && _webView?.CoreWebView2 != null)
             {
-                Application.Current.Dispatcher.BeginInvoke(() =>
+                Application.Current.Dispatcher.BeginInvoke(async () =>
                 {
+                    try
+                    {
+                        if (_screencastActive)
+                        {
+                            _screencastActive = false;
+                            await _webView.CoreWebView2.CallDevToolsProtocolMethodAsync("Page.stopScreencast", "{}");
+                        }
+                    }
+                    catch { }
                     try { _webView.CoreWebView2.Navigate("about:blank"); } catch { }
                 });
             }
@@ -246,7 +255,80 @@ namespace DecklinkSwitcher
             OnStatusChanged?.Invoke("OFFLINE", false, false);
         }
 
+        private bool _screencastHooked = false;
+        private bool _screencastActive = false;
+        private int _isProcessingScreencast = 0;
+
+        // Event-driven frames pushed by Chromium on every paint (no per-frame screenshot polling).
+        private async Task StartScreencastAsync()
+        {
+            try
+            {
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    var core = _webView?.CoreWebView2;
+                    if (core == null) return;
+
+                    if (!_screencastHooked)
+                    {
+                        var receiver = core.GetDevToolsProtocolEventReceiver("Page.screencastFrame");
+                        receiver.DevToolsProtocolEventReceived += async (s, e) =>
+                        {
+                            try
+                            {
+                                using var doc = System.Text.Json.JsonDocument.Parse(e.ParameterObjectAsJson);
+                                int sessionId = doc.RootElement.GetProperty("sessionId").GetInt32();
+                                string b64 = doc.RootElement.GetProperty("data").GetString() ?? "";
+
+                                // Ack right away so Chromium keeps sending frames
+                                _ = core.CallDevToolsProtocolMethodAsync("Page.screencastFrameAck", "{\"sessionId\":" + sessionId + "}");
+
+                                if (!_isRunning || b64.Length == 0) return;
+                                if (Interlocked.CompareExchange(ref _isProcessingScreencast, 1, 0) != 0) return; // drop if busy
+
+                                byte[] bytes = Convert.FromBase64String(b64);
+                                _ = Task.Run(() =>
+                                {
+                                    try { if (_isRunning) ProcessCapturedBytes(bytes); }
+                                    catch (Exception ex) { MainWindow.Log($"[HtmlBrowserSource:{_instanceName}] Screencast process error: {ex.Message}"); }
+                                    finally { Interlocked.Exchange(ref _isProcessingScreencast, 0); }
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                MainWindow.Log($"[HtmlBrowserSource:{_instanceName}] Screencast frame error: {ex.Message}");
+                            }
+                        };
+                        _screencastHooked = true;
+                    }
+
+                    await core.CallDevToolsProtocolMethodAsync("Page.enable", "{}");
+                    if (_isTransparentOverlay)
+                    {
+                        // Keep alpha: transparent page background + PNG frames
+                        await core.CallDevToolsProtocolMethodAsync("Emulation.setDefaultBackgroundColorOverride",
+                            "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":0}}");
+                    }
+                    string fmt = _isTransparentOverlay ? "\"format\":\"png\"" : "\"format\":\"jpeg\",\"quality\":88";
+                    await core.CallDevToolsProtocolMethodAsync("Page.startScreencast",
+                        "{" + fmt + ",\"maxWidth\":1920,\"maxHeight\":1080,\"everyNthFrame\":1}");
+                    _screencastActive = true;
+                }).Task.Unwrap();
+            }
+            catch (Exception ex)
+            {
+                MainWindow.Log($"[HtmlBrowserSource:{_instanceName}] Screencast start failed, falling back to polling: {ex.Message}");
+                _screencastActive = false;
+                StartPollingLoop();
+            }
+        }
+
         private void StartCaptureLoop()
+        {
+            _ = StartScreencastAsync();
+        }
+
+        private void StartPollingLoop()
         {
             _captureCts?.Cancel();
             _captureCts = new CancellationTokenSource();
