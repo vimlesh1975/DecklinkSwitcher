@@ -523,6 +523,8 @@ namespace DecklinkSwitcher
                     if (SldLogoX != null) settings.LogoXPercent = SldLogoX.Value;
                     if (SldLogoY != null) settings.LogoYPercent = SldLogoY.Value;
                     settings.LogoSequenceFps = LogoSequenceFps;
+                    settings.LastMediaFile = _lastMediaFile ?? "";
+                    if (ChkLoopMedia != null) settings.MediaLoop = ChkLoopMedia.IsChecked == true;
 
                     if (TxtHtmlSourceUrl != null) settings.HtmlSourceUrl = TxtHtmlSourceUrl.Text.Trim();
                     if (CmbAudioStateHtml != null && CmbAudioStateHtml.SelectedIndex >= 0)
@@ -1042,6 +1044,13 @@ namespace DecklinkSwitcher
                     }
 
                     SetLogoOverlayActiveState(settings.LogoOverlayEnabled && CurrentLogoOverlay != null);
+
+                    if (ChkLoopMedia != null) ChkLoopMedia.IsChecked = settings.MediaLoop;
+                    if (!string.IsNullOrWhiteSpace(settings.LastMediaFile) && File.Exists(settings.LastMediaFile))
+                    {
+                        _lastMediaFile = settings.LastMediaFile;
+                        _mediaSource?.Cue(_lastMediaFile, settings.MediaLoop);
+                    }
 
                     if (!string.IsNullOrEmpty(settings.HtmlSourceUrl) && TxtHtmlSourceUrl != null)
                         TxtHtmlSourceUrl.Text = settings.HtmlSourceUrl;
@@ -2874,6 +2883,7 @@ namespace DecklinkSwitcher
                 {
                     _lastMediaFile = dlg.FileName;
                     _mediaSource.Play(dlg.FileName, ChkLoopMedia.IsChecked == true);
+                    SaveCurrentSettings();
                 }
                 else
                 {

@@ -68,11 +68,14 @@ namespace DecklinkSwitcher
             string audioPipePath = $"\\\\.\\pipe\\{audioPipeName}";
             
             // Input is native 1920x1080 UYVY
+            int gop = Framerate * 2;
             string args = $"-y " +
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
-                          $"-c:v libx264 -preset ultrafast -b:v 6800k -maxrate 6800k -bufsize 13600k -pix_fmt yuv420p -g {Framerate * 2} " +
-                          $"-af aresample=async=1000:first_pts=0 -c:a aac -profile:a aac_low -ar 48000 -ac 2 -b:a 128k -f flv \"{rtmpUrl}\"";
+                          $"-c:v libx264 -preset superfast -tune zerolatency -profile:v high -b:v 6800k -maxrate 6800k -bufsize 6800k -pix_fmt yuv420p " +
+                          $"-g {gop} -keyint_min {gop} -sc_threshold 0 -force_key_frames \"expr:gte(t,n_forced*2)\" " +
+                          $"-c:a aac -profile:a aac_low -ar 48000 -ac 2 -b:a 128k " +
+                          $"-fflags +nobuffer+flush_packets -flush_packets 1 -flvflags no_duration_filesize -f flv \"{rtmpUrl}\"";
 
             OnLog?.Invoke($"FFmpeg args: {args}");
 
@@ -146,32 +149,24 @@ namespace DecklinkSwitcher
             }
         }
 
-        public void PushFrame(byte[] audio, byte[] video)
+        public void PushFrame(byte[]? audio, byte[]? video)
         {
             if (!IsStreaming) return;
+            if (video == null || audio == null) return;
             
-            if (video != null)
-            {
-                _hasRealFrames = true;
-                Interlocked.Exchange(ref _lastVideoPushTick, Environment.TickCount64);
-            }
+            _hasRealFrames = true;
+            Interlocked.Exchange(ref _lastVideoPushTick, Environment.TickCount64);
             
             // Drop BOTH if EITHER queue is getting full, to preserve exact A/V sync!
-            if ((video != null && _videoQueue.Count >= _videoQueue.BoundedCapacity - 2) || 
-                (audio != null && _audioQueue.Count >= _audioQueue.BoundedCapacity - 2))
+            if (_videoQueue.Count >= _videoQueue.BoundedCapacity - 2 || 
+                _audioQueue.Count >= _audioQueue.BoundedCapacity - 2)
             {
                 // We are congested. Drop this entire chunk (audio + video)
                 return; 
             }
 
-            if (video != null)
-            {
-                try { _videoQueue.TryAdd(video, 0); } catch { }
-            }
-            if (audio != null)
-            {
-                try { _audioQueue.TryAdd(audio, 0); } catch { }
-            }
+            try { _videoQueue.TryAdd(video, 0); } catch { }
+            try { _audioQueue.TryAdd(audio, 0); } catch { }
         }
 
         // Generates UYVY black frames (1920x1080) when no real frames arrive,
@@ -219,7 +214,39 @@ namespace DecklinkSwitcher
             }
         }
 
-        private async Task VideoPipeWorker(CancellationToken token) { try { OnLog?.Invoke("Video pipe: waiting for FFmpeg..."); await _videoPipe!.WaitForConnectionAsync(token); OnLog?.Invoke("Video pipe: connected."); while (_videoQueue.TryTake(out _)) { } while (!token.IsCancellationRequested) { byte[] frame = _videoQueue.Take(token); await _videoPipe.WriteAsync(frame, 0, frame.Length, token); } } catch { } } private async Task AudioPipeWorker(CancellationToken token) { try { OnLog?.Invoke("Audio pipe: waiting for FFmpeg..."); await _audioPipe!.WaitForConnectionAsync(token); OnLog?.Invoke("Audio pipe: connected."); while (_audioQueue.TryTake(out _)) { } while (!token.IsCancellationRequested) { byte[] frame = _audioQueue.Take(token); await _audioPipe.WriteAsync(frame, 0, frame.Length, token); } } catch { } }
+        private async Task VideoPipeWorker(CancellationToken token)
+        {
+            try
+            {
+                OnLog?.Invoke("Video pipe: waiting for FFmpeg...");
+                await _videoPipe!.WaitForConnectionAsync(token);
+                OnLog?.Invoke("Video pipe: connected.");
+                while (_videoQueue.TryTake(out _)) { }
+                while (!token.IsCancellationRequested)
+                {
+                    byte[] frame = _videoQueue.Take(token);
+                    await _videoPipe.WriteAsync(frame, 0, frame.Length, token);
+                }
+            }
+            catch { }
+        }
+
+        private async Task AudioPipeWorker(CancellationToken token)
+        {
+            try
+            {
+                OnLog?.Invoke("Audio pipe: waiting for FFmpeg...");
+                await _audioPipe!.WaitForConnectionAsync(token);
+                OnLog?.Invoke("Audio pipe: connected.");
+                while (_audioQueue.TryTake(out _)) { }
+                while (!token.IsCancellationRequested)
+                {
+                    byte[] frame = _audioQueue.Take(token);
+                    await _audioPipe.WriteAsync(frame, 0, frame.Length, token);
+                }
+            }
+            catch { }
+        }
     }
 }
 

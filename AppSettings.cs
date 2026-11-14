@@ -64,6 +64,8 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.List<string> SourceOrder { get; set; } = new();
 
         public string LogoFilePath { get; set; } = "";
+        public string LastMediaFile { get; set; } = "";
+        public bool MediaLoop { get; set; } = false;
         public bool LogoOverlayEnabled { get; set; } = false;
         public string LogoPositionPreset { get; set; } = "Top-Right";
         public double LogoSizePercent { get; set; } = 15.0;
