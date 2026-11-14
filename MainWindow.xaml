@@ -26,7 +26,7 @@
                         <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         <Slider Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="{Binding AudioLevel, Mode=TwoWay}" SmallChange="0.05" LargeChange="0.1"/>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{Binding FgColor}" Cursor="Hand"/>
                     <ComboBox FontSize="12" Height="26" Margin="0,8,0,0" SelectedIndex="{Binding AudioStateIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="AFV"/>
                         <ComboBoxItem Content="ON"/>
@@ -48,7 +48,7 @@
                             </Image>
                         </Border>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{Binding FgColor}" Cursor="Hand"/>
                 </StackPanel>
             </Border>
         </DataTemplate>
@@ -68,7 +68,7 @@
                         <ProgressBar Orientation="Vertical" Minimum="0" Maximum="100" Value="{Binding AudioR, Mode=OneWay}" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
                         <Slider Orientation="Vertical" Height="100" Minimum="0" Maximum="1.5" Value="{Binding AudioLevel, Mode=TwoWay}" SmallChange="0.05" LargeChange="0.1"/>
                     </StackPanel>
-                    <Button Content="{Binding DisplayName}" ToolTip="{Binding DeviceName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="White" Cursor="Hand"/>
+                    <Button Content="{Binding DisplayName}" ToolTip="{Binding DeviceName}" Command="{Binding SelectInputCmd}" FontSize="14" FontWeight="SemiBold" Height="36" Background="{Binding BgColor}" Foreground="{Binding FgColor}" Cursor="Hand"/>
                     <ComboBox FontSize="12" Height="26" Margin="0,8,0,0" SelectedIndex="{Binding AudioStateIndex, Mode=TwoWay}">
                         <ComboBoxItem Content="AFV"/>
                         <ComboBoxItem Content="ON"/>
@@ -675,38 +675,45 @@
         </Grid>
 
         <!-- SETTINGS & OUTPUT PANEL -->
-        <Border Grid.Column="1" Style="{StaticResource MixerPanel}" Margin="16,0,0,0">
+        <Border Grid.Column="1" Style="{StaticResource MixerPanel}" Margin="16,0,0,0" Padding="6">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                <StackPanel Margin="0,0,5,0">
+                <StackPanel Margin="0,0,3,0">
                     <!-- SETTINGS SECTION -->
-                    <Border Background="{DynamicResource SettingsSectionBg}" BorderBrush="{DynamicResource SettingsSectionBorder}" BorderThickness="1.5" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource SettingsSectionBg}" BorderBrush="{DynamicResource SettingsSectionBorder}" BorderThickness="1.5" CornerRadius="8" Padding="8" Margin="0,0,0,10">
                         <StackPanel>
-                            <TextBlock Text="SETTINGS" FontSize="15" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,14" FontWeight="Black"/>
+                            <TextBlock Text="SETTINGS" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
                             
-                            <TextBlock Text="Output Device:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <ComboBox Name="CmbOutput" Height="28" Margin="0,0,0,14" DisplayMemberPath="DisplayName"/>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="4"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="OUT" Foreground="{DynamicResource TextDim}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <ComboBox Name="CmbOutput" Grid.Column="2" Height="25" FontSize="10.5" Padding="4,1,2,1" DisplayMemberPath="DisplayName"/>
+                            </Grid>
                             
                             <ItemsControl Name="InputSelectorsControl">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <StackPanel Margin="0,0,0,10">
-                                            <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="6"/>
-                                                    <ColumnDefinition Width="118"/>
-                                                </Grid.ColumnDefinitions>
-                                                <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableDevices}" 
-                                                          SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" 
-                                                          DisplayMemberPath="DisplayName" Height="26" FontSize="11"
-                                                          ToolTip="{Binding SelectedDevice.DisplayName}"/>
-                                                <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableFormats}" 
-                                                          SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" 
-                                                          Height="26" FontSize="11"
-                                                          ToolTip="{Binding SelectedFormat}"/>
-                                            </Grid>
-                                        </StackPanel>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="82"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{DynamicResource TextDim}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableDevices}" 
+                                                      SelectedItem="{Binding SelectedDevice, Mode=TwoWay}" 
+                                                      DisplayMemberPath="DisplayName" Height="25" FontSize="10" Padding="4,1,2,1"
+                                                      ToolTip="{Binding SelectedDevice.DisplayName}"/>
+                                            <ComboBox Grid.Column="4" ItemsSource="{Binding AvailableFormats}" 
+                                                      SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" 
+                                                      Height="25" FontSize="9.5" Padding="3,1,1,1"
+                                                      ToolTip="{Binding SelectedFormat}"/>
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -731,35 +738,34 @@
                     <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="YOUTUBE STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
-                            <TextBlock Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <Grid>
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="6"/>
-                                    <ColumnDefinition Width="118"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox Name="TxtStreamKey" Grid.Column="0" Height="32" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
-                                <Button Name="BtnStream" Grid.Column="2" Content="START STREAM" Height="32" FontSize="11" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
+                                <TextBlock Grid.Column="0" Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Name="TxtStreamKey" Grid.Column="2" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
+                            <Button Name="BtnStream" Content="START STREAM" Height="34" FontSize="12" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{DynamicResource OutputCardRecordBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="RECORDING PROFILES" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
-                            <TextBlock Text="Profile:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="6"/>
-                                    <ColumnDefinition Width="124"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <ComboBox Name="CmbRecordingProfile" Grid.Column="0" Height="32" FontSize="11" DisplayMemberPath="DisplayName"/>
-                                <Button Name="BtnRecord" Grid.Column="2" Content="START RECORDING" Height="32" FontSize="10" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnRecord_Click" FontWeight="Black" Cursor="Hand"/>
+                                <TextBlock Grid.Column="0" Text="Profile:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <ComboBox Name="CmbRecordingProfile" Grid.Column="2" Height="28" FontSize="11" DisplayMemberPath="DisplayName"/>
                             </Grid>
                             
                             <TextBlock Text="Recording Directory:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <Grid>
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -767,22 +773,23 @@
                                 <TextBox Name="TxtRecordingDirectory" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
                                 <Button Name="BtnBrowseRecordingDir" Grid.Column="1" Content="..." Width="30" Height="28" Margin="5,0,0,0" Background="#333333" Foreground="{DynamicResource TextPrimary}" Click="BtnBrowseRecordingDir_Click" Cursor="Hand"/>
                             </Grid>
+                            <Button Name="BtnRecord" Content="START RECORDING" Height="34" FontSize="12" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnRecord_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{DynamicResource OutputCardNdiBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="NDI OUTPUT" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
-                            <TextBlock Text="Stream Name:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                            <Grid>
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="6"/>
-                                    <ColumnDefinition Width="118"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox Name="TxtNdiName" Grid.Column="0" Text="DeckLink Switcher - Program" Height="32" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
-                                <Button Name="BtnNdi" Grid.Column="2" Content="START NDI" Height="32" FontSize="11" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
+                                <TextBlock Grid.Column="0" Text="Stream Name:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Name="TxtNdiName" Grid.Column="2" Text="DeckLink Switcher - Program" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
+                            <Button Name="BtnNdi" Content="START NDI" Height="34" FontSize="12" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 

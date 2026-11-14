@@ -27,14 +27,6 @@ namespace DecklinkSwitcher
             ActiveInputName = name;
             window.UpdateProgramSourceFlags();
             
-            if (type == 0)
-            {
-                foreach (var input in DynamicInputs)
-                {
-                    input.BgColor = (input.Device == device && device != null) ? "#d32f2f" : "#2962ff";
-                }
-            }
-            
             if (device != null || type != 0)
                 Log($"Switched to {name}");
             else
@@ -714,7 +706,7 @@ namespace DecklinkSwitcher
                 var availableDevices = new System.Collections.ObjectModel.ObservableCollection<DeckLinkDeviceInfo>(devices);
                 for (int i = 0; i < numInputs; i++)
                 {
-                    string label = "Input " + (i + 1);
+                    string label = "IN" + (i + 1);
                     var vm = new InputSelectionViewModel { Label = label, AvailableDevices = availableDevices };
                     
                     int defaultIndex = 0;
@@ -2169,23 +2161,32 @@ namespace DecklinkSwitcher
 
         private void UpdateProgramSourceFlags()
         {
+            var defaultBrush = (System.Windows.Media.Brush)FindResource("SourceButtonBg");
+            var defaultTextBrush = (System.Windows.Media.Brush)FindResource("SourceButtonText");
+            string defaultBgHex = (defaultBrush as System.Windows.Media.SolidColorBrush)?.Color.ToString() ?? "#333344";
+            string defaultFgHex = (defaultTextBrush as System.Windows.Media.SolidColorBrush)?.Color.ToString() ?? "#ffffff";
+
             foreach (var input in DynamicInputs)
             {
-                if (input.Device != null) input.Device.IsProgramSource = (_activeSourceType == 0 && _activeInput == input.Device);
-                input.BgColor = (_activeSourceType == 0 && input.Device == _activeInput && _activeInput != null) ? "#d32f2f" : "#2962ff";
+                bool isActive = _activeSourceType == 0 && input.Device == _activeInput && _activeInput != null;
+                if (input.Device != null) input.Device.IsProgramSource = isActive;
+                input.BgColor = isActive ? "#d32f2f" : defaultBgHex;
+                input.FgColor = isActive ? "#ffffff" : defaultFgHex;
             }
 
             foreach (var scr in DynamicScreens)
             {
-                scr.BgColor = (_activeSourceType == 4 && _activeScreen == scr) ? "#d32f2f" : "#2962ff";
+                bool isActive = _activeSourceType == 4 && _activeScreen == scr;
+                scr.BgColor = isActive ? "#d32f2f" : defaultBgHex;
+                scr.FgColor = isActive ? "#ffffff" : defaultFgHex;
             }
             foreach (var cam in DynamicWebcams)
             {
-                cam.BgColor = (_activeSourceType == 5 && _activeWebcam == cam) ? "#d32f2f" : "#2962ff";
+                bool isActive = _activeSourceType == 5 && _activeWebcam == cam;
+                cam.BgColor = isActive ? "#d32f2f" : defaultBgHex;
+                cam.FgColor = isActive ? "#ffffff" : defaultFgHex;
             }
 
-            var defaultBrush = (System.Windows.Media.Brush)FindResource("SourceButtonBg");
-            var defaultTextBrush = (System.Windows.Media.Brush)FindResource("SourceButtonText");
             var activeBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xd3, 0x2f, 0x2f));
             var activeTextBrush = System.Windows.Media.Brushes.White;
 
@@ -4135,8 +4136,10 @@ namespace DecklinkSwitcher
         
         public AudioState State => (AudioState)_audioStateIndex;
 
-        private string _bgColor = "#2962ff";
+        private string _bgColor = "#333344";
         public string BgColor { get => _bgColor; set { _bgColor = value; OnPropertyChanged(nameof(BgColor)); } }
+        private string _fgColor = "#ffffff";
+        public string FgColor { get => _fgColor; set { _fgColor = value; OnPropertyChanged(nameof(FgColor)); } }
 
         public RelayCommand SelectInputCmd { get; }
 
@@ -4197,11 +4200,17 @@ namespace DecklinkSwitcher
             set { _previewBitmap = value; OnPropertyChanged(nameof(PreviewBitmap)); } 
         }
 
-        private string _bgColor = "#2962ff";
+        private string _bgColor = "#333344";
         public string BgColor 
         { 
             get => _bgColor; 
             set { _bgColor = value; OnPropertyChanged(nameof(BgColor)); } 
+        }
+        private string _fgColor = "#ffffff";
+        public string FgColor 
+        { 
+            get => _fgColor; 
+            set { _fgColor = value; OnPropertyChanged(nameof(FgColor)); } 
         }
 
         public RelayCommand SelectInputCmd { get; }
@@ -4267,11 +4276,17 @@ namespace DecklinkSwitcher
 
         public AudioState State => (AudioState)_audioStateIndex;
 
-        private string _bgColor = "#2962ff";
+        private string _bgColor = "#333344";
         public string BgColor 
         { 
             get => _bgColor; 
             set { _bgColor = value; OnPropertyChanged(nameof(BgColor)); } 
+        }
+        private string _fgColor = "#ffffff";
+        public string FgColor 
+        { 
+            get => _fgColor; 
+            set { _fgColor = value; OnPropertyChanged(nameof(FgColor)); } 
         }
 
         public RelayCommand SelectInputCmd { get; }
