@@ -78,11 +78,11 @@ namespace DecklinkSwitcher
             string videoPipePath = $@"\\.\pipe\{videoPipeName}";
             string audioPipePath = $@"\\.\pipe\{audioPipeName}";
             
-            // Ultra-low latency H.264 (CPU libx264, ultrafast, zerolatency, 6 Mbps) over MPEG-TS/SRT
-            string args = $"-y " +
+                          // Ultra-low latency H.264 (CPU libx264, ultrafast, zerolatency, 6.8 Mbps) over MPEG-TS/SRT
+                          string args = $"-y " +
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
-                          $"-c:v libx264 -preset ultrafast -tune zerolatency -b:v 6000k -maxrate 6000k -bufsize 12000k -pix_fmt yuv420p -g {Framerate * 2} " +
+                          $"-c:v libx264 -preset ultrafast -tune zerolatency -b:v 6800k -maxrate 6800k -bufsize 13600k -pix_fmt yuv420p -g {Framerate * 2} " +
                           $"-c:a aac -b:a 192k -ar 48000 -ac 2 " +
                           $"-f mpegts -flush_packets 1 -fflags +nobuffer+flush_packets \"{srtUrl}\"";
 

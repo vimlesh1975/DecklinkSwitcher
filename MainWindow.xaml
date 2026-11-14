@@ -747,7 +747,7 @@
                                 <TextBlock Grid.Column="0" Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
                                 <TextBox Name="TxtStreamKey" Grid.Column="2" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
-                            <Button Name="BtnStream" Content="START STREAM" Height="34" FontSize="12" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
+                            <Button Name="BtnStream" Content="START STREAM" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 
@@ -773,7 +773,7 @@
                                 <TextBox Name="TxtRecordingDirectory" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
                                 <Button Name="BtnBrowseRecordingDir" Grid.Column="1" Content="..." Width="30" Height="28" Margin="5,0,0,0" Background="#333333" Foreground="{DynamicResource TextPrimary}" Click="BtnBrowseRecordingDir_Click" Cursor="Hand"/>
                             </Grid>
-                            <Button Name="BtnRecord" Content="START RECORDING" Height="34" FontSize="12" Background="#d32f2f" Foreground="{DynamicResource TextPrimary}" Click="BtnRecord_Click" FontWeight="Black" Cursor="Hand"/>
+                            <Button Name="BtnRecord" Content="START RECORDING" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnRecord_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 
@@ -789,7 +789,7 @@
                                 <TextBlock Grid.Column="0" Text="Stream Name:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
                                 <TextBox Name="TxtNdiName" Grid.Column="2" Text="DeckLink Switcher - Program" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
-                            <Button Name="BtnNdi" Content="START NDI" Height="34" FontSize="12" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
+                            <Button Name="BtnNdi" Content="START NDI" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnNdi_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 
@@ -838,7 +838,7 @@
                             <TextBlock Text="SRT URL:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
                             <TextBox Name="TxtSrtUrl" Text="srt://127.0.0.1:9000?mode=caller&amp;latency=200000" Height="28" Margin="0,0,0,12" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2"/>
 
-                            <Button Name="BtnSrt" Content="START SRT" Height="36" Background="#0066cc" Foreground="{DynamicResource TextPrimary}" Click="BtnSrt_Click" FontWeight="Black" Cursor="Hand"/>
+                            <Button Name="BtnSrt" Content="START SRT" Height="36" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnSrt_Click" FontWeight="Black" Cursor="Hand"/>
                         </StackPanel>
                     </Border>
                         </StackPanel>

@@ -556,7 +556,10 @@ namespace DecklinkSwitcher
             // Run the cleanup in the background, then fully exit
             Task.Run(() =>
             {
-                try { SrtOut.Stop(); } catch { }
+                try { if (YtStreamer.IsStreaming) YtStreamer.Stop(); } catch { }
+                try { if (LclRecorder.IsRecording) LclRecorder.Stop(); } catch { }
+                try { if (NdiOut.IsRunning) NdiOut.Stop(); } catch { }
+                try { if (SrtOut.IsStreaming) SrtOut.Stop(); } catch { }
                 _syntheticCts?.Cancel();
                 foreach (var input in DynamicInputs)
                 {
@@ -1818,8 +1821,7 @@ namespace DecklinkSwitcher
             if (LclRecorder.IsRecording)
             {
                 LclRecorder.Stop();
-                BtnRecord.Content = "START RECORDING";
-                BtnRecord.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#d32f2f"));
+                ApplyOutputButtonStyle(BtnRecord, false, "STOP RECORDING", "START RECORDING");
                 TxtStatus.Text = "Recording stopped.";
             }
             else
@@ -1835,8 +1837,7 @@ namespace DecklinkSwitcher
                     }
                     UpdatePgmPreviewSynthetic();
                     LclRecorder.Start(profile, dir, 1920, 1080, 25);
-                    BtnRecord.Content = "STOP RECORDING";
-                    BtnRecord.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
+                    ApplyOutputButtonStyle(BtnRecord, true, "STOP RECORDING", "START RECORDING");
                     TxtStatus.Text = "Recording started...";
                 }
             }
@@ -1848,8 +1849,7 @@ namespace DecklinkSwitcher
             {
                 
                 YtStreamer.Stop();
-                BtnStream.Content = "START STREAM";
-                BtnStream.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(170, 0, 0));
+                ApplyOutputButtonStyle(BtnStream, false, "STOP STREAM", "START STREAM");
                 TxtStatus.Text = "Streaming stopped.";
             }
             else
@@ -1865,8 +1865,7 @@ namespace DecklinkSwitcher
                 settings.YouTubeStreamKey = TxtStreamKey.Text;
                 settings.Save();
                 
-                BtnStream.Content = "STOP STREAM";
-                BtnStream.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
+                ApplyOutputButtonStyle(BtnStream, true, "STOP STREAM", "START STREAM");
                 TxtStatus.Text = "Streaming started...";
                 // Seed the latest PGM frame immediately (synchronous) so stream loop has data right away
                 UpdatePgmPreviewSynthetic();
@@ -1880,8 +1879,7 @@ namespace DecklinkSwitcher
             if (NdiOut.IsRunning)
             {
                 NdiOut.Stop();
-                BtnNdi.Content = "START NDI";
-                BtnNdi.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 102, 204));
+                ApplyOutputButtonStyle(BtnNdi, false, "STOP NDI", "START NDI");
                 TxtStatus.Text = "NDI output stopped.";
             }
             else
@@ -1901,8 +1899,7 @@ namespace DecklinkSwitcher
                 bool started = NdiOut.Start(streamName, 1920, 1080, 25);
                 if (started)
                 {
-                    BtnNdi.Content = "STOP NDI";
-                    BtnNdi.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
+                    ApplyOutputButtonStyle(BtnNdi, true, "STOP NDI", "START NDI");
                     TxtStatus.Text = $"NDI output started: {streamName}";
                 }
                 else
@@ -2042,19 +2039,21 @@ namespace DecklinkSwitcher
             }
         }
 
+        private void ApplyOutputButtonStyle(System.Windows.Controls.Button? btn, bool isActive, string activeText, string inactiveText)
+        {
+            if (btn == null) return;
+            btn.Content = isActive ? activeText : inactiveText;
+            btn.Background = isActive
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xd3, 0x2f, 0x2f))
+                : (System.Windows.Media.Brush)FindResource("SourceButtonBg");
+            btn.Foreground = isActive
+                ? System.Windows.Media.Brushes.White
+                : (System.Windows.Media.Brush)FindResource("SourceButtonText");
+        }
+
         private void UpdateSrtUiState(bool isStreaming)
         {
-            if (BtnSrt == null) return;
-            if (isStreaming)
-            {
-                BtnSrt.Content = "STOP SRT";
-                BtnSrt.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 170, 0));
-            }
-            else
-            {
-                BtnSrt.Content = "START SRT";
-                BtnSrt.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 102, 204));
-            }
+            ApplyOutputButtonStyle(BtnSrt, isStreaming, "STOP SRT", "START SRT");
         }
 
         public static void Log(string message)
@@ -2206,6 +2205,11 @@ namespace DecklinkSwitcher
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
             applySourceButtonStyle(BtnSystemAudio, isSysAudioActive);
+
+            ApplyOutputButtonStyle(BtnRecord, LclRecorder?.IsRecording == true, "STOP RECORDING", "START RECORDING");
+            ApplyOutputButtonStyle(BtnStream, YtStreamer?.IsStreaming == true, "STOP STREAM", "START STREAM");
+            ApplyOutputButtonStyle(BtnNdi, NdiOut?.IsRunning == true, "STOP NDI", "START NDI");
+            ApplyOutputButtonStyle(BtnSrt, SrtOut?.IsStreaming == true, "STOP SRT", "START SRT");
 
             UpdateHtmlSourceMuteState();
         }
