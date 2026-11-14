@@ -1384,30 +1384,41 @@ namespace DecklinkSwitcher
                 {
                     byte* dstRow = uyvyBuffer + ((startY + ly) * 1920 + startX) * 2;
                     int rowIdx = ly * boxW;
-                    for (int lx = 0; lx < boxW; lx += 2)
+                    for (int lx = 0; lx + 1 < boxW; lx += 2)
                     {
                         int idx0 = rowIdx + lx;
                         int idx1 = idx0 + 1;
-                        int a0 = (pA[idx0] * opacityScale) >> 8;
-                        int a1 = (pA[idx1] * opacityScale) >> 8;
+                        int a0 = (pA[idx0] * opacityScale + 127) / 255;
+                        int a1 = (pA[idx1] * opacityScale + 127) / 255;
                         if ((a0 | a1) == 0) continue;
 
                         int d = lx * 2;
                         if (a0 > 0)
                         {
-                            dstRow[d + 1] = (byte)((pY[idx0] * a0 + dstRow[d + 1] * (255 - a0)) >> 8);
+                            dstRow[d + 1] = (byte)((pY[idx0] * a0 + dstRow[d + 1] * (255 - a0) + 127) / 255);
                         }
                         if (a1 > 0)
                         {
-                            dstRow[d + 3] = (byte)((pY[idx1] * a1 + dstRow[d + 3] * (255 - a1)) >> 8);
+                            dstRow[d + 3] = (byte)((pY[idx1] * a1 + dstRow[d + 3] * (255 - a1) + 127) / 255);
                         }
-                        int aChroma = (a0 + a1) >> 1;
+
+                        // Alpha-weighted chroma so transparent neighbours don't desaturate/fringe glyph edges
+                        int wSum = pA[idx0] + pA[idx1];
+                        int uLogo, vLogo;
+                        if (wSum > 0)
+                        {
+                            uLogo = (pU[idx0] * pA[idx0] + pU[idx1] * pA[idx1]) / wSum;
+                            vLogo = (pV[idx0] * pA[idx0] + pV[idx1] * pA[idx1]) / wSum;
+                        }
+                        else
+                        {
+                            uLogo = 128; vLogo = 128;
+                        }
+                        int aChroma = (a0 + a1 + 2 * Math.Max(a0, a1)) >> 2;
                         if (aChroma > 0)
                         {
-                            int uLogo = (pU[idx0] + pU[idx1]) >> 1;
-                            int vLogo = (pV[idx0] + pV[idx1]) >> 1;
-                            dstRow[d + 0] = (byte)((uLogo * aChroma + dstRow[d + 0] * (255 - aChroma)) >> 8);
-                            dstRow[d + 2] = (byte)((vLogo * aChroma + dstRow[d + 2] * (255 - aChroma)) >> 8);
+                            dstRow[d + 0] = (byte)((uLogo * aChroma + dstRow[d + 0] * (255 - aChroma) + 127) / 255);
+                            dstRow[d + 2] = (byte)((vLogo * aChroma + dstRow[d + 2] * (255 - aChroma) + 127) / 255);
                         }
                     }
                 }

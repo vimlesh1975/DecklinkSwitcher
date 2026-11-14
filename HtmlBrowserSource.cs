@@ -35,6 +35,7 @@ namespace DecklinkSwitcher
         private readonly byte[] _latestPreview480 = new byte[480 * 270 * 4];
         private readonly byte[] _latestPgm1080Bgra = new byte[1920 * 1080 * 4];
         private readonly byte[] _latestUyvy1080 = new byte[1920 * 1080 * 2];
+        private readonly byte[] _deflickerUyvy1080 = new byte[1920 * 1080 * 2];
         private readonly object _bufferLock = new object();
         private bool _hasCapturedFrame = false;
 
@@ -117,7 +118,7 @@ namespace DecklinkSwitcher
                         "WebView2_" + _instanceName);
 
                     var options = new CoreWebView2EnvironmentOptions(
-                        "--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --autoplay-policy=no-user-gesture-required");
+                        "--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --autoplay-policy=no-user-gesture-required --disable-lcd-text --force-device-scale-factor=1 --font-render-hinting=none");
 
                     var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                     await _webView!.EnsureCoreWebView2Async(env);
@@ -286,10 +287,13 @@ namespace DecklinkSwitcher
                                 if (!_isRunning || b64.Length == 0) return;
                                 if (Interlocked.CompareExchange(ref _isProcessingScreencast, 1, 0) != 0) return; // drop if busy
 
-                                byte[] bytes = Convert.FromBase64String(b64);
                                 _ = Task.Run(() =>
                                 {
-                                    try { if (_isRunning) ProcessCapturedBytes(bytes); }
+                                    try
+                                    {
+                                        byte[] bytes = Convert.FromBase64String(b64);
+                                        if (_isRunning) ProcessCapturedBytes(bytes);
+                                    }
                                     catch (Exception ex) { MainWindow.Log($"[HtmlBrowserSource:{_instanceName}] Screencast process error: {ex.Message}"); }
                                     finally { Interlocked.Exchange(ref _isProcessingScreencast, 0); }
                                 });
@@ -309,7 +313,7 @@ namespace DecklinkSwitcher
                         await core.CallDevToolsProtocolMethodAsync("Emulation.setDefaultBackgroundColorOverride",
                             "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":0}}");
                     }
-                    string fmt = _isTransparentOverlay ? "\"format\":\"png\"" : "\"format\":\"jpeg\",\"quality\":88";
+                    string fmt = _isTransparentOverlay ? "\"format\":\"png\"" : "\"format\":\"jpeg\",\"quality\":97";
                     await core.CallDevToolsProtocolMethodAsync("Page.startScreencast",
                         "{" + fmt + ",\"maxWidth\":1920,\"maxHeight\":1080,\"everyNthFrame\":1}");
                     _screencastActive = true;
@@ -392,9 +396,26 @@ namespace DecklinkSwitcher
             using var ms = new MemoryStream(encodedBytes);
             using var decodedBmp = new System.Drawing.Bitmap(ms);
 
-            using var bmp1080 = (_isTransparentOverlay && decodedBmp.Width == 1920 && decodedBmp.Height == 1080 && decodedBmp.PixelFormat == System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                ? (System.Drawing.Bitmap)decodedBmp.Clone()
-                : ResizeTo1080Argb(decodedBmp);
+            System.Drawing.Bitmap? owned1080 = null;
+            System.Drawing.Bitmap bmp1080;
+            if (decodedBmp.Width == 1920 && decodedBmp.Height == 1080)
+            {
+                if (decodedBmp.PixelFormat == System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                {
+                    bmp1080 = decodedBmp;
+                }
+                else
+                {
+                    owned1080 = decodedBmp.Clone(new System.Drawing.Rectangle(0, 0, 1920, 1080), System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    bmp1080 = owned1080;
+                }
+            }
+            else
+            {
+                owned1080 = ResizeTo1080Argb(decodedBmp);
+                bmp1080 = owned1080;
+            }
+            using var _dispose1080 = owned1080;
 
             // Downsample 480x270 for UI preview
             using var bmp480 = new System.Drawing.Bitmap(480, 270, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
@@ -449,6 +470,8 @@ namespace DecklinkSwitcher
                         minX &= ~1;
                         if ((maxX & 1) == 0) maxX++;
                         if (maxX >= 1920) maxX = 1919;
+                        if (minY > 0) minY--;
+                        if (maxY < 1079) maxY++;
 
                         int boxW = maxX - minX + 1;
                         int boxH = maxY - minY + 1;
@@ -486,6 +509,59 @@ namespace DecklinkSwitcher
                                 vArr[idx] = (byte)vVal;
                                 aArr[idx] = a;
                             }
+                        }
+
+                        // 1080i vertical 1-2-1 broadcast deflicker (alpha-weighted so transparent margins never bleed)
+                        if (boxH >= 3)
+                        {
+                            byte[] yOut = new byte[total];
+                            byte[] uOut = new byte[total];
+                            byte[] vOut = new byte[total];
+                            byte[] aOut = new byte[total];
+
+                            Action<int> filterRow = (by) =>
+                            {
+                                int topRow = (by > 0 ? by - 1 : 0) * boxW;
+                                int midRow = by * boxW;
+                                int botRow = (by < boxH - 1 ? by + 1 : boxH - 1) * boxW;
+                                for (int bx = 0; bx < boxW; bx++)
+                                {
+                                    int tIdx = topRow + bx;
+                                    int mIdx = midRow + bx;
+                                    int bIdx = botRow + bx;
+                                    int aT = aArr[tIdx];
+                                    int aM = aArr[mIdx];
+                                    int aB = aArr[bIdx];
+                                    if ((aT | aM | aB) == 0) continue;
+
+                                    if (aT == 255 && aM == 255 && aB == 255)
+                                    {
+                                        aOut[mIdx] = 255;
+                                        yOut[mIdx] = (byte)((yArr[tIdx] + (yArr[mIdx] << 1) + yArr[bIdx] + 2) >> 2);
+                                        uOut[mIdx] = (byte)((uArr[tIdx] + (uArr[mIdx] << 1) + uArr[bIdx] + 2) >> 2);
+                                        vOut[mIdx] = (byte)((vArr[tIdx] + (vArr[mIdx] << 1) + vArr[bIdx] + 2) >> 2);
+                                    }
+                                    else
+                                    {
+                                        int wSum = aT + (aM << 1) + aB;
+                                        aOut[mIdx] = (byte)((wSum + 2) >> 2);
+                                        int half = wSum >> 1;
+                                        yOut[mIdx] = (byte)((yArr[tIdx] * aT + ((yArr[mIdx] * aM) << 1) + yArr[bIdx] * aB + half) / wSum);
+                                        uOut[mIdx] = (byte)((uArr[tIdx] * aT + ((uArr[mIdx] * aM) << 1) + uArr[bIdx] * aB + half) / wSum);
+                                        vOut[mIdx] = (byte)((vArr[tIdx] * aT + ((vArr[mIdx] * aM) << 1) + vArr[bIdx] * aB + half) / wSum);
+                                    }
+                                }
+                            };
+
+                            if (boxH >= 64)
+                                Parallel.For(0, boxH, filterRow);
+                            else
+                                for (int by = 0; by < boxH; by++) filterRow(by);
+
+                            yArr = yOut;
+                            uArr = uOut;
+                            vArr = vOut;
+                            aArr = aOut;
                         }
 
                         OnOverlayFrameUpdated?.Invoke(new PreparedHtmlOverlayFrame
@@ -527,16 +603,17 @@ namespace DecklinkSwitcher
                 }
 
                 byte[] uyvy = MainWindow.ConvertBgra1080ToUyvy1080(_latestPgm1080Bgra);
+                ApplyVerticalDeflickerUyvy1080(uyvy, _deflickerUyvy1080);
                 lock (_bufferLock)
                 {
-                    Buffer.BlockCopy(uyvy, 0, _latestUyvy1080, 0, uyvy.Length);
+                    Buffer.BlockCopy(_deflickerUyvy1080, 0, _latestUyvy1080, 0, _deflickerUyvy1080.Length);
                 }
 
                 lock (MainWindow._pgmLock)
                 {
                     if (MainWindow.LatestHtmlSourceUyvy == null || MainWindow.LatestHtmlSourceUyvy.Length != 1920 * 1080 * 2)
                         MainWindow.LatestHtmlSourceUyvy = new byte[1920 * 1080 * 2];
-                    Buffer.BlockCopy(uyvy, 0, MainWindow.LatestHtmlSourceUyvy, 0, uyvy.Length);
+                    Buffer.BlockCopy(_deflickerUyvy1080, 0, MainWindow.LatestHtmlSourceUyvy, 0, _deflickerUyvy1080.Length);
 
                     if (MainWindow.ActiveSourceType == 7)
                     {
@@ -547,6 +624,32 @@ namespace DecklinkSwitcher
                 }
 
                 OnPreviewBufferUpdated?.Invoke(prevCopy);
+            }
+        }
+
+        private static unsafe void ApplyVerticalDeflickerUyvy1080(byte[] src, byte[] dst)
+        {
+            const int rowBytes = 1920 * 2;
+            const int height = 1080;
+            Buffer.BlockCopy(src, 0, dst, 0, rowBytes);
+            Buffer.BlockCopy(src, (height - 1) * rowBytes, dst, (height - 1) * rowBytes, rowBytes);
+
+            fixed (byte* pSrc = src)
+            fixed (byte* pDst = dst)
+            {
+                byte* srcPtr = pSrc;
+                byte* dstPtr = pDst;
+                Parallel.For(1, height - 1, y =>
+                {
+                    byte* sTop = srcPtr + (y - 1) * rowBytes;
+                    byte* sMid = srcPtr + y * rowBytes;
+                    byte* sBot = srcPtr + (y + 1) * rowBytes;
+                    byte* dRow = dstPtr + y * rowBytes;
+                    for (int i = 0; i < rowBytes; i++)
+                    {
+                        dRow[i] = (byte)((sTop[i] + (sMid[i] << 1) + sBot[i] + 2) >> 2);
+                    }
+                });
             }
         }
 
