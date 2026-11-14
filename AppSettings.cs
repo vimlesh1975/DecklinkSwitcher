@@ -70,6 +70,7 @@ namespace DecklinkSwitcher
         public double LogoOpacityPercent { get; set; } = 100.0;
         public double LogoXPercent { get; set; } = 96.0;
         public double LogoYPercent { get; set; } = 4.0;
+        public int LogoSequenceFps { get; set; } = 25;
 
         public string HtmlSourceUrl { get; set; } = "";
         public AudioState AudioStateHtml { get; set; } = AudioState.AFV;

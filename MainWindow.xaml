@@ -370,23 +370,47 @@
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="6"/>
-                            <ColumnDefinition Width="85"/>
+                            <ColumnDefinition Width="4"/>
+                            <ColumnDefinition Width="48"/>
+                            <ColumnDefinition Width="4"/>
+                            <ColumnDefinition Width="74"/>
                         </Grid.ColumnDefinitions>
-                        <Button Name="BtnSelectLogo" Grid.Column="0" Content="Select Logo..." Height="30" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnSelectLogo_Click" Cursor="Hand"/>
-                        <Button Name="BtnToggleLogo" Grid.Column="2" Content="LOGO: OFF" Height="30" FontSize="11" FontWeight="Bold" Background="#424242" Foreground="White" Click="BtnToggleLogo_Click" Cursor="Hand"/>
+                        <Button Name="BtnSelectLogo" Grid.Column="0" Content="Logo..." Height="30" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnSelectLogo_Click" Cursor="Hand" ToolTip="Select a single logo image"/>
+                        <Button Name="BtnSelectLogoSeq" Grid.Column="2" Content="Seq..." Height="30" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnSelectLogoSeq_Click" Cursor="Hand" ToolTip="Select a folder containing a PNG/image sequence"/>
+                        <Button Name="BtnToggleLogo" Grid.Column="4" Content="LOGO: OFF" Height="30" FontSize="11" FontWeight="Bold" Background="#424242" Foreground="White" Click="BtnToggleLogo_Click" Cursor="Hand"/>
                     </Grid>
                     <TextBlock Name="TxtLogoFileName" Text="No logo selected" FontSize="10" Foreground="{DynamicResource TextDim}" TextTrimming="CharacterEllipsis" Margin="0,0,0,8"/>
 
-                    <TextBlock Text="Position Preset:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
-                    <ComboBox Name="CmbLogoPosition" Height="26" FontSize="11" Margin="0,0,0,8" SelectionChanged="CmbLogoPosition_SelectionChanged">
-                        <ComboBoxItem Content="Top-Right" IsSelected="True"/>
-                        <ComboBoxItem Content="Top-Left"/>
-                        <ComboBoxItem Content="Bottom-Right"/>
-                        <ComboBoxItem Content="Bottom-Left"/>
-                        <ComboBoxItem Content="Center"/>
-                        <ComboBoxItem Content="Custom"/>
-                    </ComboBox>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="6"/>
+                            <ColumnDefinition Width="72"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Position Preset:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox Name="CmbLogoPosition" Height="26" FontSize="11" SelectionChanged="CmbLogoPosition_SelectionChanged">
+                                <ComboBoxItem Content="Top-Right" IsSelected="True"/>
+                                <ComboBoxItem Content="Top-Left"/>
+                                <ComboBoxItem Content="Bottom-Right"/>
+                                <ComboBoxItem Content="Bottom-Left"/>
+                                <ComboBoxItem Content="Center"/>
+                                <ComboBoxItem Content="Custom"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Seq FPS:" Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox Name="CmbLogoSeqFps" Height="26" FontSize="11" SelectionChanged="CmbLogoSeqFps_SelectionChanged">
+                                <ComboBoxItem Content="10"/>
+                                <ComboBoxItem Content="15"/>
+                                <ComboBoxItem Content="24"/>
+                                <ComboBoxItem Content="25" IsSelected="True"/>
+                                <ComboBoxItem Content="30"/>
+                                <ComboBoxItem Content="50"/>
+                                <ComboBoxItem Content="60"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
 
                     <Grid Margin="0,2,0,4">
                         <Grid.ColumnDefinitions>

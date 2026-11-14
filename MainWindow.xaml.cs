@@ -97,12 +97,18 @@ namespace DecklinkSwitcher
 
         private string _logoFilePath = "";
         private System.Drawing.Bitmap? _rawLogoBitmap = null;
+        private System.Drawing.Bitmap[]? _rawLogoSequence = null;
         private System.Windows.Media.Imaging.BitmapImage? _logoPreviewImageSource = null;
+        private System.Windows.Media.Imaging.BitmapImage[]? _logoPreviewSequence = null;
+        private System.Windows.Threading.DispatcherTimer? _logoPreviewTimer = null;
         private bool _isUpdatingLogoUi = false;
         private bool _isLoadingSettings = true;
 
         public static volatile bool IsLogoOverlayEnabled = false;
         internal static volatile PreparedLogoOverlay? CurrentLogoOverlay = null;
+        internal static volatile PreparedLogoOverlay[]? CurrentLogoSequence = null;
+        public static volatile int LogoSequenceFps = 25;
+        internal static long LogoSequenceStartMs = Environment.TickCount64;
         public static double LogoSizePercent = 15.0;
         public static double LogoOpacityPercent = 100.0;
         public static double LogoXPercent = 96.0;
@@ -516,6 +522,7 @@ namespace DecklinkSwitcher
                     if (SldLogoOpacity != null) settings.LogoOpacityPercent = SldLogoOpacity.Value;
                     if (SldLogoX != null) settings.LogoXPercent = SldLogoX.Value;
                     if (SldLogoY != null) settings.LogoYPercent = SldLogoY.Value;
+                    settings.LogoSequenceFps = LogoSequenceFps;
 
                     if (TxtHtmlSourceUrl != null) settings.HtmlSourceUrl = TxtHtmlSourceUrl.Text.Trim();
                     if (CmbAudioStateHtml != null && CmbAudioStateHtml.SelectedIndex >= 0)
@@ -548,6 +555,7 @@ namespace DecklinkSwitcher
             SaveCurrentSettings();
 
             _seekTimer?.Stop();
+            _logoPreviewTimer?.Stop();
 
             // Hide the window immediately so it doesn't freeze on screen
             this.Hide();
@@ -1014,7 +1022,21 @@ namespace DecklinkSwitcher
                         }
                     }
 
-                    if (!string.IsNullOrWhiteSpace(settings.LogoFilePath) && File.Exists(settings.LogoFilePath))
+                    LogoSequenceFps = Math.Clamp(settings.LogoSequenceFps > 0 ? settings.LogoSequenceFps : 25, 1, 120);
+                    if (CmbLogoSeqFps != null)
+                    {
+                        string fpsText = LogoSequenceFps.ToString();
+                        foreach (ComboBoxItem item in CmbLogoSeqFps.Items)
+                        {
+                            if (string.Equals(item.Content?.ToString(), fpsText, StringComparison.Ordinal))
+                            {
+                                CmbLogoSeqFps.SelectedItem = item;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(settings.LogoFilePath) && (File.Exists(settings.LogoFilePath) || Directory.Exists(settings.LogoFilePath)))
                     {
                         LoadLogoFromFile(settings.LogoFilePath);
                     }
@@ -1155,6 +1177,41 @@ namespace DecklinkSwitcher
             }
         }
 
+        private void BtnSelectLogoSeq_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Select PNG / Image Sequence Folder"
+            };
+            if (!string.IsNullOrWhiteSpace(_logoFilePath))
+            {
+                string? initialDir = Directory.Exists(_logoFilePath) ? _logoFilePath : Path.GetDirectoryName(_logoFilePath);
+                if (!string.IsNullOrWhiteSpace(initialDir) && Directory.Exists(initialDir))
+                    dlg.InitialDirectory = initialDir;
+            }
+            if (dlg.ShowDialog() == true)
+            {
+                if (LoadLogoFromFile(dlg.FolderName))
+                {
+                    SetLogoOverlayActiveState(true);
+                    SaveCurrentSettings();
+                }
+            }
+        }
+
+        private void CmbLogoSeqFps_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingLogoUi || !IsLoaded) return;
+            if (CmbLogoSeqFps?.SelectedItem is ComboBoxItem item &&
+                int.TryParse(item.Content?.ToString(), out int fps))
+            {
+                LogoSequenceFps = Math.Clamp(fps, 1, 120);
+                LogoSequenceStartMs = Environment.TickCount64;
+                UpdateLogoPreviewElement();
+                SaveCurrentSettings();
+            }
+        }
+
         private void BtnToggleLogo_Click(object sender, RoutedEventArgs e)
         {
             if (CurrentLogoOverlay == null && !IsLogoOverlayEnabled)
@@ -1169,6 +1226,8 @@ namespace DecklinkSwitcher
         private void SetLogoOverlayActiveState(bool enabled)
         {
             IsLogoOverlayEnabled = enabled && CurrentLogoOverlay != null;
+            if (IsLogoOverlayEnabled)
+                LogoSequenceStartMs = Environment.TickCount64;
             _isUpdatingLogoUi = true;
             try
             {
@@ -1187,40 +1246,148 @@ namespace DecklinkSwitcher
             UpdateLogoPreviewElement();
         }
 
-        private bool LoadLogoFromFile(string filePath)
+        private static int CompareNaturalFileNames(string? a, string? b)
+        {
+            string sa = Path.GetFileName(a) ?? "";
+            string sb = Path.GetFileName(b) ?? "";
+            int ia = 0, ib = 0;
+            while (ia < sa.Length && ib < sb.Length)
+            {
+                if (char.IsDigit(sa[ia]) && char.IsDigit(sb[ib]))
+                {
+                    int startA = ia, startB = ib;
+                    while (ia < sa.Length && char.IsDigit(sa[ia])) ia++;
+                    while (ib < sb.Length && char.IsDigit(sb[ib])) ib++;
+
+                    string numA = sa.Substring(startA, ia - startA).TrimStart('0');
+                    string numB = sb.Substring(startB, ib - startB).TrimStart('0');
+                    if (numA.Length != numB.Length)
+                        return numA.Length.CompareTo(numB.Length);
+                    int cmpNum = string.Compare(numA, numB, StringComparison.Ordinal);
+                    if (cmpNum != 0) return cmpNum;
+                    int lenCmp = (ia - startA).CompareTo(ib - startB);
+                    if (lenCmp != 0) return lenCmp;
+                }
+                else
+                {
+                    int cmpChar = char.ToUpperInvariant(sa[ia]).CompareTo(char.ToUpperInvariant(sb[ib]));
+                    if (cmpChar != 0) return cmpChar;
+                    ia++;
+                    ib++;
+                }
+            }
+            return sa.Length.CompareTo(sb.Length);
+        }
+
+        private static (System.Drawing.Bitmap RawBitmap, System.Windows.Media.Imaging.BitmapImage PreviewImage) DecodeLogoImageFile(string filePath)
+        {
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            using var ms1 = new MemoryStream(fileBytes);
+            using var loadedBmp = new System.Drawing.Bitmap(ms1);
+            var clonedBmp = new System.Drawing.Bitmap(loadedBmp.Width, loadedBmp.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = System.Drawing.Graphics.FromImage(clonedBmp))
+            {
+                g.DrawImage(loadedBmp, 0, 0, loadedBmp.Width, loadedBmp.Height);
+            }
+
+            var bmpImg = new System.Windows.Media.Imaging.BitmapImage();
+            using (var ms2 = new MemoryStream(fileBytes))
+            {
+                bmpImg.BeginInit();
+                bmpImg.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmpImg.StreamSource = ms2;
+                bmpImg.EndInit();
+                bmpImg.Freeze();
+            }
+
+            return (clonedBmp, bmpImg);
+        }
+
+        private void DisposeRawLogoResources()
+        {
+            var seq = _rawLogoSequence;
+            _rawLogoSequence = null;
+            if (seq != null)
+            {
+                foreach (var bmp in seq)
+                {
+                    if (!ReferenceEquals(bmp, _rawLogoBitmap))
+                        bmp?.Dispose();
+                }
+            }
+            _rawLogoBitmap?.Dispose();
+            _rawLogoBitmap = null;
+        }
+
+        private bool LoadLogoFromFile(string path)
         {
             try
             {
-                if (!File.Exists(filePath)) return false;
-
-                byte[] fileBytes = File.ReadAllBytes(filePath);
-                using var ms1 = new MemoryStream(fileBytes);
-                using var loadedBmp = new System.Drawing.Bitmap(ms1);
-                var clonedBmp = new System.Drawing.Bitmap(loadedBmp.Width, loadedBmp.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                using (var g = System.Drawing.Graphics.FromImage(clonedBmp))
+                if (Directory.Exists(path))
                 {
-                    g.DrawImage(loadedBmp, 0, 0, loadedBmp.Width, loadedBmp.Height);
+                    var supportedExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".png", ".bmp", ".jpg", ".jpeg", ".gif" };
+                    var frameFiles = Directory.EnumerateFiles(path)
+                        .Where(f => supportedExts.Contains(Path.GetExtension(f)))
+                        .ToList();
+                    frameFiles.Sort(CompareNaturalFileNames);
+
+                    if (frameFiles.Count == 0)
+                    {
+                        System.Windows.MessageBox.Show("No supported image frames (.png, .bmp, .jpg, .gif) found in the selected folder.", "Sequence Empty", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
+
+                    var rawFrames = new List<System.Drawing.Bitmap>(frameFiles.Count);
+                    var previewFrames = new List<System.Windows.Media.Imaging.BitmapImage>(frameFiles.Count);
+                    try
+                    {
+                        foreach (string frameFile in frameFiles)
+                        {
+                            var (rawBmp, previewImg) = DecodeLogoImageFile(frameFile);
+                            rawFrames.Add(rawBmp);
+                            previewFrames.Add(previewImg);
+                        }
+                    }
+                    catch
+                    {
+                        foreach (var bmp in rawFrames) bmp.Dispose();
+                        throw;
+                    }
+
+                    DisposeRawLogoResources();
+                    _rawLogoSequence = rawFrames.ToArray();
+                    _rawLogoBitmap = _rawLogoSequence[0];
+                    _logoPreviewSequence = previewFrames.ToArray();
+                    _logoPreviewImageSource = _logoPreviewSequence[0];
+                    _logoFilePath = path;
+                    LogoSequenceStartMs = Environment.TickCount64;
+
+                    if (TxtLogoFileName != null)
+                    {
+                        string folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                        if (string.IsNullOrEmpty(folderName)) folderName = path;
+                        TxtLogoFileName.Text = $"{folderName} ({_rawLogoSequence.Length} frames)";
+                        TxtLogoFileName.ToolTip = path;
+                    }
+
+                    RebuildPreparedLogo();
+                    return true;
                 }
 
-                var bmpImg = new System.Windows.Media.Imaging.BitmapImage();
-                using (var ms2 = new MemoryStream(fileBytes))
-                {
-                    bmpImg.BeginInit();
-                    bmpImg.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                    bmpImg.StreamSource = ms2;
-                    bmpImg.EndInit();
-                    bmpImg.Freeze();
-                }
+                if (!File.Exists(path)) return false;
 
-                _rawLogoBitmap?.Dispose();
-                _rawLogoBitmap = clonedBmp;
-                _logoPreviewImageSource = bmpImg;
-                _logoFilePath = filePath;
+                var (singleBmp, singlePreview) = DecodeLogoImageFile(path);
+
+                DisposeRawLogoResources();
+                _rawLogoBitmap = singleBmp;
+                _logoPreviewSequence = null;
+                _logoPreviewImageSource = singlePreview;
+                _logoFilePath = path;
 
                 if (TxtLogoFileName != null)
                 {
-                    TxtLogoFileName.Text = Path.GetFileName(filePath);
-                    TxtLogoFileName.ToolTip = filePath;
+                    TxtLogoFileName.Text = Path.GetFileName(path);
+                    TxtLogoFileName.ToolTip = path;
                 }
 
                 RebuildPreparedLogo();
@@ -1234,26 +1401,8 @@ namespace DecklinkSwitcher
             }
         }
 
-        private unsafe void RebuildPreparedLogo()
+        private unsafe PreparedLogoOverlay BakePreparedLogoOverlay(System.Drawing.Bitmap sourceBmp, int w, int h)
         {
-            if (_rawLogoBitmap == null || _rawLogoBitmap.Width <= 0 || _rawLogoBitmap.Height <= 0)
-            {
-                CurrentLogoOverlay = null;
-                UpdateLogoPreviewElement();
-                return;
-            }
-
-            int w = Math.Max(2, (int)Math.Round(1920.0 * (Math.Clamp(LogoSizePercent, 3.0, 50.0) / 100.0)));
-            if ((w & 1) != 0) w++;
-            if (w > 1920) w = 1920;
-
-            int h = Math.Max(2, (int)Math.Round(w * ((double)_rawLogoBitmap.Height / _rawLogoBitmap.Width)));
-            if (h > 1080)
-            {
-                h = 1080;
-                w = Math.Max(2, (int)Math.Round(h * ((double)_rawLogoBitmap.Width / _rawLogoBitmap.Height))) & ~1;
-            }
-
             using var scaled = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             using (var g = System.Drawing.Graphics.FromImage(scaled))
             {
@@ -1261,7 +1410,7 @@ namespace DecklinkSwitcher
                 g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
                 g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                g.DrawImage(_rawLogoBitmap, new System.Drawing.Rectangle(0, 0, w, h));
+                g.DrawImage(sourceBmp, new System.Drawing.Rectangle(0, 0, w, h));
             }
 
             int totalPixels = w * h;
@@ -1307,7 +1456,7 @@ namespace DecklinkSwitcher
                 scaled.UnlockBits(bmpData);
             }
 
-            CurrentLogoOverlay = new PreparedLogoOverlay
+            return new PreparedLogoOverlay
             {
                 Width = w,
                 Height = h,
@@ -1316,8 +1465,65 @@ namespace DecklinkSwitcher
                 V = vArr,
                 A = aArr
             };
+        }
+
+        private void RebuildPreparedLogo()
+        {
+            if (_rawLogoBitmap == null || _rawLogoBitmap.Width <= 0 || _rawLogoBitmap.Height <= 0)
+            {
+                CurrentLogoOverlay = null;
+                CurrentLogoSequence = null;
+                UpdateLogoPreviewElement();
+                return;
+            }
+
+            int w = Math.Max(2, (int)Math.Round(1920.0 * (Math.Clamp(LogoSizePercent, 3.0, 50.0) / 100.0)));
+            if ((w & 1) != 0) w++;
+            if (w > 1920) w = 1920;
+
+            int h = Math.Max(2, (int)Math.Round(w * ((double)_rawLogoBitmap.Height / _rawLogoBitmap.Width)));
+            if (h > 1080)
+            {
+                h = 1080;
+                w = Math.Max(2, (int)Math.Round(h * ((double)_rawLogoBitmap.Width / _rawLogoBitmap.Height))) & ~1;
+            }
+
+            if (_rawLogoSequence != null && _rawLogoSequence.Length > 0)
+            {
+                var bakedFrames = new PreparedLogoOverlay[_rawLogoSequence.Length];
+                for (int i = 0; i < _rawLogoSequence.Length; i++)
+                {
+                    bakedFrames[i] = BakePreparedLogoOverlay(_rawLogoSequence[i], w, h);
+                }
+                CurrentLogoSequence = bakedFrames;
+                CurrentLogoOverlay = bakedFrames[0];
+                LogoSequenceStartMs = Environment.TickCount64;
+            }
+            else
+            {
+                CurrentLogoSequence = null;
+                CurrentLogoOverlay = BakePreparedLogoOverlay(_rawLogoBitmap, w, h);
+            }
 
             UpdateLogoPreviewElement();
+        }
+
+        internal static int GetActiveLogoSequenceIndex(int frameCount)
+        {
+            if (frameCount <= 1) return 0;
+            int fps = Math.Clamp(LogoSequenceFps, 1, 120);
+            long elapsedMs = Math.Max(0L, Environment.TickCount64 - LogoSequenceStartMs);
+            return (int)((elapsedMs * fps / 1000L) % frameCount);
+        }
+
+        internal static PreparedLogoOverlay? GetActiveLogoOverlay()
+        {
+            var seq = CurrentLogoSequence;
+            if (seq != null && seq.Length > 1)
+            {
+                return seq[GetActiveLogoSequenceIndex(seq.Length)];
+            }
+            return CurrentLogoOverlay;
         }
 
         private void UpdateLogoPreviewElement()
@@ -1326,6 +1532,7 @@ namespace DecklinkSwitcher
             var ov = CurrentLogoOverlay;
             if (!IsLogoOverlayEnabled || _logoPreviewImageSource == null || ov == null)
             {
+                _logoPreviewTimer?.Stop();
                 PreviewLogoOverlay.Visibility = Visibility.Collapsed;
                 return;
             }
@@ -1335,7 +1542,34 @@ namespace DecklinkSwitcher
             double x1080 = (1920.0 - w1080) * (Math.Clamp(LogoXPercent, 0.0, 100.0) / 100.0);
             double y1080 = (1080.0 - h1080) * (Math.Clamp(LogoYPercent, 0.0, 100.0) / 100.0);
 
-            PreviewLogoOverlay.Source = _logoPreviewImageSource;
+            var previewSeq = _logoPreviewSequence;
+            if (previewSeq != null && previewSeq.Length > 1)
+            {
+                PreviewLogoOverlay.Source = previewSeq[GetActiveLogoSequenceIndex(previewSeq.Length)];
+                if (_logoPreviewTimer == null)
+                {
+                    _logoPreviewTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Render);
+                    _logoPreviewTimer.Tick += (_, _) =>
+                    {
+                        var seq = _logoPreviewSequence;
+                        if (!IsLogoOverlayEnabled || seq == null || seq.Length <= 1 || PreviewLogoOverlay == null)
+                        {
+                            _logoPreviewTimer?.Stop();
+                            return;
+                        }
+                        PreviewLogoOverlay.Source = seq[GetActiveLogoSequenceIndex(seq.Length)];
+                    };
+                }
+                _logoPreviewTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / Math.Clamp(LogoSequenceFps, 1, 120));
+                if (!_logoPreviewTimer.IsEnabled)
+                    _logoPreviewTimer.Start();
+            }
+            else
+            {
+                _logoPreviewTimer?.Stop();
+                PreviewLogoOverlay.Source = _logoPreviewImageSource;
+            }
+
             PreviewLogoOverlay.Width = w1080 * 0.25;
             PreviewLogoOverlay.Height = h1080 * 0.25;
             System.Windows.Controls.Canvas.SetLeft(PreviewLogoOverlay, x1080 * 0.25);
@@ -1520,7 +1754,7 @@ namespace DecklinkSwitcher
 
             if (IsLogoOverlayEnabled)
             {
-                var ov = CurrentLogoOverlay;
+                var ov = GetActiveLogoOverlay();
                 if (ov != null && ov.Width > 0 && ov.Height > 0)
                 {
                     int startX = (int)Math.Round((1920 - ov.Width) * (Math.Clamp(LogoXPercent, 0.0, 100.0) / 100.0));
