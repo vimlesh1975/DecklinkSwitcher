@@ -582,9 +582,81 @@ namespace DecklinkSwitcher
             }
         }
 
+        private static readonly object _mixLock = new();
+        public static volatile bool IsMixEnabled = false;
+        private static volatile bool _isMixActive = false;
+        private static long _mixStartTicks = 0;
+        private const double MixDurationSeconds = 0.5;
+        private static byte[]? _lastCleanUyvy1080;
+        private static byte[]? _mixFromUyvy1080;
+
+        public static void BeginMixIfEnabled()
+        {
+            if (!IsMixEnabled) return;
+            lock (_mixLock)
+            {
+                if (_lastCleanUyvy1080 == null) return;
+                if (_mixFromUyvy1080 == null || _mixFromUyvy1080.Length != 1920 * 1080 * 2)
+                    _mixFromUyvy1080 = new byte[1920 * 1080 * 2];
+
+                Buffer.BlockCopy(_lastCleanUyvy1080, 0, _mixFromUyvy1080, 0, _mixFromUyvy1080.Length);
+                _mixStartTicks = Stopwatch.GetTimestamp();
+                _isMixActive = true;
+            }
+        }
+
+        private static unsafe void ApplyMixTransitionUyvy(byte* uyvyBuffer)
+        {
+            if (!IsMixEnabled && !_isMixActive) return;
+
+            lock (_mixLock)
+            {
+                if (_isMixActive)
+                {
+                    double elapsed = (Stopwatch.GetTimestamp() - _mixStartTicks) / (double)Stopwatch.Frequency;
+                    if (elapsed >= MixDurationSeconds)
+                    {
+                        _isMixActive = false;
+                    }
+                    else if (_mixFromUyvy1080 != null)
+                    {
+                        int alpha = Math.Clamp((int)Math.Round((elapsed / MixDurationSeconds) * 256.0), 0, 256);
+                        int invAlpha = 256 - alpha;
+                        fixed (byte* fromBase = _mixFromUyvy1080)
+                        {
+                            byte* pFrom = fromBase;
+                            Parallel.For(0, 1080, y =>
+                            {
+                                int rowBytes = 1920 * 2;
+                                byte* dst = uyvyBuffer + y * rowBytes;
+                                byte* srcA = pFrom + y * rowBytes;
+                                for (int i = 0; i < rowBytes; i++)
+                                {
+                                    dst[i] = (byte)((srcA[i] * invAlpha + dst[i] * alpha) >> 8);
+                                }
+                            });
+                        }
+                    }
+                }
+
+                if (IsMixEnabled)
+                {
+                    if (_lastCleanUyvy1080 == null || _lastCleanUyvy1080.Length != 1920 * 1080 * 2)
+                        _lastCleanUyvy1080 = new byte[1920 * 1080 * 2];
+
+                    fixed (byte* cachePtr = _lastCleanUyvy1080)
+                    {
+                        Buffer.MemoryCopy(uyvyBuffer, cachePtr, 1920 * 1080 * 2, 1920 * 1080 * 2);
+                    }
+                }
+            }
+        }
+
         public static unsafe void ApplyLogoOverlayUyvy(byte* uyvyBuffer)
         {
             if (uyvyBuffer == null) return;
+
+            ApplyMixTransitionUyvy(uyvyBuffer);
 
             if (IsNdiOverlayEnabled)
             {
@@ -618,7 +690,7 @@ namespace DecklinkSwitcher
 
         public static unsafe void ApplyLogoOverlayUyvy(byte[]? uyvyBytes)
         {
-            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled && !IsNdiOverlayEnabled) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
+            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled && !IsNdiOverlayEnabled && !IsMixEnabled && !_isMixActive) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
             fixed (byte* ptr = uyvyBytes)
             {
                 ApplyLogoOverlayUyvy(ptr);

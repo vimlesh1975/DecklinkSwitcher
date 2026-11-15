@@ -20,6 +20,10 @@ namespace DecklinkSwitcher
         public static void SetActiveSource(int type, string name, DeckLinkDevice device)
         {
             var window = (MainWindow)Application.Current.MainWindow;
+            if (window._activeSourceType != type || window._activeInput != device)
+            {
+                BeginMixIfEnabled();
+            }
             window._activeSourceType = type;
             ActiveSourceType = type;
             window._activeInput = device;
@@ -228,7 +232,7 @@ namespace DecklinkSwitcher
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
-                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive)
+                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled)
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
@@ -483,6 +487,7 @@ namespace DecklinkSwitcher
                     settings.NdiSourceName = (CmbNdiSources?.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiSourceName ?? settings.NdiSourceName;
                     if (SldYouTubeAudioDelay != null) settings.YouTubeAudioDelayMs = (int)SldYouTubeAudioDelay.Value;
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
+                    if (ChkMixTransition != null) settings.MixTransitionEnabled = ChkMixTransition.IsChecked == true;
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
@@ -795,6 +800,8 @@ namespace DecklinkSwitcher
                 if (_youtubeSource != null) _youtubeSource.AudioDelayMs = settings.YouTubeAudioDelayMs;
                 InvertDeckLinkRight = settings.InvertDeckLinkRightChannel;
                 if (ChkInvertDeckLinkR != null) ChkInvertDeckLinkR.IsChecked = settings.InvertDeckLinkRightChannel;
+                IsMixEnabled = settings.MixTransitionEnabled;
+                if (ChkMixTransition != null) ChkMixTransition.IsChecked = settings.MixTransitionEnabled;
 
                 // System Audio Setup
                 var renderDevices = SystemAudioSource.GetRenderDevices();
@@ -1295,6 +1302,12 @@ namespace DecklinkSwitcher
         private void ChkInvertDeckLinkR_Changed(object sender, RoutedEventArgs e)
         {
             InvertDeckLinkRight = ChkInvertDeckLinkR.IsChecked == true;
+            if (IsLoaded) SaveCurrentSettings();
+        }
+
+        private void ChkMixTransition_Changed(object sender, RoutedEventArgs e)
+        {
+            IsMixEnabled = ChkMixTransition.IsChecked == true;
             if (IsLoaded) SaveCurrentSettings();
         }
 

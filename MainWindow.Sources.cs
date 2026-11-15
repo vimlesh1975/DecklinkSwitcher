@@ -99,6 +99,7 @@ namespace DecklinkSwitcher
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSourceType != 1) BeginMixIfEnabled();
             _activeSourceType = 1; ActiveSourceType = 1; ActiveInputName = "Color Bars";
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -112,6 +113,7 @@ namespace DecklinkSwitcher
 
         private void BtnMatte_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSourceType != 2) BeginMixIfEnabled();
             _activeSourceType = 2; ActiveSourceType = 2; ActiveInputName = "Matte";
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -124,6 +126,7 @@ namespace DecklinkSwitcher
 
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSourceType != 3) BeginMixIfEnabled();
             _activeSourceType = 3; ActiveSourceType = 3; ActiveInputName = "Media"; Log("Switched to Local Video");
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -132,6 +135,7 @@ namespace DecklinkSwitcher
 
         private void BtnYouTube_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSourceType != 6) BeginMixIfEnabled();
             _activeSourceType = 6; ActiveSourceType = 6; ActiveInputName = "YouTube"; Log("Switched to YouTube Live");
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -217,6 +221,7 @@ namespace DecklinkSwitcher
 
         private void BtnNdiSource_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSourceType != 8) BeginMixIfEnabled();
             _activeSourceType = 8; ActiveSourceType = 8; ActiveInputName = "NDI"; Log("Switched to NDI Source");
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -331,6 +336,7 @@ namespace DecklinkSwitcher
 
         private void BtnHtmlSource_Click(object sender, RoutedEventArgs e)
         {
+            if (_activeSourceType != 7) BeginMixIfEnabled();
             _activeSourceType = 7; ActiveSourceType = 7; ActiveInputName = "HTML"; Log("Switched to HTML / Web Source");
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -402,6 +408,7 @@ namespace DecklinkSwitcher
 
         public void SwitchToScreen(ScreenInputViewModel vm)
         {
+            if (_activeSourceType != 4 || _activeScreen != vm) BeginMixIfEnabled();
             _activeSourceType = 4;
             ActiveSourceType = 4;
             _activeScreen = vm;
@@ -428,6 +435,7 @@ namespace DecklinkSwitcher
 
         public void SwitchToWebcam(WebcamInputViewModel vm)
         {
+            if (_activeSourceType != 5 || _activeWebcam != vm) BeginMixIfEnabled();
             _activeSourceType = 5;
             ActiveSourceType = 5;
             _activeWebcam = vm;
@@ -1345,7 +1353,7 @@ namespace DecklinkSwitcher
             IntPtr modifiedAudioBuffer = MixAudio(audioSampleCount, ActiveSourceType, ActiveInputName, "software-decklink-output");
 
             byte[]? uyvyBytes = null;
-            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive)
+            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled)
             {
                 lock (_softwareDeckLinkLock)
                 {
