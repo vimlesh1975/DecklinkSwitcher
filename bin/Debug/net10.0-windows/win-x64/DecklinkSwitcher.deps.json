@@ -28,42 +28,34 @@
         "runtime": {
           "runtimes/win-x64/lib/net6.0/CefSharp.Core.Runtime.dll": {
             "assemblyVersion": "156.0.150.0",
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.Core.Runtime.dll"
+            "fileVersion": "156.0.150.0"
           },
           "runtimes/win-x64/lib/net6.0/CefSharp.Core.dll": {
             "assemblyVersion": "156.0.150.0",
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.Core.dll"
+            "fileVersion": "156.0.150.0"
           },
           "runtimes/win-x64/lib/net6.0/CefSharp.dll": {
             "assemblyVersion": "156.0.150.0",
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.dll"
+            "fileVersion": "156.0.150.0"
           },
           "runtimes/win-x64/lib/net6.0/Ijwhost.dll": {
-            "fileVersion": "6.0.3324.36610",
-            "localPath": "Ijwhost.dll"
+            "fileVersion": "6.0.3324.36610"
           }
         },
         "native": {
           "runtimes/win-x64/native/CefSharp.BrowserSubprocess.Core.dll": {
             "assemblyVersion": "156.0.150.0",
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.BrowserSubprocess.Core.dll"
+            "fileVersion": "156.0.150.0"
           },
           "runtimes/win-x64/native/CefSharp.BrowserSubprocess.dll": {
             "assemblyVersion": "156.0.150.0",
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.BrowserSubprocess.dll"
+            "fileVersion": "156.0.150.0"
           },
           "runtimes/win-x64/native/CefSharp.BrowserSubprocess.exe": {
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.BrowserSubprocess.exe"
+            "fileVersion": "156.0.150.0"
           },
           "runtimes/win-x64/native/CefSharp.BrowserSubprocess.runtimeconfig.json": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "CefSharp.BrowserSubprocess.runtimeconfig.json"
+            "fileVersion": "0.0.0.0"
           }
         }
       },
@@ -74,8 +66,7 @@
         "runtime": {
           "lib/net6.0-windows7.0/CefSharp.OffScreen.dll": {
             "assemblyVersion": "156.0.150.0",
-            "fileVersion": "156.0.150.0",
-            "localPath": "CefSharp.OffScreen.dll"
+            "fileVersion": "156.0.150.0"
           }
         }
       },
@@ -87,52 +78,40 @@
       "chromiumembeddedframework.runtime.win-x64/156.0.15": {
         "native": {
           "runtimes/win-x64/native/chrome_100_percent.pak": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "chrome_100_percent.pak"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/chrome_200_percent.pak": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "chrome_200_percent.pak"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/chrome_elf.dll": {
-            "fileVersion": "156.0.8078.80",
-            "localPath": "chrome_elf.dll"
+            "fileVersion": "156.0.8078.80"
           },
           "runtimes/win-x64/native/d3dcompiler_47.dll": {
-            "fileVersion": "10.0.28000.2270",
-            "localPath": "d3dcompiler_47.dll"
+            "fileVersion": "10.0.28000.2270"
           },
           "runtimes/win-x64/native/dxcompiler.dll": {
-            "fileVersion": "1.9.2609.0",
-            "localPath": "dxcompiler.dll"
+            "fileVersion": "1.9.2609.0"
           },
           "runtimes/win-x64/native/icudtl.dat": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "icudtl.dat"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/libcef.dll": {
-            "fileVersion": "156.0.15.0",
-            "localPath": "libcef.dll"
+            "fileVersion": "156.0.15.0"
           },
           "runtimes/win-x64/native/resources.pak": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "resources.pak"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/v8_context_snapshot.bin": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "v8_context_snapshot.bin"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/vk_swiftshader.dll": {
-            "fileVersion": "5.0.0.1",
-            "localPath": "vk_swiftshader.dll"
+            "fileVersion": "5.0.0.1"
           },
           "runtimes/win-x64/native/vk_swiftshader_icd.json": {
-            "fileVersion": "0.0.0.0",
-            "localPath": "vk_swiftshader_icd.json"
+            "fileVersion": "0.0.0.0"
           },
           "runtimes/win-x64/native/vulkan-1.dll": {
-            "fileVersion": "1.4.364.0",
-            "localPath": "vulkan-1.dll"
+            "fileVersion": "1.4.364.0"
           }
         }
       },
@@ -143,8 +122,7 @@
         "runtime": {
           "lib/net10.0/FlashCap.dll": {
             "assemblyVersion": "1.12.0.0",
-            "fileVersion": "2026.8.24.34791",
-            "localPath": "FlashCap.dll"
+            "fileVersion": "2026.8.24.34791"
           }
         }
       },
@@ -152,8 +130,7 @@
         "runtime": {
           "lib/net10.0/FlashCap.Core.dll": {
             "assemblyVersion": "1.12.0.0",
-            "fileVersion": "2026.8.24.34791",
-            "localPath": "FlashCap.Core.dll"
+            "fileVersion": "2026.8.24.34791"
           }
         }
       },
@@ -161,8 +138,7 @@
         "runtime": {
           "lib/net10.0/LibVLCSharp.dll": {
             "assemblyVersion": "3.10.1.0",
-            "fileVersion": "3.10.1.0",
-            "localPath": "LibVLCSharp.dll"
+            "fileVersion": "3.10.1.0"
           }
         }
       },
@@ -179,8 +155,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -191,8 +166,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.Asio.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Asio.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -203,8 +177,7 @@
         "runtime": {
           "lib/net9.0/NAudio.Core.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Core.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -215,8 +188,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.Dmo.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Dmo.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -227,8 +199,7 @@
         "runtime": {
           "lib/net9.0/NAudio.Midi.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Midi.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -239,8 +210,7 @@
         "runtime": {
           "lib/net9.0/NAudio.Wasapi.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.Wasapi.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -251,8 +221,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.WinForms.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.WinForms.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -264,8 +233,7 @@
         "runtime": {
           "lib/net9.0-windows7.0/NAudio.WinMM.dll": {
             "assemblyVersion": "3.1.0.0",
-            "fileVersion": "3.1.0.0",
-            "localPath": "NAudio.WinMM.dll"
+            "fileVersion": "3.1.0.0"
           }
         }
       },
@@ -273,8 +241,7 @@
         "runtime": {
           "lib/net8.0/SharpGen.Runtime.dll": {
             "assemblyVersion": "2.2.0.0",
-            "fileVersion": "2.2.0.0",
-            "localPath": "SharpGen.Runtime.dll"
+            "fileVersion": "2.2.0.0"
           }
         }
       },
@@ -285,8 +252,7 @@
         "runtime": {
           "lib/net8.0/SharpGen.Runtime.COM.dll": {
             "assemblyVersion": "2.2.0.0",
-            "fileVersion": "2.2.0.0",
-            "localPath": "SharpGen.Runtime.COM.dll"
+            "fileVersion": "2.2.0.0"
           }
         }
       },
@@ -294,8 +260,7 @@
         "runtime": {
           "lib/net9.0/System.Numerics.Tensors.dll": {
             "assemblyVersion": "9.0.0.0",
-            "fileVersion": "9.0.24.52809",
-            "localPath": "System.Numerics.Tensors.dll"
+            "fileVersion": "9.0.24.52809"
           }
         }
       },
@@ -307,8 +272,7 @@
         "runtime": {
           "lib/net8.0/Vortice.Direct3D11.dll": {
             "assemblyVersion": "3.6.2.0",
-            "fileVersion": "3.6.2.0",
-            "localPath": "Vortice.Direct3D11.dll"
+            "fileVersion": "3.6.2.0"
           }
         }
       },
@@ -321,8 +285,7 @@
         "runtime": {
           "lib/net8.0/Vortice.DirectX.dll": {
             "assemblyVersion": "3.6.2.0",
-            "fileVersion": "3.6.2.0",
-            "localPath": "Vortice.DirectX.dll"
+            "fileVersion": "3.6.2.0"
           }
         }
       },
@@ -334,8 +297,7 @@
         "runtime": {
           "lib/net8.0/Vortice.DXGI.dll": {
             "assemblyVersion": "3.6.2.0",
-            "fileVersion": "3.6.2.0",
-            "localPath": "Vortice.DXGI.dll"
+            "fileVersion": "3.6.2.0"
           }
         }
       },
@@ -343,8 +305,7 @@
         "runtime": {
           "lib/net9.0/Vortice.Mathematics.dll": {
             "assemblyVersion": "1.9.2.0",
-            "fileVersion": "1.9.2.0",
-            "localPath": "Vortice.Mathematics.dll"
+            "fileVersion": "1.9.2.0"
           }
         }
       },
@@ -352,8 +313,7 @@
         "runtime": {
           "lib/net10.0/YoutubeExplode.dll": {
             "assemblyVersion": "6.6.3.0",
-            "fileVersion": "6.6.3.0",
-            "localPath": "YoutubeExplode.dll"
+            "fileVersion": "6.6.3.0"
           }
         }
       },

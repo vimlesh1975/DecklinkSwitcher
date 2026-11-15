@@ -64,6 +64,11 @@ namespace DecklinkSwitcher
         private SystemAudioSource _systemAudioSource = new();
         public static float SystemAudioLevel = 1.0f;
         public static AudioState StateSystemAudio = AudioState.AFV;
+        private FullscreenPreviewWindow? _fullscreenWindow;
+        public static volatile bool IsFullscreenPreviewActive = false;
+        private static System.Windows.Media.Imaging.WriteableBitmap? _bmpFullscreenOutput;
+        private static byte[]? _fullscreenBgraBuffer;
+        private static int _fullscreenFramePending = 0;
         
         private VlcMediaSource _mediaSource;
         private YouTubeSource _youtubeSource;
@@ -223,7 +228,7 @@ namespace DecklinkSwitcher
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
-                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
+                                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive)
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
@@ -238,6 +243,7 @@ namespace DecklinkSwitcher
                                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
                                     if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
                                     if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, uyvyBytes);
+                                    PushFullscreenPreviewFrame(uyvyBytes);
                                 }
                                 System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                             }
@@ -558,6 +564,8 @@ namespace DecklinkSwitcher
         {
             Log("Application closing. Releasing DeckLink resources...");
             
+            CloseFullscreenPreview();
+
             // Save Settings
             SaveCurrentSettings();
 
@@ -3100,6 +3108,119 @@ namespace DecklinkSwitcher
             if (IsLoaded) SaveCurrentSettings();
         }
 
+        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.F11)
+            {
+                e.Handled = true;
+                ToggleFullscreenPreview();
+            }
+        }
+
+        private void PgmPreviewGrid_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                e.Handled = true;
+                ToggleFullscreenPreview();
+            }
+        }
+
+        private void BtnFullscreenPreview_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleFullscreenPreview();
+        }
+
+        public void ToggleFullscreenPreview()
+        {
+            if (_fullscreenWindow != null && _fullscreenWindow.IsLoaded)
+            {
+                CloseFullscreenPreview();
+                return;
+            }
+
+            OpenFullscreenPreview();
+        }
+
+        public void OpenFullscreenPreview()
+        {
+            if (_fullscreenWindow != null && _fullscreenWindow.IsLoaded)
+            {
+                _fullscreenWindow.Activate();
+                return;
+            }
+
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            // Prefer secondary monitor; if none found, open on current/primary monitor
+            var targetScreen = screens.FirstOrDefault(s => !s.Primary) ?? System.Windows.Forms.Screen.PrimaryScreen ?? screens[0];
+
+            var wnd = new FullscreenPreviewWindow();
+            _fullscreenWindow = wnd;
+
+            _bmpFullscreenOutput = new System.Windows.Media.Imaging.WriteableBitmap(1920, 1080, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            if (_latestPgmFrame != null && _latestPgmFrame.Length == 1920 * 1080 * 4)
+            {
+                _bmpFullscreenOutput.WritePixels(new Int32Rect(0, 0, 1920, 1080), _latestPgmFrame, 1920 * 4, 0);
+            }
+            IsFullscreenPreviewActive = true;
+
+            // Connect 1920x1080 composited output (already includes NDI, HTML, and Logo 1080p overlays)
+            wnd.FsPreviewOutput.Source = _bmpFullscreenOutput;
+
+            wnd.Closed += (s, e) =>
+            {
+                if (ReferenceEquals(_fullscreenWindow, wnd))
+                {
+                    _fullscreenWindow = null;
+                    IsFullscreenPreviewActive = false;
+                    _bmpFullscreenOutput = null;
+                }
+                UpdateFullscreenButton();
+            };
+
+            // Position window on target display using DPI scale
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
+            double dpiX = dpi.DpiScaleX > 0 ? dpi.DpiScaleX : 1.0;
+            double dpiY = dpi.DpiScaleY > 0 ? dpi.DpiScaleY : 1.0;
+
+            wnd.WindowStartupLocation = WindowStartupLocation.Manual;
+            wnd.Left = (targetScreen.Bounds.Left + 50) / dpiX;
+            wnd.Top = (targetScreen.Bounds.Top + 50) / dpiY;
+            wnd.Width = Math.Max(480, (targetScreen.Bounds.Width - 100) / dpiX);
+            wnd.Height = Math.Max(270, (targetScreen.Bounds.Height - 100) / dpiY);
+
+            wnd.Show();
+            wnd.WindowState = WindowState.Maximized;
+
+            UpdateFullscreenButton();
+            Log($"Fullscreen preview (1920x1080) opened on {targetScreen.DeviceName} ({targetScreen.Bounds.Width}x{targetScreen.Bounds.Height}).");
+        }
+
+        public void CloseFullscreenPreview()
+        {
+            var wnd = _fullscreenWindow;
+            _fullscreenWindow = null;
+            IsFullscreenPreviewActive = false;
+            _bmpFullscreenOutput = null;
+            if (wnd != null && wnd.IsLoaded)
+            {
+                wnd.Close();
+            }
+            UpdateFullscreenButton();
+        }
+
+        private void UpdateFullscreenButton()
+        {
+            if (BtnFullscreenPreview != null)
+            {
+                bool isOpen = _fullscreenWindow != null && _fullscreenWindow.IsLoaded;
+                BtnFullscreenPreview.Content = isOpen ? "✕ Exit Fullscreen" : "⛶ Fullscreen Preview";
+                BtnFullscreenPreview.Background = isOpen
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(198, 40, 40))
+                    : (System.Windows.Media.Brush)FindResource("ButtonAltBg");
+            }
+        }
+
         private void ChkDarkMode_Checked(object sender, RoutedEventArgs e)
         {
             if (Application.Current is App app) app.SetTheme(true);
@@ -3952,6 +4073,93 @@ namespace DecklinkSwitcher
                     if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, uyvyBytes);
                 }
             }
+
+            PushFullscreenPreviewFrame(uyvyBytes);
+        }
+
+        public static void PushFullscreenPreviewFrame(byte[]? uyvyBytes)
+        {
+            if (IsFullscreenPreviewActive && uyvyBytes != null && uyvyBytes.Length == 1920 * 1080 * 2 && _bmpFullscreenOutput != null)
+            {
+                if (Interlocked.CompareExchange(ref _fullscreenFramePending, 1, 0) == 0)
+                {
+                    try
+                    {
+                        if (_fullscreenBgraBuffer == null || _fullscreenBgraBuffer.Length != 1920 * 1080 * 4)
+                            _fullscreenBgraBuffer = new byte[1920 * 1080 * 4];
+
+                        ConvertUyvy1080ToBgra1080(uyvyBytes, _fullscreenBgraBuffer);
+
+                        Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try
+                            {
+                                _bmpFullscreenOutput?.WritePixels(new Int32Rect(0, 0, 1920, 1080), _fullscreenBgraBuffer, 1920 * 4, 0);
+                            }
+                            catch { }
+                            finally
+                            {
+                                Interlocked.Exchange(ref _fullscreenFramePending, 0);
+                            }
+                        }), System.Windows.Threading.DispatcherPriority.Render);
+                    }
+                    catch
+                    {
+                        Interlocked.Exchange(ref _fullscreenFramePending, 0);
+                    }
+                }
+            }
+        }
+
+        internal static unsafe void ConvertUyvy1080ToBgra1080(byte[] uyvy, byte[] bgra)
+        {
+            const int width = 1920;
+            const int height = 1080;
+            fixed (byte* srcBase = uyvy)
+            fixed (byte* dstBase = bgra)
+            {
+                byte* pSrcBase = srcBase;
+                byte* pDstBase = dstBase;
+                Parallel.For(0, height, y =>
+                {
+                    byte* src = pSrcBase + y * width * 2;
+                    byte* dst = pDstBase + y * width * 4;
+                    for (int x = 0; x < width; x += 2)
+                    {
+                        int u = src[0] - 128;
+                        int y0 = src[1] - 16;
+                        int v = src[2] - 128;
+                        int y1 = src[3] - 16;
+
+                        int c0 = 298 * y0;
+                        int c1 = 298 * y1;
+                        int rDelta = 409 * v + 128;
+                        int gDelta = -100 * u - 208 * v + 128;
+                        int bDelta = 516 * u + 128;
+
+                        int r0 = (c0 + rDelta) >> 8;
+                        int g0 = (c0 + gDelta) >> 8;
+                        int b0 = (c0 + bDelta) >> 8;
+
+                        int r1 = (c1 + rDelta) >> 8;
+                        int g1 = (c1 + gDelta) >> 8;
+                        int b1 = (c1 + bDelta) >> 8;
+
+                        dst[0] = (byte)(b0 < 0 ? 0 : (b0 > 255 ? 255 : b0));
+                        dst[1] = (byte)(g0 < 0 ? 0 : (g0 > 255 ? 255 : g0));
+                        dst[2] = (byte)(r0 < 0 ? 0 : (r0 > 255 ? 255 : r0));
+                        dst[3] = 255;
+
+                        dst[4] = (byte)(b1 < 0 ? 0 : (b1 > 255 ? 255 : b1));
+                        dst[5] = (byte)(g1 < 0 ? 0 : (g1 > 255 ? 255 : g1));
+                        dst[6] = (byte)(r1 < 0 ? 0 : (r1 > 255 ? 255 : r1));
+                        dst[7] = 255;
+
+                        src += 4;
+                        dst += 8;
+                    }
+                });
+            }
         }
 
         internal static byte[] ConvertBgraToUyvy1080(byte[] bgra)
@@ -4158,7 +4366,7 @@ namespace DecklinkSwitcher
             IntPtr modifiedAudioBuffer = MixAudio(audioSampleCount, ActiveSourceType, ActiveInputName, "software-decklink-output");
 
             byte[]? uyvyBytes = null;
-            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
+            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive)
             {
                 lock (_softwareDeckLinkLock)
                 {
@@ -4962,7 +5170,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int outRowBytes = _reusableOutputFrame.GetRowBytes();
@@ -5049,7 +5257,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -5220,7 +5428,7 @@ namespace DecklinkSwitcher
             try 
             {
                 byte[] uyvyBytes = null;
-                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming)
+                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
                 {
                     int h = _reusableOutputFrame.GetHeight();
                     int rowBytes = _reusableOutputFrame.GetRowBytes();
