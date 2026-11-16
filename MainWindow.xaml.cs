@@ -472,7 +472,7 @@ namespace DecklinkSwitcher
                     settings.AudioLevelPgm = SldPgmAudio.Value;
                     settings.AudioLevelColorBars = SldColorBarsAudio.Value;
                     settings.AudioLevelMedia = SldMediaAudio.Value;
-                    settings.MatteColorIndex = CmbMatteColor.SelectedIndex;
+                    settings.MatteColorHex = $"#{MatteR:X2}{MatteG:X2}{MatteB:X2}";
                     settings.SystemAudioMonitorEnabled = ChkSystemAudioOut.IsChecked == true;
                     settings.LoopMediaEnabled = ChkLoopMedia.IsChecked == true;
                     
@@ -777,7 +777,16 @@ namespace DecklinkSwitcher
                 SldColorBarsAudio.Value = settings.AudioLevelColorBars;
                 SldMediaAudio.Value = settings.AudioLevelMedia;
                 
-                CmbMatteColor.SelectedIndex = settings.MatteColorIndex;
+                if (!string.IsNullOrWhiteSpace(settings.MatteColorHex))
+                {
+                    SetMatteColorHex(settings.MatteColorHex);
+                }
+                else
+                {
+                    string[] legacyHex = { "#000000", "#FFFFFF", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF" };
+                    int idx = Math.Clamp(settings.MatteColorIndex, 0, legacyHex.Length - 1);
+                    SetMatteColorHex(legacyHex[idx]);
+                }
                 ChkSystemAudioOut.IsChecked = settings.SystemAudioMonitorEnabled;
                 ChkLoopMedia.IsChecked = settings.LoopMediaEnabled;
                 CmbAudioStateColorBars.SelectedIndex = (int)settings.AudioStateColorBars;

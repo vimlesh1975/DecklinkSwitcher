@@ -62,6 +62,7 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.Dictionary<string, AudioState> MicStates { get; set; } = new();
         
         public int MatteColorIndex { get; set; } = 4;
+        public string MatteColorHex { get; set; } = "#0000FF";
         
         public bool SystemAudioMonitorEnabled { get; set; } = false;
         public bool LoopMediaEnabled { get; set; } = false;

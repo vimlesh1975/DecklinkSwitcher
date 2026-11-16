@@ -724,16 +724,18 @@
                             </Border>
                         </StackPanel>
                         <Button Name="BtnMatte" Content="Matte Color" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnMatte_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
-                        <ComboBox Name="CmbMatteColor" FontSize="12" Height="26" SelectedIndex="4" SelectionChanged="CmbMatteColor_SelectionChanged">
-                            <ComboBoxItem Content="Black"/>
-                            <ComboBoxItem Content="White"/>
-                            <ComboBoxItem Content="Red"/>
-                            <ComboBoxItem Content="Green"/>
-                            <ComboBoxItem Content="Blue"/>
-                            <ComboBoxItem Content="Yellow"/>
-                            <ComboBoxItem Content="Cyan"/>
-                            <ComboBoxItem Content="Magenta"/>
-                        </ComboBox>
+                        <UniformGrid Name="MatteSwatchGrid" Columns="5" HorizontalAlignment="Center" Width="158">
+                            <Button Tag="#000000" ToolTip="Black" Background="#000000" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#FFFFFF" ToolTip="White" Background="#FFFFFF" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#FF0000" ToolTip="Red" Background="#FF0000" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#00FF00" ToolTip="Green" Background="#00FF00" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#0000FF" ToolTip="Blue" Background="#0000FF" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#FFFF00" ToolTip="Yellow" Background="#FFFF00" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#00FFFF" ToolTip="Cyan" Background="#00FFFF" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#FF00FF" ToolTip="Magenta" Background="#FF00FF" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Tag="#FF8000" ToolTip="Orange" Background="#FF8000" Height="20" Margin="1.5" BorderThickness="1" BorderBrush="#666666" Click="BtnMatteSwatch_Click" Cursor="Hand"/>
+                            <Button Name="BtnMatteCustomColor" Content="..." ToolTip="Pick Custom Color" FontSize="11" FontWeight="Bold" Height="20" Margin="1.5" Padding="0" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnMatteCustomColor_Click" Cursor="Hand"/>
+                        </UniformGrid>
                     </StackPanel>
                 </Border>
 

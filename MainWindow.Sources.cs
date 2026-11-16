@@ -619,6 +619,9 @@ namespace DecklinkSwitcher
             }
         }
 
+        public static byte MatteR = 0;
+        public static byte MatteG = 0;
+        public static byte MatteB = 255;
         public static byte MatteY = 41;
         public static byte MatteU = 212;
         public static byte MatteV = 114;
@@ -914,24 +917,94 @@ namespace DecklinkSwitcher
         #endregion
 
 
-        private void CmbMatteColor_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void BtnMatteSwatch_Click(object sender, RoutedEventArgs e)
         {
-            if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is string hex)
             {
-                string color = item.Content?.ToString();
-                switch (color)
+                SetMatteColorHex(hex);
+            }
+        }
+
+        private void BtnMatteCustomColor_Click(object sender, RoutedEventArgs e)
+        {
+            using var dlg = new System.Windows.Forms.ColorDialog
+            {
+                FullOpen = true,
+                Color = System.Drawing.Color.FromArgb(MatteR, MatteG, MatteB)
+            };
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                SetMatteColor(dlg.Color.R, dlg.Color.G, dlg.Color.B);
+            }
+        }
+
+        public void SetMatteColorHex(string? hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex)) return;
+            try
+            {
+                var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                SetMatteColor(c.R, c.G, c.B);
+            }
+            catch { }
+        }
+
+        public void SetMatteColor(byte r, byte g, byte b)
+        {
+            MatteR = r;
+            MatteG = g;
+            MatteB = b;
+
+            int y = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
+            int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
+            int v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+
+            MatteY = (byte)Math.Clamp(y, 16, 235);
+            MatteU = (byte)Math.Clamp(u, 16, 240);
+            MatteV = (byte)Math.Clamp(v, 16, 240);
+
+            UpdateMatteSwatchSelection();
+            UpdateMiniPreviewsSynthetic();
+            if (_activeSourceType == 2) UpdatePgmPreviewSynthetic();
+            if (IsLoaded) SaveCurrentSettings();
+        }
+
+        private void UpdateMatteSwatchSelection()
+        {
+            if (MatteSwatchGrid == null) return;
+            string currentHex = $"#{MatteR:X2}{MatteG:X2}{MatteB:X2}";
+            bool matchedPreset = false;
+            foreach (var child in MatteSwatchGrid.Children)
+            {
+                if (child is System.Windows.Controls.Button btn && btn.Tag is string tagHex)
                 {
-                    case "White":   MatteY = 235; MatteU = 128; MatteV = 128; break;
-                    case "Yellow":  MatteY = 210; MatteU = 44;  MatteV = 171; break;
-                    case "Cyan":    MatteY = 170; MatteU = 156; MatteV = 44; break;
-                    case "Green":   MatteY = 145; MatteU = 74;  MatteV = 84; break;
-                    case "Magenta": MatteY = 106; MatteU = 182; MatteV = 172; break;
-                    case "Red":     MatteY = 81;  MatteU = 98;  MatteV = 212; break;
-                    case "Blue":    MatteY = 41;  MatteU = 212; MatteV = 114; break;
-                    case "Black":   MatteY = 16;  MatteU = 128; MatteV = 128; break;
+                    bool isSelected = string.Equals(tagHex, currentHex, StringComparison.OrdinalIgnoreCase);
+                    if (isSelected) matchedPreset = true;
+                    btn.BorderThickness = isSelected ? new Thickness(2.5) : new Thickness(1);
+                    btn.BorderBrush = isSelected
+                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 229, 255))
+                        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(102, 102, 102));
                 }
-                UpdateMiniPreviewsSynthetic();
-                if (_activeSourceType == 2) UpdatePgmPreviewSynthetic();
+            }
+
+            if (BtnMatteCustomColor != null)
+            {
+                if (!matchedPreset)
+                {
+                    BtnMatteCustomColor.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(MatteR, MatteG, MatteB));
+                    BtnMatteCustomColor.Foreground = (MatteR * 0.299 + MatteG * 0.587 + MatteB * 0.114) > 150
+                        ? System.Windows.Media.Brushes.Black
+                        : System.Windows.Media.Brushes.White;
+                    BtnMatteCustomColor.BorderThickness = new Thickness(2.5);
+                    BtnMatteCustomColor.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 229, 255));
+                }
+                else
+                {
+                    BtnMatteCustomColor.Background = (System.Windows.Media.Brush)FindResource("ButtonAltBg");
+                    BtnMatteCustomColor.Foreground = (System.Windows.Media.Brush)FindResource("TextPrimary");
+                    BtnMatteCustomColor.BorderThickness = new Thickness(1);
+                    BtnMatteCustomColor.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(102, 102, 102));
+                }
             }
         }
 
@@ -974,24 +1047,7 @@ namespace DecklinkSwitcher
             
             if (_activeSourceType == 2) // Matte
             {
-                byte r=0, g=0, b=0;
-                string color = "";
-                Application.Current.Dispatcher.Invoke(() => {
-                    if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
-                        color = item.Content?.ToString();
-                });
-                
-                switch (color)
-                {
-                    case "White":   r=255; g=255; b=255; break;
-                    case "Yellow":  r=255; g=255; b=0;   break;
-                    case "Cyan":    r=0;   g=255; b=255; break;
-                    case "Green":   r=0;   g=255; b=0;   break;
-                    case "Magenta": r=255; g=0;   b=255; break;
-                    case "Red":     r=255; g=0;   b=0;   break;
-                    case "Blue":    r=0;   g=0;   b=255; break;
-                    case "Black":   r=0;   g=0;   b=0;   break;
-                }
+                byte r = MatteR, g = MatteG, b = MatteB;
                 
                 for (int i = 0; i < pixels.Length; i += 4)
                 {
@@ -1066,23 +1122,7 @@ namespace DecklinkSwitcher
             
             // Matte (Type 2)
             byte[] mPixels = new byte[480 * 270 * 4];
-            byte r=0, g=0, b=0;
-            string color = "";
-            Application.Current.Dispatcher.Invoke(() => {
-                if (CmbMatteColor.SelectedItem is System.Windows.Controls.ComboBoxItem item)
-                    color = item.Content?.ToString();
-            });
-            switch (color)
-            {
-                case "White":   r=255; g=255; b=255; break;
-                case "Yellow":  r=255; g=255; b=0;   break;
-                case "Cyan":    r=0;   g=255; b=255; break;
-                case "Green":   r=0;   g=255; b=0;   break;
-                case "Magenta": r=255; g=0;   b=255; break;
-                case "Red":     r=255; g=0;   b=0;   break;
-                case "Blue":    r=0;   g=0;   b=255; break;
-                case "Black":   r=0;   g=0;   b=0;   break;
-            }
+            byte r = MatteR, g = MatteG, b = MatteB;
             for (int i = 0; i < mPixels.Length; i += 4) {
                 mPixels[i] = b; mPixels[i+1] = g; mPixels[i+2] = r; mPixels[i+3] = 255;
             }
