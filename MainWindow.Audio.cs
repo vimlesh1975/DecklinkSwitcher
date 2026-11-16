@@ -246,17 +246,52 @@ namespace DecklinkSwitcher
             MixerSampleDemand.AddOrUpdate(caller, totalSamples, (_, current) => current + totalSamples);
             int[] mixed = new int[totalSamples];
 
-            Action<string, float, AudioState, bool> mixSource = (name, level, state, isLocalActive) =>
+            float audioMixAlpha = 1.0f;
+            bool audioMixRunning = false;
+            int prevType = _prevAudioSourceType;
+            string prevName = _prevAudioInputName;
+            if (_isAudioMixActive)
             {
-                bool shouldMix = (state == AudioState.ON) || (state == AudioState.AFV && isLocalActive);
+                double elapsed = (Stopwatch.GetTimestamp() - _audioMixStartTicks) / (double)Stopwatch.Frequency;
+                double dur = Math.Clamp(MixDurationSeconds, 0.1, 10.0);
+                if (elapsed >= dur)
+                {
+                    _isAudioMixActive = false;
+                }
+                else
+                {
+                    audioMixAlpha = (float)Math.Clamp(elapsed / dur, 0.0, 1.0);
+                    audioMixRunning = true;
+                }
+            }
+
+            Action<string, float, AudioState, bool, bool> mixSource = (name, level, state, isLocalActive, isPrevActive) =>
+            {
+                float afvGain;
+                if (state == AudioState.ON)
+                {
+                    afvGain = 1.0f;
+                }
+                else if (state == AudioState.AFV)
+                {
+                    afvGain = (isLocalActive ? audioMixAlpha : 0.0f) + (isPrevActive ? (1.0f - audioMixAlpha) : 0.0f);
+                    if (afvGain > 1.0f) afvGain = 1.0f;
+                }
+                else
+                {
+                    afvGain = 0.0f;
+                }
+
+                bool shouldMix = afvGain > 0.0001f;
 
                 if (name == "Color Bars")
                 {
                     if (!shouldMix) return;
+                    double amp = 3277.0 * afvGain;
                     for (int i = 0; i < totalSamples; i += 2)
                     {
                         // Standard -20 dBFS level (approx 3277 amplitude), ignoring the UI slider
-                        short sample = (short)(Math.Sin(_syntheticAudioPhase) * 3277);
+                        short sample = (short)(Math.Sin(_syntheticAudioPhase) * amp);
                         mixed[i] += sample;
                         mixed[i+1] += sample;
                         _syntheticAudioPhase += 2.0 * Math.PI * 1000.0 / 48000.0;
@@ -269,7 +304,7 @@ namespace DecklinkSwitcher
                 {
                     if (shouldMix)
                     {
-                        q.MixInto(mixed, totalSamples, level);
+                        q.MixInto(mixed, totalSamples, level * afvGain);
                     }
                     else
                     {
@@ -280,24 +315,28 @@ namespace DecklinkSwitcher
 
             foreach (var input in DynamicInputs)
             {
-                mixSource(input.DisplayName, (float)input.AudioLevel, input.State, activeSourceType == 0 && activeInputName == input.DisplayName);
+                mixSource(input.DisplayName, (float)input.AudioLevel, input.State,
+                    activeSourceType == 0 && activeInputName == input.DisplayName,
+                    audioMixRunning && prevType == 0 && prevName == input.DisplayName);
             }
-            mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3);
-            mixSource("YouTube", YouTubeAudioLevel, StateYouTube, activeSourceType == 6);
-            mixSource("NDI", NdiAudioLevel, StateNdi, activeSourceType == 8);
-            mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1);
+            mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3, audioMixRunning && prevType == 3);
+            mixSource("YouTube", YouTubeAudioLevel, StateYouTube, activeSourceType == 6, audioMixRunning && prevType == 6);
+            mixSource("NDI", NdiAudioLevel, StateNdi, activeSourceType == 8, audioMixRunning && prevType == 8);
+            mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1, audioMixRunning && prevType == 1);
             foreach (var cam in DynamicWebcams)
             {
-                mixSource(cam.DisplayName, (float)cam.AudioLevel, cam.State, activeSourceType == 5 && activeInputName == cam.DisplayName);
+                mixSource(cam.DisplayName, (float)cam.AudioLevel, cam.State,
+                    activeSourceType == 5 && activeInputName == cam.DisplayName,
+                    audioMixRunning && prevType == 5 && prevName == cam.DisplayName);
             }
-            mixSource("System Audio", SystemAudioLevel, StateSystemAudio, activeSourceType == 4);
+            mixSource("System Audio", SystemAudioLevel, StateSystemAudio, activeSourceType == 4, audioMixRunning && prevType == 4);
             foreach (var kvp in DynamicMicLevels)
             {
                 string key = kvp.Key;
                 float level = kvp.Value;
                 AudioState st = AudioState.ON;
                 if (DynamicMicStates.ContainsKey(key)) st = DynamicMicStates[key];
-                mixSource(key, level, st, false);
+                mixSource(key, level, st, false, false);
             }
 
             LogAudioDiagnostics();

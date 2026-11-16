@@ -743,12 +743,22 @@ namespace DecklinkSwitcher
         private static volatile bool _isPreviewMixActive = false;
         private static long _previewMixStartTicks = 0;
 
+        internal static volatile bool _isAudioMixActive = false;
+        internal static long _audioMixStartTicks = 0;
+        internal static int _prevAudioSourceType = 0;
+        internal static string _prevAudioInputName = "";
+
         public static void BeginMixIfEnabled()
         {
             if (!IsMixEnabled) return;
             lock (_mixLock)
             {
                 long nowTicks = Stopwatch.GetTimestamp();
+                _prevAudioSourceType = ActiveSourceType;
+                _prevAudioInputName = ActiveInputName ?? "";
+                _audioMixStartTicks = nowTicks;
+                _isAudioMixActive = true;
+
                 if (_lastCleanUyvy1080 != null)
                 {
                     if (_mixFromUyvy1080 == null || _mixFromUyvy1080.Length != 1920 * 1080 * 2)
