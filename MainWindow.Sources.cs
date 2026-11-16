@@ -27,7 +27,7 @@ namespace DecklinkSwitcher
                 black[i + 2] = 0;
                 black[i + 3] = 255;
             }
-            _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), black, 480 * 4, 0);
+            WritePgmPreviewFrame(black);
             AudioOutputL.Value = 0;
             AudioOutputR.Value = 0;
         }
@@ -145,7 +145,7 @@ namespace DecklinkSwitcher
                 var preview = _youtubeSource.GetLatestPreviewPixels();
                 if (preview != null && _bmpOutput != null)
                 {
-                    _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), preview, 480 * 4, 0);
+                    WritePgmPreviewFrame(preview);
                 }
                 var pgm = _youtubeSource.GetLatestPgmPixels();
                 if (pgm != null)
@@ -170,7 +170,7 @@ namespace DecklinkSwitcher
                     _bmpNdi.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
                     if (_activeSourceType == 8)
                     {
-                        _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        WritePgmPreviewFrame(buf);
                     }
                 });
             };
@@ -346,7 +346,7 @@ namespace DecklinkSwitcher
                 var preview = _htmlSource.GetLatestPreviewPixels();
                 if (preview != null && _bmpOutput != null)
                 {
-                    _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), preview, 480 * 4, 0);
+                    WritePgmPreviewFrame(preview);
                 }
                 var pgm = _htmlSource.GetLatestPgmPixels();
                 if (pgm != null)
@@ -420,7 +420,7 @@ namespace DecklinkSwitcher
 
             if (vm.Context != null && vm.Context.Prev480Buffer != null && _bmpOutput != null)
             {
-                _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), vm.Context.Prev480Buffer, 480 * 4, 0);
+                WritePgmPreviewFrame(vm.Context.Prev480Buffer);
             }
             if (vm.Context != null && vm.Context.Pgm1080Buffer != null)
             {
@@ -450,7 +450,7 @@ namespace DecklinkSwitcher
                 var preview = vm.Source.GetLatestPreviewPixels();
                 if (preview != null && _bmpOutput != null)
                 {
-                    _bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), preview, 480 * 4, 0);
+                    WritePgmPreviewFrame(preview);
                 }
                 var pgm = vm.Source.GetLatestPgmPixels();
                 if (pgm != null)
@@ -1039,7 +1039,7 @@ namespace DecklinkSwitcher
             Application.Current.Dispatcher.BeginInvoke(() => {
                 if (_bmpOutput != null)
                 {
-                    _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), pixels, 480 * 4, 0);
+                    WritePgmPreviewFrame(pixels);
                 }
             });
         }
@@ -1314,7 +1314,7 @@ namespace DecklinkSwitcher
 
                                 Application.Current.Dispatcher.BeginInvoke(() => {
                                     if (_bmpOutput != null)
-                                        _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), ctx.Prev480Buffer, 480 * 4, 0);
+                                        WritePgmPreviewFrame(ctx.Prev480Buffer);
                                 });
                             }
                         }
@@ -1491,7 +1491,7 @@ namespace DecklinkSwitcher
                 { 
                     if (_activeSourceType == 0 && _activeInput == inputDev)
                     {
-                        bmpOutput.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        WritePgmPreviewFrame(buf);
                     }
                 };
                 inputDev.OnAudioLevelArrived = (l, r) => { Application.Current.Dispatcher.BeginInvoke(() => { vm.AudioL = l; vm.AudioR = r; }); };

@@ -736,19 +736,84 @@ namespace DecklinkSwitcher
         private static byte[]? _lastCleanUyvy1080;
         private static byte[]? _mixFromUyvy1080;
 
+        private static readonly byte[] _lastCleanPreview480 = new byte[480 * 270 * 4];
+        private static readonly byte[] _mixFromPreview480 = new byte[480 * 270 * 4];
+        private static readonly byte[] _mixWorkPreview480 = new byte[480 * 270 * 4];
+        private static volatile bool _hasLastPreview480 = false;
+        private static volatile bool _isPreviewMixActive = false;
+        private static long _previewMixStartTicks = 0;
+
         public static void BeginMixIfEnabled()
         {
             if (!IsMixEnabled) return;
             lock (_mixLock)
             {
-                if (_lastCleanUyvy1080 == null) return;
-                if (_mixFromUyvy1080 == null || _mixFromUyvy1080.Length != 1920 * 1080 * 2)
-                    _mixFromUyvy1080 = new byte[1920 * 1080 * 2];
+                long nowTicks = Stopwatch.GetTimestamp();
+                if (_lastCleanUyvy1080 != null)
+                {
+                    if (_mixFromUyvy1080 == null || _mixFromUyvy1080.Length != 1920 * 1080 * 2)
+                        _mixFromUyvy1080 = new byte[1920 * 1080 * 2];
 
-                Buffer.BlockCopy(_lastCleanUyvy1080, 0, _mixFromUyvy1080, 0, _mixFromUyvy1080.Length);
-                _mixStartTicks = Stopwatch.GetTimestamp();
-                _isMixActive = true;
+                    Buffer.BlockCopy(_lastCleanUyvy1080, 0, _mixFromUyvy1080, 0, _mixFromUyvy1080.Length);
+                    _mixStartTicks = nowTicks;
+                    _isMixActive = true;
+                }
+
+                if (_hasLastPreview480)
+                {
+                    Buffer.BlockCopy(_lastCleanPreview480, 0, _mixFromPreview480, 0, _lastCleanPreview480.Length);
+                    _previewMixStartTicks = nowTicks;
+                    _isPreviewMixActive = true;
+                }
             }
+        }
+
+        internal unsafe void WritePgmPreviewFrame(byte[]? bgra480)
+        {
+            var bmp = _bmpOutput;
+            if (bmp == null || bgra480 == null || bgra480.Length < 480 * 270 * 4) return;
+
+            const int len = 480 * 270 * 4;
+            byte[] toDraw = bgra480;
+
+            if (IsMixEnabled || _isPreviewMixActive)
+            {
+                lock (_mixLock)
+                {
+                    if (_isPreviewMixActive)
+                    {
+                        double elapsed = (Stopwatch.GetTimestamp() - _previewMixStartTicks) / (double)Stopwatch.Frequency;
+                        double dur = Math.Clamp(MixDurationSeconds, 0.1, 10.0);
+                        if (elapsed >= dur)
+                        {
+                            _isPreviewMixActive = false;
+                        }
+                        else
+                        {
+                            int alpha = Math.Clamp((int)Math.Round((elapsed / dur) * 256.0), 0, 256);
+                            int invAlpha = 256 - alpha;
+                            fixed (byte* pFrom = _mixFromPreview480)
+                            fixed (byte* pTo = bgra480)
+                            fixed (byte* pOut = _mixWorkPreview480)
+                            {
+                                for (int i = 0; i < len; i++)
+                                {
+                                    pOut[i] = (byte)((pFrom[i] * invAlpha + pTo[i] * alpha + 128) >> 8);
+                                }
+                            }
+                            toDraw = _mixWorkPreview480;
+                        }
+                    }
+
+                    if (IsMixEnabled)
+                    {
+                        Buffer.BlockCopy(bgra480, 0, _lastCleanPreview480, 0, len);
+                        _hasLastPreview480 = true;
+                    }
+                }
+            }
+
+            bmp.WritePixels(new Int32Rect(0, 0, 480, 270), toDraw, 480 * 4, 0);
         }
 
         private static unsafe void ApplyMixTransitionUyvy(byte* uyvyBuffer)

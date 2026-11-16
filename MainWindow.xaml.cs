@@ -259,7 +259,7 @@ namespace DecklinkSwitcher
                         _bmpMedia.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
                         if (_activeSourceType == 3)
                         {
-                            _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                            WritePgmPreviewFrame(buf);
                             
                         }
                     });
@@ -289,7 +289,7 @@ namespace DecklinkSwitcher
                         _bmpYouTube.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
                         if (_activeSourceType == 6)
                         {
-                            _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                            WritePgmPreviewFrame(buf);
                         }
                     });
                 };
@@ -347,7 +347,7 @@ namespace DecklinkSwitcher
                         _bmpHtmlSource.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
                         if (_activeSourceType == 7)
                         {
-                            _bmpOutput?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                            WritePgmPreviewFrame(buf);
                         }
                     });
                 };
@@ -863,7 +863,7 @@ namespace DecklinkSwitcher
                             vm.PreviewBitmap.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
                             if (_activeSourceType == 5 && _activeWebcam == vm && _bmpOutput != null)
                             {
-                                _bmpOutput.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                                WritePgmPreviewFrame(buf);
                             }
                         });
                     };
@@ -1312,6 +1312,44 @@ namespace DecklinkSwitcher
         {
             IsMixEnabled = ChkMixTransition.IsChecked == true;
             if (IsLoaded) SaveCurrentSettings();
+        }
+
+        private void StepMixDuration(double delta)
+        {
+            double next = Math.Round(Math.Clamp(MixDurationSeconds + delta, 0.1, 10.0), 2);
+            MixDurationSeconds = next;
+            if (TxtMixDuration != null)
+                TxtMixDuration.Text = next.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            if (IsLoaded && !_isLoadingSettings) SaveCurrentSettings();
+        }
+
+        private void BtnMixDurationUp_Click(object sender, RoutedEventArgs e) => StepMixDuration(0.1);
+        private void BtnMixDurationDown_Click(object sender, RoutedEventArgs e) => StepMixDuration(-0.1);
+
+        private void TxtMixDuration_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            foreach (char c in e.Text)
+            {
+                if (!char.IsDigit(c) && c != '.')
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
+
+        private void TxtMixDuration_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Up)
+            {
+                StepMixDuration(0.1);
+                e.Handled = true;
+            }
+            else if (e.Key == System.Windows.Input.Key.Down)
+            {
+                StepMixDuration(-0.1);
+                e.Handled = true;
+            }
         }
 
         private void TxtMixDuration_TextChanged(object sender, TextChangedEventArgs e)
