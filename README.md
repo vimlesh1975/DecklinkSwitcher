@@ -31,13 +31,13 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
     *   **Low-Latency Playback & Synchronization:** Powered by `YoutubeExplode` and LibVLC with tuned low-latency network caching, decoding full 1080p UYVY broadcast video and 48kHz 16-bit stereo PCM audio.
     *   **Full Switcher & Mixer Integration:** Switch between YouTube Live and other inputs via the "YouTube Live" button or preview click. Supports dedicated L/R VU meters, volume fader, adjustable **Audio Delay (ms)** slider for lip-sync tuning, and AFV / ON / OFF audio modes.
 *   **HTML / Web as a Source:**
-    *   **Live Web & Local HTML Ingestion:** Powered by **Microsoft Edge WebView2** (`1920×1080` offscreen Chromium), load any web URL (`https://...`) or local `.html` file as a switcher source.
-    *   **Smooth Pushed-Frame Capture & 1080i Deflicker:** Uses event-driven Chromium screencast frames with a `1080i` vertical `1-2-1` broadcast deflicker filter for clean text on interlaced DeckLink outputs.
+    *   **Live Web & Local HTML Ingestion:** Powered by **CefSharp.OffScreen** (`1920×1080` offscreen Chromium with D3D11 shared-texture accelerated rendering), load any web URL (`https://...`) or local `.html` file as a switcher source.
+    *   **Smooth Frame Capture & 1080i Deflicker:** Supports a live **FPS** selector (`15–60 fps`) with a `1080i` vertical `1-2-1` broadcast deflicker filter for clean scrolling tickers and text on interlaced DeckLink outputs.
     *   **Audio & Transport Controls:** Includes Load, Reload (`↻`), Stop, and AFV / ON / OFF audio routing.
 *   **PGM Overlays (Live Compositing onto Program Output):**
-    *   **PGM HTML CG Overlay:** Dedicated transparent-background WebView2 CG overlay (left of Program Output) with live preview, Load/Reload/Stop, `CG: ON/OFF`, Opacity slider (`10%–100%`), and `1080i` alpha-weighted vertical deflicker.
+    *   **PGM HTML CG Overlay:** Dedicated transparent-background CefSharp CG overlay (left of Program Output) with live preview, Load/Reload/Stop, `CG: ON/OFF`, Opacity slider (`10%–100%`), live FPS selector (`15–60 fps`), and `1080i` alpha-weighted vertical deflicker.
     *   **PGM NDI CG Overlay:** Scan and composite alpha-channel NDI CG feeds directly onto PGM with live preview, `CG: ON/OFF`, and Opacity control.
-    *   **PGM Logo Overlay:** Overlay PNG/image logos onto PGM (right of Program Output) with `LOGO: ON/OFF`, Position Presets (`Top-Right`, `Top-Left`, `Bottom-Right`, `Bottom-Left`, `Center`, `Custom`), Size (`3%–50%`), Opacity (`10%–100%`), and X/Y sliders.
+    *   **PGM Logo Overlay:** Overlay static logos (`.png`, `.webp`, `.bmp`, `.jpg`), animated **video logos / GIFs** (`.mp4`, `.mov`, `.webm`, `.mkv`, `.avi`, `.gif` via `Logo...`, decoded via bundled FFmpeg with alpha-channel preservation up to 240 frames), or **image sequence folders** (via `Seq...`) onto PGM with `LOGO: ON/OFF`, **Seq FPS** (`10–60 fps`), Position Presets (`Top-Right`, `Top-Left`, `Bottom-Right`, `Bottom-Left`, `Center`, `Custom`), Size (`3%–50%`), Opacity (`10%–100%`), and X/Y sliders.
 *   **NDI Input & Output:**
     *   **NDI Source:** Discover and ingest local NDI video/audio streams directly as a switcher tile.
     *   **NDI Output:** Zero-configuration Network Device Interface (NDI) Program feed output for local broadcast networks.
@@ -50,7 +50,7 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   **System Audio Monitor:** Listen to the active PGM audio output directly through your PC's speakers or headphones, even if no DeckLink output hardware is present.
 *   **YouTube Live Streaming:** Built-in direct streaming to YouTube Live via RTMP. Sends a high-quality 1080p25 H.264 stream using bundled FFmpeg. Features automatic fallback frames to keep the stream alive when no sources are active, and synchronized audio/video queues to prevent drift.
 *   **SRT Streaming Output:** Low-latency live broadcast streaming via Secure Reliable Transport (SRT) over MPEG-TS. Supports both **Caller** mode (push to remote decoders, ingest servers, or cloud platforms) and **Listener** mode (listen locally on a port for decoders/vMix/OBS to pull), configurable latency buffer, optional Stream ID, and AES encryption passphrase.
-*   **Local Recording:** High-quality local recording of the program output directly to disk using bundled FFmpeg. Includes configurable encoding profiles (MP4 H.264, MPEG-2 XDCAM HD422, ProRes, DNxHD) tuned for broadcast and post-production.
+*   **Local Recording:** High-quality local recording of the program output directly to disk using bundled FFmpeg. Supports **Infinite Record** (continuous single file) and **Interval Record** (automatic time-segmented files) with configurable encoding profiles (MP4 H.264, MPEG-2 XDCAM HD422, ProRes, DNxHD) tuned for broadcast and post-production.
 *   **Customizable UI:** Drag-and-drop source tile reordering, Dark/Light mode toggle, and real-time CPU usage readout.
 *   **Persistent Settings:** Your hardware routing, source order, audio mixer states, levels, overlay settings, stream key, recording profile, and preferences are automatically saved to `%APPDATA%\DecklinkSwitcher\decklink_switcher_settings.json` and restored on startup.
 *   **Robust COM Handling:** Seamlessly interfaces with the Blackmagic DeckLink SDK using Multithreaded Apartment (MTA) threading.
@@ -60,7 +60,6 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   Windows operating system (Windows 10 / 11 64-bit)
 *   .NET 10.0 SDK (or higher)
 *   Blackmagic Desktop Video software installed (provides the required `DeckLinkAPI.dll` COM interfaces)
-*   Microsoft Edge WebView2 Runtime (required for `HTML / Web` source and `PGM HTML CG Overlay`)
 *   NDI Runtime (`Processing.NDI.Lib.x64.dll`, required for NDI input, NDI output, and `PGM NDI CG Overlay`)
 *   Supported Blackmagic DeckLink hardware (e.g., DeckLink Duo 2, Quad 2, 4K Extreme). *Note: The switcher can still function fully as a software switcher, screen capture tool, media player, and audio mixer using your PC monitor even without physical DeckLink hardware.*
 
@@ -92,6 +91,6 @@ This stops any running instance of the app, compiles the project, removes previo
 10. **Local Video:** Load media files with **Select File**, use **Cue**, **Pause**, **Resume**, and toggle **Loop**.
 11. **YouTube Live Source:** On the **YouTube Live** tile, expand the **Stream URL / Live** field, paste your YouTube Live stream link, and click **Connect**. Adjust **Delay (ms)** if needed for lip-sync, then cut to YouTube Live to send it to Program.
 12. **HTML / Web Source:** On the **HTML / Web** tile, enter a URL or browse for a local `.html` file and click **Load**, then cut to the tile to send it to Program.
-13. **PGM Overlays:** Use the **PGM NDI CG OVERLAY** / **PGM HTML CG OVERLAY** panels on the left of Program Output and **PGM LOGO OVERLAY** on the right to load, position, adjust opacity, and toggle live overlays on/off.
+13. **PGM Overlays:** Use the **PGM NDI CG OVERLAY** / **PGM HTML CG OVERLAY** panels on the left of Program Output to load and toggle live CG overlays, and **PGM LOGO OVERLAY** on the right to load a static image or animated video/GIF (`Logo...`) or image sequence folder (`Seq...`), set **Seq FPS**, adjust position/size/opacity, and toggle `LOGO: ON/OFF`.
 14. **Streaming & NDI:** Enter your YouTube Stream Key and click **START STREAM**, configure SRT Caller/Listener settings and click **START SRT**, or click **START NDI** to publish the Program feed over NDI.
 15. **Recording:** Choose a recording profile (MP4, ProRes, XDCAM) and destination folder, then click **START RECORDING**.

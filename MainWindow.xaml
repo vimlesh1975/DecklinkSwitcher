@@ -241,13 +241,12 @@
             <!-- Output Preview -->
             <Border Grid.Row="0" Style="{StaticResource MixerPanel}" Background="{DynamicResource PgmSectionBg}" BorderBrush="{DynamicResource PgmSectionBorder}" BorderThickness="1.5" Margin="0,0,0,25">
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                    <TextBlock Text="PROGRAM OUTPUT" FontSize="22" FontWeight="Black" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,15"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <!-- PGM NDI CG OVERLAY (Left side) -->
                         <Border Background="{DynamicResource OverlayCardNdiBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,10,0" VerticalAlignment="Top">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False">
                             <StackPanel Margin="0,0,6,0">
-                                <TextBlock Text="PGM NDI CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
+                                <TextBlock Text="NDI CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
                                 <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Margin="0,0,0,8" HorizontalAlignment="Center">
                                     <Grid Width="216" Height="121" ClipToBounds="True">
                                         <Border Background="#1a1a24"/>
@@ -290,7 +289,7 @@
                         <!-- PGM HTML CG OVERLAY -->
                         <Border Background="{DynamicResource OverlayCardHtmlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,12,0" VerticalAlignment="Top">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False"><StackPanel Margin="0,0,6,0">
-                    <TextBlock Text="PGM HTML CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
+                    <TextBlock Text="HTML CG OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10" FontWeight="Black"/>
                     <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Margin="0,0,0,8" HorizontalAlignment="Center">
                         <Grid Width="216" Height="121" ClipToBounds="True">
                             <!-- Checkerboard/Dark backdrop to see transparency -->
@@ -386,7 +385,7 @@
                         </Border>
 <Border Background="{DynamicResource OverlayCardLogoBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="12,0,0,0" VerticalAlignment="Top">
 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False"><StackPanel Margin="0,0,6,0">
-                    <TextBlock Text="PGM LOGO OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
+                    <TextBlock Text="LOGO OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -395,7 +394,7 @@
                             <ColumnDefinition Width="4"/>
                             <ColumnDefinition Width="74"/>
                         </Grid.ColumnDefinitions>
-                        <Button Name="BtnSelectLogo" Grid.Column="0" Content="Logo..." Height="30" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnSelectLogo_Click" Cursor="Hand" ToolTip="Select a single logo image"/>
+                        <Button Name="BtnSelectLogo" Grid.Column="0" Content="Logo..." Height="30" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnSelectLogo_Click" Cursor="Hand" ToolTip="Select a logo image or video (.png, .jpg, .gif, .mp4, .mov, .webm)"/>
                         <Button Name="BtnSelectLogoSeq" Grid.Column="2" Content="Seq..." Height="30" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnSelectLogoSeq_Click" Cursor="Hand" ToolTip="Select a folder containing a PNG/image sequence"/>
                         <Button Name="BtnToggleLogo" Grid.Column="4" Content="LOGO: OFF" Height="30" FontSize="11" FontWeight="Bold" Background="#424242" Foreground="White" Click="BtnToggleLogo_Click" Cursor="Hand"/>
                     </Grid>

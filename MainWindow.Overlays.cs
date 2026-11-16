@@ -16,8 +16,8 @@ namespace DecklinkSwitcher
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Select PGM Logo Image",
-                Filter = "Image Files (*.png;*.webp;*.bmp;*.jpg;*.jpeg)|*.png;*.webp;*.bmp;*.jpg;*.jpeg|PNG Files (*.png)|*.png|All Files (*.*)|*.*"
+                Title = "Select PGM Logo Image or Video",
+                Filter = "Logo Image / Video (*.png;*.webp;*.bmp;*.jpg;*.jpeg;*.gif;*.mp4;*.mov;*.webm;*.mkv;*.avi)|*.png;*.webp;*.bmp;*.jpg;*.jpeg;*.gif;*.mp4;*.mov;*.webm;*.mkv;*.avi|Image Files (*.png;*.webp;*.bmp;*.jpg;*.jpeg;*.gif)|*.png;*.webp;*.bmp;*.jpg;*.jpeg;*.gif|Video Files (*.mp4;*.mov;*.webm;*.mkv;*.avi)|*.mp4;*.mov;*.webm;*.mkv;*.avi|All Files (*.*)|*.*"
             };
             if (dlg.ShowDialog() == true)
             {
@@ -155,6 +155,130 @@ namespace DecklinkSwitcher
             return (clonedBmp, bmpImg);
         }
 
+        private static int ReadExactBytes(Stream stream, byte[] buffer, int offset, int count)
+        {
+            int totalRead = 0;
+            while (totalRead < count)
+            {
+                int n = stream.Read(buffer, offset + totalRead, count - totalRead);
+                if (n == 0) break;
+                totalRead += n;
+            }
+            return totalRead;
+        }
+
+        private static (System.Drawing.Bitmap[] RawFrames, System.Windows.Media.Imaging.BitmapSource[] PreviewFrames) DecodeLogoVideoFile(string videoPath)
+        {
+            string ffmpegPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
+            if (!File.Exists(ffmpegPath))
+                ffmpegPath = "ffmpeg";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffmpegPath,
+                Arguments = $"-hide_banner -loglevel error -i \"{videoPath}\" -vf \"scale='min(480,iw)':-2\" -frames:v 240 -c:v bmp -pix_fmt bgra -f image2pipe -",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start FFmpeg to decode video logo.");
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+            Stream stdout = proc.StandardOutput.BaseStream;
+
+            var rawFrames = new List<System.Drawing.Bitmap>();
+            var previewFrames = new List<System.Windows.Media.Imaging.BitmapSource>();
+            byte[] header = new byte[54];
+
+            try
+            {
+                while (true)
+                {
+                    int headerRead = ReadExactBytes(stdout, header, 0, 54);
+                    if (headerRead == 0) break;
+                    if (headerRead < 54)
+                        throw new InvalidOperationException("Unexpected end of FFmpeg BMP stream header.");
+                    if (header[0] != (byte)'B' || header[1] != (byte)'M')
+                        throw new InvalidOperationException("Invalid BMP frame signature from FFmpeg.");
+
+                    int fileSize = BitConverter.ToInt32(header, 2);
+                    int dataOffset = BitConverter.ToInt32(header, 10);
+                    int width = BitConverter.ToInt32(header, 18);
+                    int signedHeight = BitConverter.ToInt32(header, 22);
+                    int height = Math.Abs(signedHeight);
+                    bool bottomUp = signedHeight > 0;
+
+                    if (width <= 0 || height <= 0 || width > 4096 || height > 4096)
+                        throw new InvalidOperationException($"Unsupported decoded video frame size: {width}x{height}");
+
+                    int extraHeader = dataOffset - 54;
+                    if (extraHeader > 0)
+                    {
+                        byte[] skipBuf = new byte[extraHeader];
+                        if (ReadExactBytes(stdout, skipBuf, 0, extraHeader) < extraHeader)
+                            throw new InvalidOperationException("Unexpected end of FFmpeg BMP extended header.");
+                    }
+
+                    int rowStride = (width * 4 + 3) & ~3;
+                    int expectedMin = rowStride * height;
+                    int pixelDataSize = Math.Max(expectedMin, fileSize - dataOffset);
+                    byte[] rawPixels = new byte[pixelDataSize];
+                    if (ReadExactBytes(stdout, rawPixels, 0, pixelDataSize) < expectedMin)
+                        throw new InvalidOperationException("Unexpected end of FFmpeg BMP pixel data.");
+
+                    int tightStride = width * 4;
+                    byte[] topDown = new byte[tightStride * height];
+                    for (int y = 0; y < height; y++)
+                    {
+                        int srcY = bottomUp ? (height - 1 - y) : y;
+                        Buffer.BlockCopy(rawPixels, srcY * rowStride, topDown, y * tightStride, tightStride);
+                    }
+
+                    var rawBmp = new System.Drawing.Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    var bmpData = rawBmp.LockBits(
+                        new System.Drawing.Rectangle(0, 0, width, height),
+                        System.Drawing.Imaging.ImageLockMode.WriteOnly,
+                        System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    try
+                    {
+                        Marshal.Copy(topDown, 0, bmpData.Scan0, topDown.Length);
+                    }
+                    finally
+                    {
+                        rawBmp.UnlockBits(bmpData);
+                    }
+
+                    var previewSrc = System.Windows.Media.Imaging.BitmapSource.Create(
+                        width, height, 96, 96,
+                        System.Windows.Media.PixelFormats.Bgra32, null, topDown, tightStride);
+                    previewSrc.Freeze();
+
+                    rawFrames.Add(rawBmp);
+                    previewFrames.Add(previewSrc);
+                }
+            }
+            catch
+            {
+                foreach (var bmp in rawFrames) bmp.Dispose();
+                throw;
+            }
+
+            if (!proc.WaitForExit(15000))
+            {
+                try { proc.Kill(); } catch { }
+            }
+
+            string stderr = stderrTask.GetAwaiter().GetResult();
+            if (rawFrames.Count == 0)
+            {
+                string detail = string.IsNullOrWhiteSpace(stderr) ? "No video frames were decoded." : stderr.Trim();
+                throw new InvalidOperationException(detail);
+            }
+
+            return (rawFrames.ToArray(), previewFrames.ToArray());
+        }
+
         private void DisposeRawLogoResources()
         {
             var seq = _rawLogoSequence;
@@ -169,6 +293,29 @@ namespace DecklinkSwitcher
             }
             _rawLogoBitmap?.Dispose();
             _rawLogoBitmap = null;
+        }
+
+        private void ApplyDecodedLogoSequence(
+            System.Drawing.Bitmap[] rawFrames,
+            System.Windows.Media.Imaging.BitmapSource[] previewFrames,
+            string path,
+            string labelName)
+        {
+            DisposeRawLogoResources();
+            _rawLogoSequence = rawFrames;
+            _rawLogoBitmap = _rawLogoSequence[0];
+            _logoPreviewSequence = previewFrames;
+            _logoPreviewImageSource = _logoPreviewSequence[0];
+            _logoFilePath = path;
+            LogoSequenceStartMs = Environment.TickCount64;
+
+            if (TxtLogoFileName != null)
+            {
+                TxtLogoFileName.Text = $"{labelName} ({_rawLogoSequence.Length} frames)";
+                TxtLogoFileName.ToolTip = path;
+            }
+
+            RebuildPreparedLogo();
         }
 
         private bool LoadLogoFromFile(string path)
@@ -190,7 +337,7 @@ namespace DecklinkSwitcher
                     }
 
                     var rawFrames = new List<System.Drawing.Bitmap>(frameFiles.Count);
-                    var previewFrames = new List<System.Windows.Media.Imaging.BitmapImage>(frameFiles.Count);
+                    var previewFrames = new List<System.Windows.Media.Imaging.BitmapSource>(frameFiles.Count);
                     try
                     {
                         foreach (string frameFile in frameFiles)
@@ -206,27 +353,26 @@ namespace DecklinkSwitcher
                         throw;
                     }
 
-                    DisposeRawLogoResources();
-                    _rawLogoSequence = rawFrames.ToArray();
-                    _rawLogoBitmap = _rawLogoSequence[0];
-                    _logoPreviewSequence = previewFrames.ToArray();
-                    _logoPreviewImageSource = _logoPreviewSequence[0];
-                    _logoFilePath = path;
-                    LogoSequenceStartMs = Environment.TickCount64;
-
-                    if (TxtLogoFileName != null)
-                    {
-                        string folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                        if (string.IsNullOrEmpty(folderName)) folderName = path;
-                        TxtLogoFileName.Text = $"{folderName} ({_rawLogoSequence.Length} frames)";
-                        TxtLogoFileName.ToolTip = path;
-                    }
-
-                    RebuildPreparedLogo();
+                    string folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                    if (string.IsNullOrEmpty(folderName)) folderName = path;
+                    ApplyDecodedLogoSequence(rawFrames.ToArray(), previewFrames.ToArray(), path, folderName);
                     return true;
                 }
 
                 if (!File.Exists(path)) return false;
+
+                string ext = Path.GetExtension(path);
+                if (ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".mov", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".webm", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".mkv", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".avi", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".gif", StringComparison.OrdinalIgnoreCase))
+                {
+                    var (videoRawFrames, videoPreviewFrames) = DecodeLogoVideoFile(path);
+                    ApplyDecodedLogoSequence(videoRawFrames, videoPreviewFrames, path, Path.GetFileName(path));
+                    return true;
+                }
 
                 var (singleBmp, singlePreview) = DecodeLogoImageFile(path);
 
@@ -248,7 +394,7 @@ namespace DecklinkSwitcher
             catch (Exception ex)
             {
                 Log("LoadLogoFromFile error: " + ex.Message);
-                System.Windows.MessageBox.Show("Failed to load logo image: " + ex.Message, "Logo Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show("Failed to load logo media: " + ex.Message, "Logo Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
         }

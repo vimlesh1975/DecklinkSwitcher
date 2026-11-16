@@ -108,8 +108,8 @@ namespace DecklinkSwitcher
         private string _logoFilePath = "";
         private System.Drawing.Bitmap? _rawLogoBitmap = null;
         private System.Drawing.Bitmap[]? _rawLogoSequence = null;
-        private System.Windows.Media.Imaging.BitmapImage? _logoPreviewImageSource = null;
-        private System.Windows.Media.Imaging.BitmapImage[]? _logoPreviewSequence = null;
+        private System.Windows.Media.Imaging.BitmapSource? _logoPreviewImageSource = null;
+        private System.Windows.Media.Imaging.BitmapSource[]? _logoPreviewSequence = null;
         private System.Windows.Threading.DispatcherTimer? _logoPreviewTimer = null;
         private bool _isUpdatingLogoUi = false;
         private bool _isLoadingSettings = true;
