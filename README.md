@@ -75,11 +75,11 @@ To build the application locally:
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-This stops any running instance of the app, compiles the project, removes previous builds, and outputs a timestamped executable (`DecklinkSwitcher_dd-MM-yyyy_HH-mm-ss.exe`) in `bin\Debug\net10.0-windows\win-x64\`.
+This stops any running instance of the app, compiles the project in **Release** mode (pass `-Configuration Debug` for Debug), removes previous builds, and outputs a timestamped executable (`DecklinkSwitcher_dd-MM-yyyy_HH-mm-ss.exe`) in `bin\Release\net10.0-windows\win-x64\`.
 
 ## Usage
 
-1. Open the generated `DecklinkSwitcher_dd-MM-yyyy_HH-mm-ss.exe` from `bin\Debug\net10.0-windows\win-x64\`.
+1. Open the generated `DecklinkSwitcher_dd-MM-yyyy_HH-mm-ss.exe` from `bin\Release\net10.0-windows\win-x64\`.
 2. Select your designated **Output Device** from the right-side control panel (or select "None" to operate in software-only mode).
 3. Map your physical DeckLink inputs to **Input 1**, **Input 2**, etc.
 4. Click **Apply Settings & Start**. The switcher initializes hardware feeds and activates the multiview panel.

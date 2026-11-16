@@ -1,5 +1,5 @@
 param(
-    [string]$Configuration = "Debug"
+    [string]$Configuration = "Release"
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,4 +53,17 @@ if (Test-Path $origExe) {
 
     Write-Host "`nBuild complete. Latest executable:" -ForegroundColor Cyan
     Write-Host "  $destExe" -ForegroundColor White
+}
+
+# Ensure external runtime binaries (ffmpeg.exe, Processing.NDI.Lib.x64.dll) are present in non-Debug output
+$debugBinDir = Join-Path $projectRoot "bin\Debug\net10.0-windows\win-x64"
+if ($Configuration -ne "Debug" -and (Test-Path $debugBinDir)) {
+    foreach ($extFile in @("ffmpeg.exe", "Processing.NDI.Lib.x64.dll")) {
+        $srcExt = Join-Path $debugBinDir $extFile
+        $dstExt = Join-Path $binDir $extFile
+        if ((Test-Path $srcExt) -and -not (Test-Path $dstExt)) {
+            Copy-Item -Path $srcExt -Destination $dstExt -Force
+            Write-Host "Copied $extFile to $Configuration output." -ForegroundColor Green
+        }
+    }
 }
