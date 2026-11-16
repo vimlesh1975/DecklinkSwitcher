@@ -80,6 +80,7 @@
         </DataTemplate>
 
         <Style TargetType="Button">
+            <Setter Property="Padding" Value="5,2"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -87,7 +88,7 @@
                             <Border.Effect>
                                 <DropShadowEffect Color="Black" BlurRadius="5" ShadowDepth="2" Opacity="0.5"/>
                             </Border.Effect>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -366,13 +367,11 @@
                                             </Canvas>
                                         </Grid>
                                     </Border>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                                        <CheckBox Name="ChkSystemAudioOut" Content="System Audio Out (Monitor)" Foreground="{DynamicResource TextDim}" Margin="0,0,16,0" VerticalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
-                                        <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R (DeckLink phase fix)" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
-                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                        <CheckBox Name="ChkMixTransition" Content="Mix" ToolTip="When checked, switching sources performs a smooth cross-dissolve mix. When unchecked, switching performs an instant cut." Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" Margin="0,0,16,0" VerticalAlignment="Center" Checked="ChkMixTransition_Changed" Unchecked="ChkMixTransition_Changed"/>
-                                        <Button Name="BtnFullscreenPreview" Content="⛶ Fullscreen Preview" Height="26" MinWidth="150" Padding="14,2" VerticalContentAlignment="Center" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnFullscreenPreview_Click" ToolTip="Toggle Fullscreen Preview (F11 / Double-click / Esc to close)" Cursor="Hand"/>
+                                        <CheckBox Name="ChkSystemAudioOut" Content="System Audio" Foreground="{DynamicResource TextDim}" Margin="0,0,10,0" VerticalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
+                                        <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" Margin="0,0,10,0" VerticalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
+                                        <CheckBox Name="ChkMixTransition" Content="Mix" ToolTip="When checked, switching sources performs a smooth cross-dissolve mix. When unchecked, switching performs an instant cut." Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center" Checked="ChkMixTransition_Changed" Unchecked="ChkMixTransition_Changed"/>
+                                        <Button Name="BtnFullscreenPreview" Content="⛶ Fullscreen" Height="26" Padding="8,2" VerticalContentAlignment="Center" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnFullscreenPreview_Click" ToolTip="Toggle Fullscreen Preview (F11 / Double-click / Esc to close)" Cursor="Hand"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="10,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
@@ -510,9 +509,9 @@
                             <Button Name="BtnStopMedia" Grid.Column="2" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="60" Click="BtnStopMedia_Click" Background="#c62828" Foreground="White" Cursor="Hand"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="24" Width="45" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
-                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="24" Width="55" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
-                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" FontWeight="SemiBold" Height="24" Width="65" Click="BtnResumeMedia_Click" Background="#2e7d32" Foreground="White" Cursor="Hand"/>
+                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="26" Width="48" Padding="4,2" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
+                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="26" Width="56" Padding="4,2" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
+                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" FontWeight="SemiBold" Height="26" Width="66" Padding="4,2" Click="BtnResumeMedia_Click" Background="#2e7d32" Foreground="White" Cursor="Hand"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                             <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" Margin="0,0,10,0"/>
