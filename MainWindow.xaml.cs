@@ -488,6 +488,7 @@ namespace DecklinkSwitcher
                     if (SldYouTubeAudioDelay != null) settings.YouTubeAudioDelayMs = (int)SldYouTubeAudioDelay.Value;
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
                     if (ChkMixTransition != null) settings.MixTransitionEnabled = ChkMixTransition.IsChecked == true;
+                    settings.MixDurationSeconds = MixDurationSeconds;
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
@@ -802,6 +803,8 @@ namespace DecklinkSwitcher
                 if (ChkInvertDeckLinkR != null) ChkInvertDeckLinkR.IsChecked = settings.InvertDeckLinkRightChannel;
                 IsMixEnabled = settings.MixTransitionEnabled;
                 if (ChkMixTransition != null) ChkMixTransition.IsChecked = settings.MixTransitionEnabled;
+                MixDurationSeconds = Math.Clamp(settings.MixDurationSeconds > 0 ? settings.MixDurationSeconds : 0.5, 0.1, 10.0);
+                if (TxtMixDuration != null) TxtMixDuration.Text = MixDurationSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
                 // System Audio Setup
                 var renderDevices = SystemAudioSource.GetRenderDevices();
@@ -1309,6 +1312,26 @@ namespace DecklinkSwitcher
         {
             IsMixEnabled = ChkMixTransition.IsChecked == true;
             if (IsLoaded) SaveCurrentSettings();
+        }
+
+        private void TxtMixDuration_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded || _isLoadingSettings || TxtMixDuration == null) return;
+            if (double.TryParse(TxtMixDuration.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val) && val > 0)
+            {
+                MixDurationSeconds = Math.Clamp(val, 0.1, 10.0);
+            }
+        }
+
+        private void TxtMixDuration_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (TxtMixDuration == null) return;
+            if (double.TryParse(TxtMixDuration.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val) && val > 0)
+            {
+                MixDurationSeconds = Math.Clamp(val, 0.1, 10.0);
+            }
+            TxtMixDuration.Text = MixDurationSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            if (IsLoaded && !_isLoadingSettings) SaveCurrentSettings();
         }
 
 

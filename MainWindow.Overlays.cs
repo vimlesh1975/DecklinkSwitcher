@@ -732,7 +732,7 @@ namespace DecklinkSwitcher
         public static volatile bool IsMixEnabled = false;
         private static volatile bool _isMixActive = false;
         private static long _mixStartTicks = 0;
-        private const double MixDurationSeconds = 0.5;
+        public static double MixDurationSeconds = 0.5;
         private static byte[]? _lastCleanUyvy1080;
         private static byte[]? _mixFromUyvy1080;
 
