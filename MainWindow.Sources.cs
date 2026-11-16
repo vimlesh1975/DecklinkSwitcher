@@ -1501,7 +1501,15 @@ namespace DecklinkSwitcher
                 _BMDDisplayMode mode = ParseDisplayMode(formatStr);
                 inputDev.StartCapture(mode, autoDetect);
                 
-                if (_activeInput == null) _activeInput = inputDev;
+                if (_activeInput == null)
+                {
+                    _activeInput = inputDev;
+                    if (_activeSourceType == 0)
+                    {
+                        ActiveInputName = roleName;
+                        Application.Current.Dispatcher.BeginInvoke(new Action(UpdateProgramSourceFlags));
+                    }
+                }
             }
 
             _syntheticCts?.Cancel();
