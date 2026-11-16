@@ -1,0 +1,543 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0/win-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {},
+    ".NETCoreApp,Version=v10.0/win-x64": {
+      "DecklinkSwitcher/1.0.0": {
+        "dependencies": {
+          "CefSharp.OffScreen.NETCore": "156.0.150",
+          "FlashCap": "1.12.0",
+          "LibVLCSharp": "3.10.1",
+          "NAudio": "3.1.0",
+          "Vortice.Direct3D11": "3.6.2",
+          "YoutubeExplode": "6.6.3",
+          "DeckLinkAPI.Interop": "1.0.0.0"
+        },
+        "runtime": {
+          "DecklinkSwitcher.dll": {}
+        }
+      },
+      "CefSharp.Common.NETCore/156.0.150": {
+        "dependencies": {
+          "chromiumembeddedframework.runtime": "156.0.15"
+        },
+        "runtime": {
+          "runtimes/win-x64/lib/net6.0/CefSharp.Core.Runtime.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.Core.Runtime.dll"
+          },
+          "runtimes/win-x64/lib/net6.0/CefSharp.Core.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.Core.dll"
+          },
+          "runtimes/win-x64/lib/net6.0/CefSharp.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.dll"
+          },
+          "runtimes/win-x64/lib/net6.0/Ijwhost.dll": {
+            "fileVersion": "6.0.3324.36610",
+            "localPath": "Ijwhost.dll"
+          }
+        },
+        "native": {
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.Core.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.BrowserSubprocess.Core.dll"
+          },
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.BrowserSubprocess.dll"
+          },
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.exe": {
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.BrowserSubprocess.exe"
+          },
+          "runtimes/win-x64/native/CefSharp.BrowserSubprocess.runtimeconfig.json": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "CefSharp.BrowserSubprocess.runtimeconfig.json"
+          }
+        }
+      },
+      "CefSharp.OffScreen.NETCore/156.0.150": {
+        "dependencies": {
+          "CefSharp.Common.NETCore": "156.0.150"
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/CefSharp.OffScreen.dll": {
+            "assemblyVersion": "156.0.150.0",
+            "fileVersion": "156.0.150.0",
+            "localPath": "CefSharp.OffScreen.dll"
+          }
+        }
+      },
+      "chromiumembeddedframework.runtime/156.0.15": {
+        "dependencies": {
+          "chromiumembeddedframework.runtime.win-x64": "156.0.15"
+        }
+      },
+      "chromiumembeddedframework.runtime.win-x64/156.0.15": {
+        "native": {
+          "runtimes/win-x64/native/chrome_100_percent.pak": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "chrome_100_percent.pak"
+          },
+          "runtimes/win-x64/native/chrome_200_percent.pak": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "chrome_200_percent.pak"
+          },
+          "runtimes/win-x64/native/chrome_elf.dll": {
+            "fileVersion": "156.0.8078.80",
+            "localPath": "chrome_elf.dll"
+          },
+          "runtimes/win-x64/native/d3dcompiler_47.dll": {
+            "fileVersion": "10.0.28000.2270",
+            "localPath": "d3dcompiler_47.dll"
+          },
+          "runtimes/win-x64/native/dxcompiler.dll": {
+            "fileVersion": "1.9.2609.0",
+            "localPath": "dxcompiler.dll"
+          },
+          "runtimes/win-x64/native/icudtl.dat": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "icudtl.dat"
+          },
+          "runtimes/win-x64/native/libcef.dll": {
+            "fileVersion": "156.0.15.0",
+            "localPath": "libcef.dll"
+          },
+          "runtimes/win-x64/native/resources.pak": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "resources.pak"
+          },
+          "runtimes/win-x64/native/v8_context_snapshot.bin": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "v8_context_snapshot.bin"
+          },
+          "runtimes/win-x64/native/vk_swiftshader.dll": {
+            "fileVersion": "5.0.0.1",
+            "localPath": "vk_swiftshader.dll"
+          },
+          "runtimes/win-x64/native/vk_swiftshader_icd.json": {
+            "fileVersion": "0.0.0.0",
+            "localPath": "vk_swiftshader_icd.json"
+          },
+          "runtimes/win-x64/native/vulkan-1.dll": {
+            "fileVersion": "1.4.364.0",
+            "localPath": "vulkan-1.dll"
+          }
+        }
+      },
+      "FlashCap/1.12.0": {
+        "dependencies": {
+          "FlashCap.Core": "1.12.0"
+        },
+        "runtime": {
+          "lib/net10.0/FlashCap.dll": {
+            "assemblyVersion": "1.12.0.0",
+            "fileVersion": "2026.8.24.34791",
+            "localPath": "FlashCap.dll"
+          }
+        }
+      },
+      "FlashCap.Core/1.12.0": {
+        "runtime": {
+          "lib/net10.0/FlashCap.Core.dll": {
+            "assemblyVersion": "1.12.0.0",
+            "fileVersion": "2026.8.24.34791",
+            "localPath": "FlashCap.Core.dll"
+          }
+        }
+      },
+      "LibVLCSharp/3.10.1": {
+        "runtime": {
+          "lib/net10.0/LibVLCSharp.dll": {
+            "assemblyVersion": "3.10.1.0",
+            "fileVersion": "3.10.1.0",
+            "localPath": "LibVLCSharp.dll"
+          }
+        }
+      },
+      "NAudio/3.1.0": {
+        "dependencies": {
+          "NAudio.Asio": "3.1.0",
+          "NAudio.Core": "3.1.0",
+          "NAudio.Dmo": "3.1.0",
+          "NAudio.Midi": "3.1.0",
+          "NAudio.Wasapi": "3.1.0",
+          "NAudio.WinForms": "3.1.0",
+          "NAudio.WinMM": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.dll"
+          }
+        }
+      },
+      "NAudio.Asio/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.Asio.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Asio.dll"
+          }
+        }
+      },
+      "NAudio.Core/3.1.0": {
+        "dependencies": {
+          "System.Numerics.Tensors": "9.0.0"
+        },
+        "runtime": {
+          "lib/net9.0/NAudio.Core.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Core.dll"
+          }
+        }
+      },
+      "NAudio.Dmo/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.Dmo.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Dmo.dll"
+          }
+        }
+      },
+      "NAudio.Midi/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0/NAudio.Midi.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Midi.dll"
+          }
+        }
+      },
+      "NAudio.Wasapi/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0/NAudio.Wasapi.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.Wasapi.dll"
+          }
+        }
+      },
+      "NAudio.WinForms/3.1.0": {
+        "dependencies": {
+          "NAudio.WinMM": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.WinForms.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.WinForms.dll"
+          }
+        }
+      },
+      "NAudio.WinMM/3.1.0": {
+        "dependencies": {
+          "NAudio.Core": "3.1.0",
+          "NAudio.Midi": "3.1.0"
+        },
+        "runtime": {
+          "lib/net9.0-windows7.0/NAudio.WinMM.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0",
+            "localPath": "NAudio.WinMM.dll"
+          }
+        }
+      },
+      "SharpGen.Runtime/2.2.0-beta": {
+        "runtime": {
+          "lib/net8.0/SharpGen.Runtime.dll": {
+            "assemblyVersion": "2.2.0.0",
+            "fileVersion": "2.2.0.0",
+            "localPath": "SharpGen.Runtime.dll"
+          }
+        }
+      },
+      "SharpGen.Runtime.COM/2.2.0-beta": {
+        "dependencies": {
+          "SharpGen.Runtime": "2.2.0-beta"
+        },
+        "runtime": {
+          "lib/net8.0/SharpGen.Runtime.COM.dll": {
+            "assemblyVersion": "2.2.0.0",
+            "fileVersion": "2.2.0.0",
+            "localPath": "SharpGen.Runtime.COM.dll"
+          }
+        }
+      },
+      "System.Numerics.Tensors/9.0.0": {
+        "runtime": {
+          "lib/net9.0/System.Numerics.Tensors.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.24.52809",
+            "localPath": "System.Numerics.Tensors.dll"
+          }
+        }
+      },
+      "Vortice.Direct3D11/3.6.2": {
+        "dependencies": {
+          "SharpGen.Runtime": "2.2.0-beta",
+          "Vortice.DXGI": "3.6.2"
+        },
+        "runtime": {
+          "lib/net8.0/Vortice.Direct3D11.dll": {
+            "assemblyVersion": "3.6.2.0",
+            "fileVersion": "3.6.2.0",
+            "localPath": "Vortice.Direct3D11.dll"
+          }
+        }
+      },
+      "Vortice.DirectX/3.6.2": {
+        "dependencies": {
+          "SharpGen.Runtime": "2.2.0-beta",
+          "SharpGen.Runtime.COM": "2.2.0-beta",
+          "Vortice.Mathematics": "1.9.2"
+        },
+        "runtime": {
+          "lib/net8.0/Vortice.DirectX.dll": {
+            "assemblyVersion": "3.6.2.0",
+            "fileVersion": "3.6.2.0",
+            "localPath": "Vortice.DirectX.dll"
+          }
+        }
+      },
+      "Vortice.DXGI/3.6.2": {
+        "dependencies": {
+          "SharpGen.Runtime": "2.2.0-beta",
+          "Vortice.DirectX": "3.6.2"
+        },
+        "runtime": {
+          "lib/net8.0/Vortice.DXGI.dll": {
+            "assemblyVersion": "3.6.2.0",
+            "fileVersion": "3.6.2.0",
+            "localPath": "Vortice.DXGI.dll"
+          }
+        }
+      },
+      "Vortice.Mathematics/1.9.2": {
+        "runtime": {
+          "lib/net9.0/Vortice.Mathematics.dll": {
+            "assemblyVersion": "1.9.2.0",
+            "fileVersion": "1.9.2.0",
+            "localPath": "Vortice.Mathematics.dll"
+          }
+        }
+      },
+      "YoutubeExplode/6.6.3": {
+        "runtime": {
+          "lib/net10.0/YoutubeExplode.dll": {
+            "assemblyVersion": "6.6.3.0",
+            "fileVersion": "6.6.3.0",
+            "localPath": "YoutubeExplode.dll"
+          }
+        }
+      },
+      "DeckLinkAPI.Interop/1.0.0.0": {
+        "runtime": {
+          "DeckLinkAPI.Interop.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "DecklinkSwitcher/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CefSharp.Common.NETCore/156.0.150": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iNnn1q6xZKK59KQyzj6PTECoS2/a0wy+RTzCEYecg97Y4pwQUxyeKlz4RbfECsJaXhf22/5buDIXaqglTvYYsw==",
+      "path": "cefsharp.common.netcore/156.0.150",
+      "hashPath": "cefsharp.common.netcore.156.0.150.nupkg.sha512"
+    },
+    "CefSharp.OffScreen.NETCore/156.0.150": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bZWJmjcfOzg6+pFbVGBQ8ZF4gKIb/Ep5zAr55U58KcXCJVMp+bYjlPnxWEyjYyTbO2h30VmFbtD0U1Kpw8ZUJg==",
+      "path": "cefsharp.offscreen.netcore/156.0.150",
+      "hashPath": "cefsharp.offscreen.netcore.156.0.150.nupkg.sha512"
+    },
+    "chromiumembeddedframework.runtime/156.0.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-j92Q4ba/hqW43O+v5PJ9teWdJ6cq27zYFxW9gYifR+wvzjqNI7uIXCcxYmBSxM1LC6276hxbTbTP+MzmdB/azA==",
+      "path": "chromiumembeddedframework.runtime/156.0.15",
+      "hashPath": "chromiumembeddedframework.runtime.156.0.15.nupkg.sha512"
+    },
+    "chromiumembeddedframework.runtime.win-x64/156.0.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ppEQqOgkjPxfzcVzBukgJRY9M/2C9npnuroHu2hh6ZqZfrYl2Xtirc5F25Br8S4/eUIWUxvLBEY8VQCb8FAW0A==",
+      "path": "chromiumembeddedframework.runtime.win-x64/156.0.15",
+      "hashPath": "chromiumembeddedframework.runtime.win-x64.156.0.15.nupkg.sha512"
+    },
+    "FlashCap/1.12.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bT3D8eSvG4trCErOHXUX4BNAUMfV1Ghri8DINN0CIopjSyi0jgIxV1K0sZegO/gg3PK7xJ03CuY3tWACn0WAbA==",
+      "path": "flashcap/1.12.0",
+      "hashPath": "flashcap.1.12.0.nupkg.sha512"
+    },
+    "FlashCap.Core/1.12.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-6LiaQSgB9lPa+pLSghbIM2FouS5N+vZC+bbLJ3xqRvzYwdJn4XjgEMrOhbYlNbnIpyQdEaL/pbeZyR4K6Y1hcg==",
+      "path": "flashcap.core/1.12.0",
+      "hashPath": "flashcap.core.1.12.0.nupkg.sha512"
+    },
+    "LibVLCSharp/3.10.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-6iSrYMk6RU8fyftdXrfR1TW3xpR/WhEmliORuWvAu2N05wECb8k2hykWiU53/1zqx616v/qUlDbJJyqv78MDkQ==",
+      "path": "libvlcsharp/3.10.1",
+      "hashPath": "libvlcsharp.3.10.1.nupkg.sha512"
+    },
+    "NAudio/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-wD5UttLb5Eu/caAYPy/siDg7xf3KVkdJfMLXr+cJfAvxgh6wDnWOBxXfhYNMUiIaQRr2VPDjgPH2QIzBSP6gqw==",
+      "path": "naudio/3.1.0",
+      "hashPath": "naudio.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Asio/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-v+ZgbdCaE/XyhByYNC+xgNdRNWy43GHWYJ+fLrXwjOLXYUToq45G5EGzdqlY//3KsX1zuVn+mU+SBBZ744zK6g==",
+      "path": "naudio.asio/3.1.0",
+      "hashPath": "naudio.asio.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Core/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8Hrd3Uqb2wEB64eZYF+0vl9xBadeSn6JnFDsHuGrw87ucJ+pB7u5NzVpHl8OlCNvIvH+sD9b2h4JOqXBuZGYwg==",
+      "path": "naudio.core/3.1.0",
+      "hashPath": "naudio.core.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Dmo/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XhVjBgIyj6qnZRfeGS2CkL6mffRLnT4WK/hAoNGZsqJK1p+XpWe0nFbUA+6Cmgj18oLoHYk2KouPw/Q94mTCnA==",
+      "path": "naudio.dmo/3.1.0",
+      "hashPath": "naudio.dmo.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Midi/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-McIiQyY5o0Q3QlF5oRm+b0A8IE0SorA/9HvNi88bH3MdSnGp7cM/9sze/zqbS/9PFdKYVRZPtoLwqoAF4BgjeA==",
+      "path": "naudio.midi/3.1.0",
+      "hashPath": "naudio.midi.3.1.0.nupkg.sha512"
+    },
+    "NAudio.Wasapi/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iTG+oBJaiID344yz84PrTiVF98av5SsuOUu7ICskcUd6f5ShHDMskG9sE4XUM05Vdlwy88bMQDDC3e+85Mv8yw==",
+      "path": "naudio.wasapi/3.1.0",
+      "hashPath": "naudio.wasapi.3.1.0.nupkg.sha512"
+    },
+    "NAudio.WinForms/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-oIjQu3bp9QtAB6wAf04pgeDUce+dIrSDcvNp689e/xYStyktG33nY2GwW7d1mS2zDAeA/YhUjY5DkakDWs9+1w==",
+      "path": "naudio.winforms/3.1.0",
+      "hashPath": "naudio.winforms.3.1.0.nupkg.sha512"
+    },
+    "NAudio.WinMM/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2LXIZwBQKxDZP+GvTvC9zrHiF0LQ3lvTi5dqgS175hY/bOtqFlDRRhzEnVv/lLFlQ+a1I/ZQ3m6CclTvztkf6A==",
+      "path": "naudio.winmm/3.1.0",
+      "hashPath": "naudio.winmm.3.1.0.nupkg.sha512"
+    },
+    "SharpGen.Runtime/2.2.0-beta": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pqf/lAf4jy1iWqkm37JmhoQhBMPVudI/F9qp2zVvzjWAPeSggRIuxGMVEZQ4UQiqtJ1Rf/+j3MVAONGYyCEDzQ==",
+      "path": "sharpgen.runtime/2.2.0-beta",
+      "hashPath": "sharpgen.runtime.2.2.0-beta.nupkg.sha512"
+    },
+    "SharpGen.Runtime.COM/2.2.0-beta": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4vsXC8ohyVslcUDVBoVXLDkjKprqujh3GWy+DqqULjyZ3GCx7nwRAV5DdrXZxX70iEiKyI3TxW3Qhf/oOXeC1Q==",
+      "path": "sharpgen.runtime.com/2.2.0-beta",
+      "hashPath": "sharpgen.runtime.com.2.2.0-beta.nupkg.sha512"
+    },
+    "System.Numerics.Tensors/9.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hyJB4UlpAi19Xr9AXzu2NuagKC4lPfHObNMEAA0HmqFz2rX7wKgzeYzO/jM/eBHDhnUGFFEjk5cOoJaxqg5J4A==",
+      "path": "system.numerics.tensors/9.0.0",
+      "hashPath": "system.numerics.tensors.9.0.0.nupkg.sha512"
+    },
+    "Vortice.Direct3D11/3.6.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-+tXkwV4YVFgox3NjLGBOPmEHK8Jd/8ElI3X8aX7xq4JhsC3J9BqpUhpI+4LOKeCGN+XCORhyFq0ow+pB44YQTg==",
+      "path": "vortice.direct3d11/3.6.2",
+      "hashPath": "vortice.direct3d11.3.6.2.nupkg.sha512"
+    },
+    "Vortice.DirectX/3.6.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pa/97U5IHascS/UJzMWFSKIs3wxh36zc8JpI+fzi/JLQk4wfTZur0n/Y9Lcp8i7hsf613Vu/6n6IImWSc9wupw==",
+      "path": "vortice.directx/3.6.2",
+      "hashPath": "vortice.directx.3.6.2.nupkg.sha512"
+    },
+    "Vortice.DXGI/3.6.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-SPnBb1x3+CEqq7L5SEejElD2tMjkdE+bqN4c/eSNHj9WEpRPvAO0QFSEN8d9LiRDt9i9geD8m7E4s8sLMgz2qQ==",
+      "path": "vortice.dxgi/3.6.2",
+      "hashPath": "vortice.dxgi.3.6.2.nupkg.sha512"
+    },
+    "Vortice.Mathematics/1.9.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-+fS68BN4Kn1g+Roh7qnuBdXnVrfpr9DpwPMsqe27J04nDCFUuhEvo+T5PqXU1lZwn8sLlNayWCx/U6w4gWCvuA==",
+      "path": "vortice.mathematics/1.9.2",
+      "hashPath": "vortice.mathematics.1.9.2.nupkg.sha512"
+    },
+    "YoutubeExplode/6.6.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/0s3+iUZyqkyV7onEDXAFwLgTji6UbFL/Ucmyd9UUgggSD8xx5tTSFbvAWBoTRQPFtas/wuaYpLupgrKDRm/cg==",
+      "path": "youtubeexplode/6.6.3",
+      "hashPath": "youtubeexplode.6.6.3.nupkg.sha512"
+    },
+    "DeckLinkAPI.Interop/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
