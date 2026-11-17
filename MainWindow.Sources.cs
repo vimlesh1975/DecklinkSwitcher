@@ -49,6 +49,7 @@ namespace DecklinkSwitcher
             public YouTubeSource? YtSource { get; set; }
             public NdiSource? NdiSrc { get; set; }
             public VlcMediaSource? MediaSrc { get; set; }
+            public System.Windows.Threading.DispatcherTimer? MediaSeekTimer { get; set; }
             public System.Windows.Controls.TextBlock? StatusText { get; set; }
             public System.Windows.Controls.TextBlock? TitleText { get; set; }
             public System.Windows.Controls.Border? ColorSwatch { get; set; }
@@ -1384,6 +1385,74 @@ namespace DecklinkSwitcher
                 var mediaSrc = new VlcMediaSource();
                 extra.MediaSrc = mediaSrc;
 
+                // Audio L/R meters + gain slider row (matches original Media tile)
+                var barL = new System.Windows.Controls.ProgressBar
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    Minimum = 0,
+                    Maximum = 100,
+                    Width = 5,
+                    Height = 86,
+                    Margin = new Thickness(0, 0, 4, 0),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 230, 118)),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32))
+                };
+                var barR = new System.Windows.Controls.ProgressBar
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    Minimum = 0,
+                    Maximum = 100,
+                    Width = 5,
+                    Height = 86,
+                    Margin = new Thickness(4, 0, 4, 0),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 230, 118)),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32))
+                };
+                var sldVol = new System.Windows.Controls.Slider
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    Height = 86,
+                    Minimum = 0,
+                    Maximum = 1.5,
+                    Value = extra.AudioLevel > 0 ? extra.AudioLevel : 1.0,
+                    SmallChange = 0.05,
+                    LargeChange = 0.1,
+                    ToolTip = "Audio Gain"
+                };
+                extra.AudioLevel = sldVol.Value;
+                sldVol.ValueChanged += (_, __) =>
+                {
+                    extra.AudioLevel = sldVol.Value;
+                    cfg.AudioLevel = sldVol.Value;
+                    SaveCurrentSettings();
+                };
+
+                // Replace the simple previewBorder with meter + preview + meter + vol slider
+                stack.Children.Remove(previewBorder);
+                previewBorder.Height = 86;
+                previewBorder.Width = 152;
+                previewBorder.Margin = new Thickness(0);
+                var meterRow = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 6)
+                };
+                meterRow.Children.Add(barL);
+                meterRow.Children.Add(previewBorder);
+                meterRow.Children.Add(barR);
+                meterRow.Children.Add(sldVol);
+                stack.Children.Add(meterRow);
+
+                mediaSrc.OnAudioLevelArrived += (vl, vr) =>
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        barL.Value = Math.Min(100, vl * extra.AudioLevel);
+                        barR.Value = Math.Min(100, vr * extra.AudioLevel);
+                    });
+                };
+
                 mediaSrc.OnPreviewBufferUpdated += bgra480 =>
                 {
                     Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
@@ -1419,76 +1488,15 @@ namespace DecklinkSwitcher
                     }
                 };
 
-                var fileRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
-                fileRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                fileRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-
-                var pathBox = new System.Windows.Controls.TextBox
+                var statusTxt = new System.Windows.Controls.TextBlock
                 {
-                    Text = cfg.Url ?? "",
-                    Height = 24,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32)),
-                    Foreground = System.Windows.Media.Brushes.White,
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
-                    FontSize = 10.5,
-                    Padding = new Thickness(4, 2, 4, 2),
-                    Margin = new Thickness(0, 0, 4, 0)
+                    Text = string.IsNullOrWhiteSpace(cfg.Url) ? "Idle" : System.IO.Path.GetFileName(cfg.Url),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    TextTrimming = TextTrimming.CharacterEllipsis
                 };
-                pathBox.LostFocus += (_, __) => { cfg.Url = pathBox.Text.Trim(); SaveCurrentSettings(); };
-
-                var btnBrowse = new System.Windows.Controls.Button
-                {
-                    Content = "📁",
-                    Width = 26,
-                    Height = 24,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
-                    Foreground = System.Windows.Media.Brushes.White,
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
-                    BorderThickness = new Thickness(1),
-                    FontSize = 11,
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Focusable = false,
-                    ToolTip = "Browse Media File"
-                };
-                btnBrowse.Click += (_, __) =>
-                {
-                    var ofd = new Microsoft.Win32.OpenFileDialog
-                    {
-                        Filter = "Media Files|*.mp4;*.mkv;*.mov;*.avi;*.ts;*.mxf;*.webm;*.jpg;*.jpeg;*.png;*.bmp|All Files|*.*"
-                    };
-                    if (ofd.ShowDialog() == true)
-                    {
-                        pathBox.Text = ofd.FileName;
-                        cfg.Url = ofd.FileName;
-                        SaveCurrentSettings();
-                    }
-                };
-
-                System.Windows.Controls.Grid.SetColumn(pathBox, 0);
-                System.Windows.Controls.Grid.SetColumn(btnBrowse, 1);
-                fileRow.Children.Add(pathBox);
-                fileRow.Children.Add(btnBrowse);
-                stack.Children.Add(fileRow);
-
-                var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
-                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-
-                var btnStart = new System.Windows.Controls.Button
-                {
-                    Content = "Play",
-                    Height = 24,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
-                    Foreground = System.Windows.Media.Brushes.White,
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
-                    BorderThickness = new Thickness(1),
-                    FontSize = 11,
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Focusable = false,
-                    Margin = new Thickness(0, 0, 4, 0)
-                };
-                extra.StartStopButton = btnStart;
+                extra.StatusText = statusTxt;
 
                 var chkLoop = new System.Windows.Controls.CheckBox
                 {
@@ -1497,14 +1505,151 @@ namespace DecklinkSwitcher
                     Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 210, 230)),
                     FontSize = 10,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 4, 0)
+                    Margin = new Thickness(0, 0, 6, 0)
                 };
 
+                // Row 1: Select File + Stop
+                var row1 = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                row1.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row1.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
+                row1.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(60) });
+
+                var btnSelectFile = new System.Windows.Controls.Button
+                {
+                    Content = "Select File",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                var btnStop = new System.Windows.Controls.Button
+                {
+                    Content = "Stop",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(198, 40, 40)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontSize = 11,
+                    FontWeight = FontWeights.Bold,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                System.Windows.Controls.Grid.SetColumn(btnSelectFile, 0);
+                System.Windows.Controls.Grid.SetColumn(btnStop, 2);
+                row1.Children.Add(btnSelectFile);
+                row1.Children.Add(btnStop);
+                stack.Children.Add(row1);
+
+                // Row 2: Cue + Pause + Resume
+                var row2 = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
+                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
+                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var btnCue = new System.Windows.Controls.Button
+                {
+                    Content = "Cue",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                var btnPause = new System.Windows.Controls.Button
+                {
+                    Content = "Pause",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                var btnResume = new System.Windows.Controls.Button
+                {
+                    Content = "Resume",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                System.Windows.Controls.Grid.SetColumn(btnCue, 0);
+                System.Windows.Controls.Grid.SetColumn(btnPause, 2);
+                System.Windows.Controls.Grid.SetColumn(btnResume, 4);
+                row2.Children.Add(btnCue);
+                row2.Children.Add(btnPause);
+                row2.Children.Add(btnResume);
+                stack.Children.Add(row2);
+
+                // Row 3: Loop + Seek Slider
+                bool isDraggingSeek = false;
+                bool isUpdatingSeek = false;
+                var sldSeek = new System.Windows.Controls.Slider
+                {
+                    Minimum = 0,
+                    Maximum = 1,
+                    SmallChange = 0.01,
+                    LargeChange = 0.1,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                sldSeek.AddHandler(System.Windows.Controls.Primitives.Thumb.DragStartedEvent,
+                    new System.Windows.Controls.Primitives.DragStartedEventHandler((_, __) => isDraggingSeek = true));
+                sldSeek.AddHandler(System.Windows.Controls.Primitives.Thumb.DragCompletedEvent,
+                    new System.Windows.Controls.Primitives.DragCompletedEventHandler((_, __) =>
+                    {
+                        isDraggingSeek = false;
+                        mediaSrc.Position = (float)sldSeek.Value;
+                    }));
+                sldSeek.ValueChanged += (_, __) =>
+                {
+                    if (!isUpdatingSeek && isDraggingSeek)
+                        mediaSrc.Position = (float)sldSeek.Value;
+                };
+
+                var seekRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                seekRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+                seekRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                System.Windows.Controls.Grid.SetColumn(chkLoop, 0);
+                System.Windows.Controls.Grid.SetColumn(sldSeek, 1);
+                seekRow.Children.Add(chkLoop);
+                seekRow.Children.Add(sldSeek);
+                stack.Children.Add(seekRow);
+
+                var seekTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                seekTimer.Tick += (_, __) =>
+                {
+                    if (!isDraggingSeek && extra.IsRunning)
+                    {
+                        isUpdatingSeek = true;
+                        sldSeek.Value = Math.Clamp(mediaSrc.Position, 0f, 1f);
+                        isUpdatingSeek = false;
+                    }
+                };
+                extra.MediaSeekTimer = seekTimer;
+                seekTimer.Start();
+
+                // Row 4: Audio State ComboBox (AFV / ON / OFF)
                 var cmbAudio = new System.Windows.Controls.ComboBox
                 {
-                    Width = 58,
                     Height = 24,
-                    FontSize = 10
+                    FontSize = 11,
+                    Margin = new Thickness(0, 0, 0, 4)
                 };
                 cmbAudio.Items.Add("AFV");
                 cmbAudio.Items.Add("ON");
@@ -1519,50 +1664,62 @@ namespace DecklinkSwitcher
                         SaveCurrentSettings();
                     }
                 };
+                stack.Children.Add(cmbAudio);
+                stack.Children.Add(statusTxt);
 
-                var statusTxt = new System.Windows.Controls.TextBlock
+                btnSelectFile.Click += (_, __) =>
                 {
-                    Text = "Idle",
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
-                    FontSize = 10,
-                    Margin = new Thickness(0, 0, 0, 4),
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                extra.StatusText = statusTxt;
-
-                btnStart.Click += (_, __) =>
-                {
-                    if (!extra.IsRunning)
+                    var ofd = new Microsoft.Win32.OpenFileDialog
                     {
-                        cfg.Url = pathBox.Text.Trim();
-                        if (string.IsNullOrWhiteSpace(cfg.Url) || !System.IO.File.Exists(cfg.Url))
-                        {
-                            statusTxt.Text = "File not found";
-                            return;
-                        }
+                        Filter = "Media Files|*.mp4;*.mkv;*.mov;*.avi;*.ts;*.mxf;*.webm;*.jpg;*.jpeg;*.png;*.bmp|All Files|*.*"
+                    };
+                    if (ofd.ShowDialog() == true)
+                    {
+                        cfg.Url = ofd.FileName;
                         extra.IsRunning = true;
-                        btnStart.Content = "Stop";
                         statusTxt.Text = "Playing: " + System.IO.Path.GetFileName(cfg.Url);
                         SaveCurrentSettings();
                         mediaSrc.Play(cfg.Url, chkLoop.IsChecked == true);
                     }
+                };
+                btnCue.Click += (_, __) =>
+                {
+                    if (string.IsNullOrWhiteSpace(cfg.Url) || !System.IO.File.Exists(cfg.Url))
+                    {
+                        statusTxt.Text = "Select a file first";
+                        return;
+                    }
+                    extra.IsRunning = true;
+                    statusTxt.Text = "Cued: " + System.IO.Path.GetFileName(cfg.Url);
+                    mediaSrc.Cue(cfg.Url, chkLoop.IsChecked == true);
+                };
+                btnPause.Click += (_, __) =>
+                {
+                    mediaSrc.Pause();
+                    statusTxt.Text = "Paused";
+                };
+                btnResume.Click += (_, __) =>
+                {
+                    if (!extra.IsRunning && !string.IsNullOrWhiteSpace(cfg.Url) && System.IO.File.Exists(cfg.Url))
+                    {
+                        extra.IsRunning = true;
+                        mediaSrc.Play(cfg.Url, chkLoop.IsChecked == true);
+                    }
                     else
                     {
-                        extra.IsRunning = false;
-                        btnStart.Content = "Play";
-                        statusTxt.Text = "Stopped";
-                        mediaSrc.Stop();
+                        mediaSrc.Resume();
                     }
+                    statusTxt.Text = string.IsNullOrWhiteSpace(cfg.Url) ? "Playing" : "Playing: " + System.IO.Path.GetFileName(cfg.Url);
                 };
-
-                System.Windows.Controls.Grid.SetColumn(btnStart, 0);
-                System.Windows.Controls.Grid.SetColumn(chkLoop, 1);
-                System.Windows.Controls.Grid.SetColumn(cmbAudio, 2);
-                ctrlRow.Children.Add(btnStart);
-                ctrlRow.Children.Add(chkLoop);
-                ctrlRow.Children.Add(cmbAudio);
-                stack.Children.Add(ctrlRow);
-                stack.Children.Add(statusTxt);
+                btnStop.Click += (_, __) =>
+                {
+                    extra.IsRunning = false;
+                    mediaSrc.Stop();
+                    barL.Value = 0;
+                    barR.Value = 0;
+                    sldSeek.Value = 0;
+                    statusTxt.Text = "Stopped";
+                };
             }
 
             // Cut / Switch button
@@ -1598,6 +1755,7 @@ namespace DecklinkSwitcher
             }
             lock (_extraSourcesLock) _extraSources.Remove(extra);
             SwitcherPanel.Children.Remove(extra.TileBorder);
+            try { extra.MediaSeekTimer?.Stop(); } catch { }
             try { extra.HtmlSource?.Dispose(); } catch { }
             try { extra.YtSource?.Dispose(); } catch { }
             try { extra.NdiSrc?.Dispose(); } catch { }
@@ -1610,6 +1768,7 @@ namespace DecklinkSwitcher
         {
             foreach (var extra in GetExtraSourcesSnapshot())
             {
+                try { extra.MediaSeekTimer?.Stop(); } catch { }
                 try { extra.HtmlSource?.Dispose(); } catch { }
                 try { extra.YtSource?.Dispose(); } catch { }
                 try { extra.NdiSrc?.Dispose(); } catch { }
