@@ -706,7 +706,7 @@ namespace DecklinkSwitcher
                 Url = "",
                 AudioLevel = 1.0,
                 AudioState = "AFV",
-                AudioDelayMs = 0
+                AudioDelayMs = 200
             };
             AddDynamicExtraSource(cfg);
             SaveCurrentSettings();
@@ -1096,11 +1096,108 @@ namespace DecklinkSwitcher
                 };
                 extra.YtSource = ytSrc;
 
+                var barL = new System.Windows.Controls.ProgressBar
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    Minimum = 0,
+                    Maximum = 100,
+                    Width = 5,
+                    Height = 86,
+                    Margin = new Thickness(0, 0, 4, 0),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 230, 118)),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32))
+                };
+                var barR = new System.Windows.Controls.ProgressBar
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    Minimum = 0,
+                    Maximum = 100,
+                    Width = 5,
+                    Height = 86,
+                    Margin = new Thickness(4, 0, 4, 0),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 230, 118)),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32))
+                };
+                var sldVol = new System.Windows.Controls.Slider
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    Height = 86,
+                    Minimum = 0,
+                    Maximum = 1.5,
+                    Value = extra.AudioLevel > 0 ? extra.AudioLevel : 1.0,
+                    SmallChange = 0.05,
+                    LargeChange = 0.1,
+                    ToolTip = "Audio Gain"
+                };
+                extra.AudioLevel = sldVol.Value;
+                sldVol.ValueChanged += (_, __) =>
+                {
+                    extra.AudioLevel = sldVol.Value;
+                    cfg.AudioLevel = sldVol.Value;
+                    SaveCurrentSettings();
+                };
+
+                var overlayIcon = new System.Windows.Controls.TextBlock
+                {
+                    Text = "▶",
+                    FontSize = 18,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 51, 51)),
+                    Margin = new Thickness(0, 0, 0, 2)
+                };
+                var overlayStatus = new System.Windows.Controls.TextBlock
+                {
+                    Text = "OFFLINE",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                var statusOverlay = new System.Windows.Controls.StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    IsHitTestVisible = false
+                };
+                statusOverlay.Children.Add(overlayIcon);
+                statusOverlay.Children.Add(overlayStatus);
+
+                stack.Children.Remove(previewBorder);
+                previewBorder.Height = 86;
+                previewBorder.Width = 152;
+                previewBorder.Margin = new Thickness(0);
+                var previewGrid = new System.Windows.Controls.Grid();
+                previewGrid.Children.Add(img);
+                previewGrid.Children.Add(statusOverlay);
+                previewBorder.Child = previewGrid;
+
+                var meterRow = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 6)
+                };
+                meterRow.Children.Add(barL);
+                meterRow.Children.Add(previewBorder);
+                meterRow.Children.Add(barR);
+                meterRow.Children.Add(sldVol);
+                stack.Children.Add(meterRow);
+
+                ytSrc.OnAudioLevelArrived += (vl, vr) =>
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        barL.Value = Math.Min(100, vl * extra.AudioLevel);
+                        barR.Value = Math.Min(100, vr * extra.AudioLevel);
+                    });
+                };
+
                 ytSrc.OnPreviewBufferUpdated += bgra480 =>
                 {
                     Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
                     Dispatcher.BeginInvoke(() =>
                     {
+                        statusOverlay.Visibility = Visibility.Collapsed;
                         extra.PreviewBitmap.WritePixels(new Int32Rect(0, 0, 480, 270), bgra480, 480 * 4, 0);
                         if (_activeSourceType == 10 && _activeExtraSource == extra)
                             WritePgmPreviewFrame(bgra480);
@@ -1131,35 +1228,102 @@ namespace DecklinkSwitcher
                     BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
                     FontSize = 10.5,
                     Padding = new Thickness(4, 2, 4, 2),
-                    Margin = new Thickness(0, 0, 0, 4)
+                    Margin = new Thickness(0, 0, 0, 4),
+                    ToolTip = "YouTube Live URL (e.g. https://www.youtube.com/watch?v=...)"
                 };
                 urlBox.LostFocus += (_, __) => { cfg.Url = urlBox.Text.Trim(); SaveCurrentSettings(); };
                 stack.Children.Add(urlBox);
 
                 var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
                 ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(60) });
 
-                var btnStart = new System.Windows.Controls.Button
+                var btnConnect = new System.Windows.Controls.Button
                 {
-                    Content = "Play",
+                    Content = "Connect",
                     Height = 24,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50)),
                     Foreground = System.Windows.Media.Brushes.White,
-                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
-                    BorderThickness = new Thickness(1),
+                    BorderThickness = new Thickness(0),
                     FontSize = 11,
+                    FontWeight = FontWeights.Bold,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                var btnStop = new System.Windows.Controls.Button
+                {
+                    Content = "Stop",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(198, 40, 40)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontSize = 11,
+                    FontWeight = FontWeights.Bold,
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Focusable = false,
+                    IsEnabled = false
+                };
+                extra.StartStopButton = btnConnect;
+                System.Windows.Controls.Grid.SetColumn(btnConnect, 0);
+                System.Windows.Controls.Grid.SetColumn(btnStop, 2);
+                ctrlRow.Children.Add(btnConnect);
+                ctrlRow.Children.Add(btnStop);
+                stack.Children.Add(ctrlRow);
+
+                // Sync (Audio Delay) row
+                var syncRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                syncRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+                syncRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                syncRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(42) });
+
+                var lblSync = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Sync:",
+                    FontSize = 10,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
+                    VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(0, 0, 4, 0)
                 };
-                extra.StartStopButton = btnStart;
+                var txtDelay = new System.Windows.Controls.TextBlock
+                {
+                    Text = $"{cfg.AudioDelayMs}ms",
+                    FontSize = 10,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                var sldDelay = new System.Windows.Controls.Slider
+                {
+                    Minimum = 0,
+                    Maximum = 60000,
+                    Value = Math.Clamp(cfg.AudioDelayMs, 0, 60000),
+                    SmallChange = 50,
+                    LargeChange = 500,
+                    TickFrequency = 1000,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                sldDelay.ValueChanged += (_, __) =>
+                {
+                    int ms = (int)Math.Round(sldDelay.Value);
+                    cfg.AudioDelayMs = ms;
+                    ytSrc.AudioDelayMs = ms;
+                    txtDelay.Text = $"{ms}ms";
+                    SaveCurrentSettings();
+                };
+                System.Windows.Controls.Grid.SetColumn(lblSync, 0);
+                System.Windows.Controls.Grid.SetColumn(sldDelay, 1);
+                System.Windows.Controls.Grid.SetColumn(txtDelay, 2);
+                syncRow.Children.Add(lblSync);
+                syncRow.Children.Add(sldDelay);
+                syncRow.Children.Add(txtDelay);
+                stack.Children.Add(syncRow);
 
                 var cmbAudio = new System.Windows.Controls.ComboBox
                 {
-                    Width = 58,
                     Height = 24,
-                    FontSize = 10
+                    FontSize = 11,
+                    Margin = new Thickness(0, 0, 0, 4)
                 };
                 cmbAudio.Items.Add("AFV");
                 cmbAudio.Items.Add("ON");
@@ -1174,43 +1338,74 @@ namespace DecklinkSwitcher
                         SaveCurrentSettings();
                     }
                 };
-
-                btnStart.Click += async (_, __) =>
-                {
-                    if (!extra.IsRunning)
-                    {
-                        cfg.Url = urlBox.Text.Trim();
-                        if (string.IsNullOrWhiteSpace(cfg.Url)) return;
-                        extra.IsRunning = true;
-                        btnStart.Content = "Stop";
-                        SaveCurrentSettings();
-                        await ytSrc.StartAsync(cfg.Url);
-                    }
-                    else
-                    {
-                        extra.IsRunning = false;
-                        btnStart.Content = "Play";
-                        ytSrc.Stop();
-                    }
-                };
-
-                System.Windows.Controls.Grid.SetColumn(btnStart, 0);
-                System.Windows.Controls.Grid.SetColumn(cmbAudio, 1);
-                ctrlRow.Children.Add(btnStart);
-                ctrlRow.Children.Add(cmbAudio);
-                stack.Children.Add(ctrlRow);
+                stack.Children.Add(cmbAudio);
 
                 var statusTxt = new System.Windows.Controls.TextBlock
                 {
-                    Text = "Idle",
+                    Text = "OFFLINE",
                     Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
                     FontSize = 10,
                     Margin = new Thickness(0, 0, 0, 4),
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
                 extra.StatusText = statusTxt;
-                ytSrc.OnStatusChanged += (st, _, __) => Dispatcher.BeginInvoke(() => statusTxt.Text = st);
+                ytSrc.OnStatusChanged += (st, isLive, isErr) => Dispatcher.BeginInvoke(() =>
+                {
+                    statusTxt.Text = st;
+                    overlayStatus.Text = st;
+                    if (isLive)
+                    {
+                        statusOverlay.Visibility = Visibility.Collapsed;
+                        btnConnect.IsEnabled = false;
+                        btnStop.IsEnabled = true;
+                    }
+                    else if (!extra.IsRunning)
+                    {
+                        statusOverlay.Visibility = Visibility.Visible;
+                        btnConnect.IsEnabled = true;
+                        btnStop.IsEnabled = false;
+                    }
+                    else if (isErr)
+                    {
+                        extra.IsRunning = false;
+                        statusOverlay.Visibility = Visibility.Visible;
+                        btnConnect.IsEnabled = true;
+                        btnStop.IsEnabled = false;
+                    }
+                });
                 stack.Children.Add(statusTxt);
+
+                async Task ConnectYouTubeAsync()
+                {
+                    cfg.Url = urlBox.Text.Trim();
+                    if (string.IsNullOrWhiteSpace(cfg.Url)) return;
+                    extra.IsRunning = true;
+                    btnConnect.IsEnabled = false;
+                    btnStop.IsEnabled = true;
+                    overlayStatus.Text = "Connecting...";
+                    statusTxt.Text = "Connecting...";
+                    SaveCurrentSettings();
+                    await ytSrc.StartAsync(cfg.Url);
+                }
+
+                btnConnect.Click += async (_, __) => await ConnectYouTubeAsync();
+                btnStop.Click += (_, __) =>
+                {
+                    extra.IsRunning = false;
+                    btnConnect.IsEnabled = true;
+                    btnStop.IsEnabled = false;
+                    barL.Value = 0;
+                    barR.Value = 0;
+                    statusOverlay.Visibility = Visibility.Visible;
+                    overlayStatus.Text = "OFFLINE";
+                    ytSrc.Stop();
+                };
+
+                // Auto-connect on startup if a URL was saved
+                if (!string.IsNullOrWhiteSpace(cfg.Url))
+                {
+                    Dispatcher.BeginInvoke(async () => await ConnectYouTubeAsync());
+                }
             }
             else if (cfg.Kind == "Ndi")
             {
