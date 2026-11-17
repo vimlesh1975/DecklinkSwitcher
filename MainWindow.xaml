@@ -528,6 +528,8 @@
                                     <MenuItem Header="🎨  Matte Color" Click="MenuAddMatte_Click"/>
                                     <MenuItem Header="🌐  HTML / Web Page" Click="MenuAddHtml_Click"/>
                                     <MenuItem Header="▶  YouTube Live / Video" Click="MenuAddYouTube_Click"/>
+                                    <MenuItem Header="📡  NDI Source" Click="MenuAddNdi_Click"/>
+                                    <MenuItem Header="🎬  Media / Video File" Click="MenuAddMedia_Click"/>
                                     <Separator/>
                                     <MenuItem Header="▦  Multi-Box Scene" Click="BtnAddCompositeScene_Click"/>
                                 </ContextMenu>

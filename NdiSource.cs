@@ -33,6 +33,8 @@ namespace DecklinkSwitcher
         private int _lastPreviewTicks = 0;
 
         public Action<byte[]>? OnPreviewBufferUpdated;
+        public Action<byte[]>? OnUyvy1080Updated;
+        public string AudioChannelName { get; set; } = "NDI";
         public Action<double, double>? OnAudioLevelArrived;
         public Action<string, bool, bool>? OnStatusChanged; // (statusText, isLive, isError)
         public Action<string>? OnLog;
@@ -274,11 +276,18 @@ namespace DecklinkSwitcher
                 }
             }
 
-            lock (MainWindow._pgmLock)
+            if (OnUyvy1080Updated != null)
             {
-                if (MainWindow.LatestNdiUyvy == null || MainWindow.LatestNdiUyvy.Length != _frameBuffer.Length)
-                    MainWindow.LatestNdiUyvy = new byte[_frameBuffer.Length];
-                Buffer.BlockCopy(_frameBuffer, 0, MainWindow.LatestNdiUyvy, 0, _frameBuffer.Length);
+                OnUyvy1080Updated(_frameBuffer);
+            }
+            else
+            {
+                lock (MainWindow._pgmLock)
+                {
+                    if (MainWindow.LatestNdiUyvy == null || MainWindow.LatestNdiUyvy.Length != _frameBuffer.Length)
+                        MainWindow.LatestNdiUyvy = new byte[_frameBuffer.Length];
+                    Buffer.BlockCopy(_frameBuffer, 0, MainWindow.LatestNdiUyvy, 0, _frameBuffer.Length);
+                }
             }
 
             if (Environment.TickCount - _lastPreviewTicks > 33)
@@ -335,7 +344,7 @@ namespace DecklinkSwitcher
                 if (ar > maxR) maxR = ar;
             }
 
-            MainWindow.PushAudioPacket("NDI", packet);
+            MainWindow.PushAudioPacket(AudioChannelName, packet);
             OnAudioLevelArrived?.Invoke(maxL / 32768.0 * 100.0, maxR / 32768.0 * 100.0);
         }
 

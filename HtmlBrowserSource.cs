@@ -789,7 +789,7 @@ namespace DecklinkSwitcher
             else
             {
                 bool isPgmActive = OnUyvy1080Updated != null
-                    ? (MainWindow.ActiveSourceType == 10 || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite(_instanceName)))
+                    ? (MainWindow.ActiveSourceType == 10 || !_hasCapturedFrame || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite(_instanceName)))
                     : (MainWindow.ActiveSourceType == 7 || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite("HTML")));
                 if (isPgmActive)
                 {

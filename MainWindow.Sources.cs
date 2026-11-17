@@ -47,6 +47,8 @@ namespace DecklinkSwitcher
             public AudioState AudioState { get; set; } = AudioState.AFV;
             public HtmlBrowserSource? HtmlSource { get; set; }
             public YouTubeSource? YtSource { get; set; }
+            public NdiSource? NdiSrc { get; set; }
+            public VlcMediaSource? MediaSrc { get; set; }
             public System.Windows.Controls.TextBlock? StatusText { get; set; }
             public System.Windows.Controls.TextBlock? TitleText { get; set; }
             public System.Windows.Controls.Border? ColorSwatch { get; set; }
@@ -709,6 +711,36 @@ namespace DecklinkSwitcher
             SaveCurrentSettings();
         }
 
+        private void MenuAddNdi_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = new ExtraSourceConfig
+            {
+                Id = "extra_ndi_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                Kind = "Ndi",
+                Name = NextExtraSourceName("NDI"),
+                Url = "",
+                AudioLevel = 1.0,
+                AudioState = "AFV"
+            };
+            AddDynamicExtraSource(cfg);
+            SaveCurrentSettings();
+        }
+
+        private void MenuAddMedia_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = new ExtraSourceConfig
+            {
+                Id = "extra_media_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                Kind = "Media",
+                Name = NextExtraSourceName("Media"),
+                Url = "",
+                AudioLevel = 1.0,
+                AudioState = "AFV"
+            };
+            AddDynamicExtraSource(cfg);
+            SaveCurrentSettings();
+        }
+
         private void ActivateExtraSource(DynamicExtraSource extra)
         {
             if (_activeSourceType != 10 || _activeExtraSource != extra) BeginMixIfEnabled();
@@ -721,6 +753,16 @@ namespace DecklinkSwitcher
             _activeInput = null;
             _activeCompositeSceneId = null;
 
+            if (extra.HtmlSource != null)
+            {
+                var pgmBgra = extra.HtmlSource.GetLatestPgmPixels();
+                if (pgmBgra != null && pgmBgra.Length == 1920 * 1080 * 4)
+                {
+                    ConvertBgra1080ToUyvy1080(pgmBgra, extra.Uyvy1080);
+                    extra.HasFrame = true;
+                }
+            }
+
             lock (_pgmLock)
             {
                 if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
@@ -728,6 +770,7 @@ namespace DecklinkSwitcher
                 Buffer.BlockCopy(extra.Uyvy1080, 0, LatestExtraSourceUyvy, 0, extra.Uyvy1080.Length);
             }
             WritePgmPreviewFrame(extra.Preview480);
+            PushFullscreenPreviewFrame(LatestExtraSourceUyvy);
             UpdateProgramSourceFlags();
             Log($"Switched to {extra.Config.Name}");
         }
@@ -799,7 +842,7 @@ namespace DecklinkSwitcher
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
 
-            string icon = cfg.Kind == "Matte" ? "🎨 " : cfg.Kind == "Html" ? "🌐 " : "▶ ";
+            string icon = cfg.Kind == "Matte" ? "🎨 " : cfg.Kind == "Html" ? "🌐 " : cfg.Kind == "Ndi" ? "📡 " : cfg.Kind == "Media" ? "🎬 " : "▶ ";
             var titleTxt = new System.Windows.Controls.TextBlock
             {
                 Text = icon + cfg.Name,
@@ -988,12 +1031,12 @@ namespace DecklinkSwitcher
                 {
                     Width = 58,
                     Height = 24,
-                    FontSize = 10,
-                    SelectedIndex = (int)extra.AudioState
+                    FontSize = 10
                 };
+                cmbMute.Items.Add("AFV");
                 cmbMute.Items.Add("ON");
                 cmbMute.Items.Add("OFF");
-                cmbMute.Items.Add("AFV");
+                cmbMute.SelectedIndex = (int)extra.AudioState;
                 cmbMute.SelectionChanged += (_, __) =>
                 {
                     if (cmbMute.SelectedIndex >= 0)
@@ -1115,12 +1158,12 @@ namespace DecklinkSwitcher
                 {
                     Width = 58,
                     Height = 24,
-                    FontSize = 10,
-                    SelectedIndex = (int)extra.AudioState
+                    FontSize = 10
                 };
+                cmbAudio.Items.Add("AFV");
                 cmbAudio.Items.Add("ON");
                 cmbAudio.Items.Add("OFF");
-                cmbAudio.Items.Add("AFV");
+                cmbAudio.SelectedIndex = (int)extra.AudioState;
                 cmbAudio.SelectionChanged += (_, __) =>
                 {
                     if (cmbAudio.SelectedIndex >= 0)
@@ -1168,6 +1211,359 @@ namespace DecklinkSwitcher
                 ytSrc.OnStatusChanged += (st, _, __) => Dispatcher.BeginInvoke(() => statusTxt.Text = st);
                 stack.Children.Add(statusTxt);
             }
+            else if (cfg.Kind == "Ndi")
+            {
+                var ndiSrc = new NdiSource
+                {
+                    AudioChannelName = cfg.Id
+                };
+                extra.NdiSrc = ndiSrc;
+
+                ndiSrc.OnPreviewBufferUpdated += bgra480 =>
+                {
+                    Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        extra.PreviewBitmap.WritePixels(new Int32Rect(0, 0, 480, 270), bgra480, 480 * 4, 0);
+                        if (_activeSourceType == 10 && _activeExtraSource == extra)
+                            WritePgmPreviewFrame(bgra480);
+                    });
+                };
+                ndiSrc.OnUyvy1080Updated += uyvy1080 =>
+                {
+                    Buffer.BlockCopy(uyvy1080, 0, extra.Uyvy1080, 0, Math.Min(uyvy1080.Length, extra.Uyvy1080.Length));
+                    extra.HasFrame = true;
+                    if (_activeSourceType == 10 && _activeExtraSource == extra)
+                    {
+                        lock (_pgmLock)
+                        {
+                            if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
+                                LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
+                            Buffer.BlockCopy(uyvy1080, 0, LatestExtraSourceUyvy, 0, Math.Min(uyvy1080.Length, LatestExtraSourceUyvy.Length));
+                        }
+                    }
+                };
+
+                var srcRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                srcRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                srcRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var cmbSource = new System.Windows.Controls.ComboBox
+                {
+                    IsEditable = true,
+                    Height = 24,
+                    FontSize = 10.5,
+                    Text = cfg.Url ?? "",
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                if (!string.IsNullOrWhiteSpace(cfg.Url))
+                {
+                    cmbSource.Items.Add(cfg.Url);
+                }
+                cmbSource.LostFocus += (_, __) => { cfg.Url = cmbSource.Text.Trim(); SaveCurrentSettings(); };
+
+                var btnScan = new System.Windows.Controls.Button
+                {
+                    Content = "🔍",
+                    Width = 26,
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false,
+                    ToolTip = "Scan NDI Sources"
+                };
+
+                System.Windows.Controls.Grid.SetColumn(cmbSource, 0);
+                System.Windows.Controls.Grid.SetColumn(btnScan, 1);
+                srcRow.Children.Add(cmbSource);
+                srcRow.Children.Add(btnScan);
+                stack.Children.Add(srcRow);
+
+                var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var btnStart = new System.Windows.Controls.Button
+                {
+                    Content = "Connect",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                extra.StartStopButton = btnStart;
+
+                var cmbAudio = new System.Windows.Controls.ComboBox
+                {
+                    Width = 58,
+                    Height = 24,
+                    FontSize = 10
+                };
+                cmbAudio.Items.Add("AFV");
+                cmbAudio.Items.Add("ON");
+                cmbAudio.Items.Add("OFF");
+                cmbAudio.SelectedIndex = (int)extra.AudioState;
+                cmbAudio.SelectionChanged += (_, __) =>
+                {
+                    if (cmbAudio.SelectedIndex >= 0)
+                    {
+                        extra.AudioState = (AudioState)cmbAudio.SelectedIndex;
+                        cfg.AudioState = extra.AudioState.ToString();
+                        SaveCurrentSettings();
+                    }
+                };
+
+                var statusTxt = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Idle",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                extra.StatusText = statusTxt;
+                ndiSrc.OnStatusChanged += (st, _, __) => Dispatcher.BeginInvoke(() => statusTxt.Text = st);
+
+                btnScan.Click += async (_, __) =>
+                {
+                    btnScan.IsEnabled = false;
+                    statusTxt.Text = "Scanning NDI...";
+                    try
+                    {
+                        var found = await Task.Run(() => NdiSource.FindSources(2000, msg => Log(msg)));
+                        string prevText = cmbSource.Text;
+                        cmbSource.Items.Clear();
+                        foreach (var item in found) cmbSource.Items.Add(item.Name);
+                        if (!string.IsNullOrWhiteSpace(prevText)) cmbSource.Text = prevText;
+                        else if (found.Count > 0) cmbSource.SelectedIndex = 0;
+                        statusTxt.Text = found.Count > 0 ? $"Found {found.Count} source(s)" : "No NDI sources";
+                    }
+                    finally
+                    {
+                        btnScan.IsEnabled = true;
+                    }
+                };
+
+                btnStart.Click += (_, __) =>
+                {
+                    if (!extra.IsRunning)
+                    {
+                        cfg.Url = cmbSource.Text.Trim();
+                        if (string.IsNullOrWhiteSpace(cfg.Url)) return;
+                        extra.IsRunning = true;
+                        btnStart.Content = "Stop";
+                        SaveCurrentSettings();
+                        ndiSrc.Start(new NdiSourceInfo { Name = cfg.Url });
+                    }
+                    else
+                    {
+                        extra.IsRunning = false;
+                        btnStart.Content = "Connect";
+                        ndiSrc.Stop();
+                    }
+                };
+
+                System.Windows.Controls.Grid.SetColumn(btnStart, 0);
+                System.Windows.Controls.Grid.SetColumn(cmbAudio, 1);
+                ctrlRow.Children.Add(btnStart);
+                ctrlRow.Children.Add(cmbAudio);
+                stack.Children.Add(ctrlRow);
+                stack.Children.Add(statusTxt);
+            }
+            else if (cfg.Kind == "Media")
+            {
+                var mediaSrc = new VlcMediaSource();
+                extra.MediaSrc = mediaSrc;
+
+                mediaSrc.OnPreviewBufferUpdated += bgra480 =>
+                {
+                    Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        extra.PreviewBitmap.WritePixels(new Int32Rect(0, 0, 480, 270), bgra480, 480 * 4, 0);
+                        if (_activeSourceType == 10 && _activeExtraSource == extra)
+                            WritePgmPreviewFrame(bgra480);
+                    });
+                };
+                mediaSrc.OnVideoAndAudioArrived += (vBuf, w, h, rb, aBuf, aCount) =>
+                {
+                    if (vBuf != IntPtr.Zero && w == 1920 && h == 1080)
+                    {
+                        int len = Math.Min(1920 * 1080 * 2, extra.Uyvy1080.Length);
+                        System.Runtime.InteropServices.Marshal.Copy(vBuf, extra.Uyvy1080, 0, len);
+                        extra.HasFrame = true;
+                        if (_activeSourceType == 10 && _activeExtraSource == extra)
+                        {
+                            lock (_pgmLock)
+                            {
+                                if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
+                                    LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
+                                System.Runtime.InteropServices.Marshal.Copy(vBuf, LatestExtraSourceUyvy, 0, len);
+                            }
+                        }
+                    }
+                    if (aBuf != IntPtr.Zero && aCount > 0)
+                    {
+                        short[] pkt = new short[aCount * 2];
+                        System.Runtime.InteropServices.Marshal.Copy(aBuf, pkt, 0, pkt.Length);
+                        PushAudioPacket(cfg.Id, pkt);
+                    }
+                };
+
+                var fileRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                fileRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                fileRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var pathBox = new System.Windows.Controls.TextBox
+                {
+                    Text = cfg.Url ?? "",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    FontSize = 10.5,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                pathBox.LostFocus += (_, __) => { cfg.Url = pathBox.Text.Trim(); SaveCurrentSettings(); };
+
+                var btnBrowse = new System.Windows.Controls.Button
+                {
+                    Content = "📁",
+                    Width = 26,
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false,
+                    ToolTip = "Browse Media File"
+                };
+                btnBrowse.Click += (_, __) =>
+                {
+                    var ofd = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Filter = "Media Files|*.mp4;*.mkv;*.mov;*.avi;*.ts;*.mxf;*.webm;*.jpg;*.jpeg;*.png;*.bmp|All Files|*.*"
+                    };
+                    if (ofd.ShowDialog() == true)
+                    {
+                        pathBox.Text = ofd.FileName;
+                        cfg.Url = ofd.FileName;
+                        SaveCurrentSettings();
+                    }
+                };
+
+                System.Windows.Controls.Grid.SetColumn(pathBox, 0);
+                System.Windows.Controls.Grid.SetColumn(btnBrowse, 1);
+                fileRow.Children.Add(pathBox);
+                fileRow.Children.Add(btnBrowse);
+                stack.Children.Add(fileRow);
+
+                var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var btnStart = new System.Windows.Controls.Button
+                {
+                    Content = "Play",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                extra.StartStopButton = btnStart;
+
+                var chkLoop = new System.Windows.Controls.CheckBox
+                {
+                    Content = "Loop",
+                    IsChecked = true,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 210, 230)),
+                    FontSize = 10,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+
+                var cmbAudio = new System.Windows.Controls.ComboBox
+                {
+                    Width = 58,
+                    Height = 24,
+                    FontSize = 10
+                };
+                cmbAudio.Items.Add("AFV");
+                cmbAudio.Items.Add("ON");
+                cmbAudio.Items.Add("OFF");
+                cmbAudio.SelectedIndex = (int)extra.AudioState;
+                cmbAudio.SelectionChanged += (_, __) =>
+                {
+                    if (cmbAudio.SelectedIndex >= 0)
+                    {
+                        extra.AudioState = (AudioState)cmbAudio.SelectedIndex;
+                        cfg.AudioState = extra.AudioState.ToString();
+                        SaveCurrentSettings();
+                    }
+                };
+
+                var statusTxt = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Idle",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                extra.StatusText = statusTxt;
+
+                btnStart.Click += (_, __) =>
+                {
+                    if (!extra.IsRunning)
+                    {
+                        cfg.Url = pathBox.Text.Trim();
+                        if (string.IsNullOrWhiteSpace(cfg.Url) || !System.IO.File.Exists(cfg.Url))
+                        {
+                            statusTxt.Text = "File not found";
+                            return;
+                        }
+                        extra.IsRunning = true;
+                        btnStart.Content = "Stop";
+                        statusTxt.Text = "Playing: " + System.IO.Path.GetFileName(cfg.Url);
+                        SaveCurrentSettings();
+                        mediaSrc.Play(cfg.Url, chkLoop.IsChecked == true);
+                    }
+                    else
+                    {
+                        extra.IsRunning = false;
+                        btnStart.Content = "Play";
+                        statusTxt.Text = "Stopped";
+                        mediaSrc.Stop();
+                    }
+                };
+
+                System.Windows.Controls.Grid.SetColumn(btnStart, 0);
+                System.Windows.Controls.Grid.SetColumn(chkLoop, 1);
+                System.Windows.Controls.Grid.SetColumn(cmbAudio, 2);
+                ctrlRow.Children.Add(btnStart);
+                ctrlRow.Children.Add(chkLoop);
+                ctrlRow.Children.Add(cmbAudio);
+                stack.Children.Add(ctrlRow);
+                stack.Children.Add(statusTxt);
+            }
 
             // Cut / Switch button
             var btnCut = new System.Windows.Controls.Button
@@ -1204,6 +1600,8 @@ namespace DecklinkSwitcher
             SwitcherPanel.Children.Remove(extra.TileBorder);
             try { extra.HtmlSource?.Dispose(); } catch { }
             try { extra.YtSource?.Dispose(); } catch { }
+            try { extra.NdiSrc?.Dispose(); } catch { }
+            try { extra.MediaSrc?.Dispose(); } catch { }
             SyncCompositeSourceFlags();
             SaveCurrentSettings();
         }
@@ -1214,6 +1612,8 @@ namespace DecklinkSwitcher
             {
                 try { extra.HtmlSource?.Dispose(); } catch { }
                 try { extra.YtSource?.Dispose(); } catch { }
+                try { extra.NdiSrc?.Dispose(); } catch { }
+                try { extra.MediaSrc?.Dispose(); } catch { }
             }
         }
 
@@ -2414,8 +2814,10 @@ namespace DecklinkSwitcher
                                 vm.PreviewBitmap?.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), ctx.Prev480Buffer, 480 * 4, 0);
                             });
 
-                            // If this screen is currently active on Program Output
-                            if (_activeSourceType == 4 && _activeScreen == vm)
+                            // Populate 1080p buffer when this screen is active on Program Output or used in Multi-Box
+                            bool isPgmScreen = _activeSourceType == 4 && _activeScreen == vm;
+                            bool isCompositeScreen = IsSourceUsedInComposite(vm.DisplayName);
+                            if (isPgmScreen || isCompositeScreen)
                             {
                                 if (screenWidth == 1920 && screenHeight == 1080)
                                 {
@@ -2438,17 +2840,20 @@ namespace DecklinkSwitcher
                                     ctx.Pgm1080Bmp.UnlockBits(data1080);
                                 }
 
-                                lock (_pgmLock)
+                                if (isPgmScreen)
                                 {
-                                    if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
-                                        _latestPgmFrame = new byte[1920 * 1080 * 4];
-                                    Array.Copy(ctx.Pgm1080Buffer, _latestPgmFrame, _latestPgmFrame.Length);
-                                }
+                                    lock (_pgmLock)
+                                    {
+                                        if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                                            _latestPgmFrame = new byte[1920 * 1080 * 4];
+                                        Array.Copy(ctx.Pgm1080Buffer, _latestPgmFrame, _latestPgmFrame.Length);
+                                    }
 
-                                Application.Current.Dispatcher.BeginInvoke(() => {
-                                    if (_bmpOutput != null)
-                                        WritePgmPreviewFrame(ctx.Prev480Buffer);
-                                });
+                                    Application.Current.Dispatcher.BeginInvoke(() => {
+                                        if (_bmpOutput != null)
+                                            WritePgmPreviewFrame(ctx.Prev480Buffer);
+                                    });
+                                }
                             }
                         }
                     }

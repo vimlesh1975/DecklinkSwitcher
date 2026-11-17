@@ -340,7 +340,7 @@ namespace DecklinkSwitcher
             }
             foreach (var extra in GetExtraSourcesSnapshot())
             {
-                if (extra.Config.Kind == "YouTube")
+                if (extra.Config.Kind == "YouTube" || extra.Config.Kind == "Ndi" || extra.Config.Kind == "Media")
                 {
                     mixSource(extra.Config.Id, (float)extra.AudioLevel, extra.AudioState,
                         activeSourceType == 10 && activeInputName == extra.Config.Id,
