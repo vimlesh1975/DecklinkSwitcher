@@ -1163,6 +1163,7 @@ namespace DecklinkSwitcher
                 statusOverlay.Children.Add(overlayStatus);
 
                 stack.Children.Remove(previewBorder);
+                previewBorder.Child = null;
                 previewBorder.Height = 86;
                 previewBorder.Width = 152;
                 previewBorder.Margin = new Thickness(0);
