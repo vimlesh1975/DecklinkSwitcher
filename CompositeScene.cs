@@ -96,10 +96,10 @@ namespace DecklinkSwitcher
                     byte[]? srcUyvy = resolveSourceUyvy1080(layer.SourceKey);
                     if (srcUyvy == null || srcUyvy.Length < UyvyBytes) continue;
 
-                    double cropL = Math.Clamp(layer.CropLeftPct, 0, 45);
-                    double cropR = Math.Clamp(layer.CropRightPct, 0, 45);
-                    double cropT = Math.Clamp(layer.CropTopPct, 0, 45);
-                    double cropB = Math.Clamp(layer.CropBottomPct, 0, 45);
+                    double cropL = Math.Clamp(layer.CropLeftPct, 0, 98);
+                    double cropR = Math.Clamp(layer.CropRightPct, 0, Math.Max(0, 98 - cropL));
+                    double cropT = Math.Clamp(layer.CropTopPct, 0, 98);
+                    double cropB = Math.Clamp(layer.CropBottomPct, 0, Math.Max(0, 98 - cropT));
 
                     int dstX = Math.Clamp(((int)Math.Round(Width * (Math.Clamp(layer.DestXPct, 0, 100) / 100.0))) & ~1, 0, Width - 2);
                     int dstY = Math.Clamp((int)Math.Round(Height * (Math.Clamp(layer.DestYPct, 0, 100) / 100.0)), 0, Height - 2);

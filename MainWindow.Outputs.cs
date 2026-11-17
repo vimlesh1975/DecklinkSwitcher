@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -368,8 +368,28 @@ namespace DecklinkSwitcher
             var wnd = new FullscreenPreviewWindow();
             _fullscreenWindow = wnd;
 
+            Interlocked.Exchange(ref _fullscreenFramePending, 0);
             _bmpFullscreenOutput = new System.Windows.Media.Imaging.WriteableBitmap(1920, 1080, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
-            if (_latestPgmFrame != null && _latestPgmFrame.Length == 1920 * 1080 * 4)
+
+            byte[]? seedUyvy = null;
+            if (_activeSourceType == 9) seedUyvy = LatestCompositeUyvy;
+            else if (_activeSourceType == 10) seedUyvy = LatestExtraSourceUyvy;
+            else if (_activeSourceType == 8) seedUyvy = LatestNdiUyvy;
+            else if (_activeSourceType == 7) seedUyvy = LatestHtmlSourceUyvy;
+            else if (_activeSourceType == 6) seedUyvy = LatestYouTubeUyvy;
+            else if (_activeSourceType == 1 || _activeSourceType == 2) seedUyvy = BuildSyntheticUyvy1080(_activeSourceType);
+
+            if (seedUyvy != null && seedUyvy.Length == 1920 * 1080 * 2)
+            {
+                byte[] seedCopy;
+                lock (_pgmLock) { seedCopy = (byte[])seedUyvy.Clone(); }
+                if (_fullscreenBgraBuffer == null || _fullscreenBgraBuffer.Length != 1920 * 1080 * 4)
+                    _fullscreenBgraBuffer = new byte[1920 * 1080 * 4];
+                ConvertUyvy1080ToBgra1080(seedCopy, _fullscreenBgraBuffer);
+                _bmpFullscreenOutput.WritePixels(new Int32Rect(0, 0, 1920, 1080), _fullscreenBgraBuffer, 1920 * 4, 0);
+            }
+            else if ((_activeSourceType == 0 || _activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5) &&
+                     _latestPgmFrame != null && _latestPgmFrame.Length == 1920 * 1080 * 4)
             {
                 _bmpFullscreenOutput.WritePixels(new Int32Rect(0, 0, 1920, 1080), _latestPgmFrame, 1920 * 4, 0);
             }

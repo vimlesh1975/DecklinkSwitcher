@@ -599,25 +599,25 @@ namespace DecklinkSwitcher
                 case 2: // Crop Left
                 {
                     double boxW = Math.Max(20.0, CanvasW * (l.DestWPct / 100.0));
-                    l.CropLeftPct = Math.Round(Math.Clamp(_dragStartCropL + (dxPx / boxW) * 100.0, 0.0, 45.0), 1);
+                    l.CropLeftPct = Math.Round(Math.Clamp(_dragStartCropL + (dxPx / boxW) * 100.0, 0.0, Math.Max(0.0, 98.0 - l.CropRightPct)), 1);
                     break;
                 }
                 case 3: // Crop Top
                 {
                     double boxH = Math.Max(20.0, CanvasH * (l.DestHPct / 100.0));
-                    l.CropTopPct = Math.Round(Math.Clamp(_dragStartCropT + (dyPx / boxH) * 100.0, 0.0, 45.0), 1);
+                    l.CropTopPct = Math.Round(Math.Clamp(_dragStartCropT + (dyPx / boxH) * 100.0, 0.0, Math.Max(0.0, 98.0 - l.CropBottomPct)), 1);
                     break;
                 }
                 case 4: // Crop Right
                 {
                     double boxW = Math.Max(20.0, CanvasW * (l.DestWPct / 100.0));
-                    l.CropRightPct = Math.Round(Math.Clamp(_dragStartCropR - (dxPx / boxW) * 100.0, 0.0, 45.0), 1);
+                    l.CropRightPct = Math.Round(Math.Clamp(_dragStartCropR - (dxPx / boxW) * 100.0, 0.0, Math.Max(0.0, 98.0 - l.CropLeftPct)), 1);
                     break;
                 }
                 case 5: // Crop Bottom
                 {
                     double boxH = Math.Max(20.0, CanvasH * (l.DestHPct / 100.0));
-                    l.CropBottomPct = Math.Round(Math.Clamp(_dragStartCropB - (dyPx / boxH) * 100.0, 0.0, 45.0), 1);
+                    l.CropBottomPct = Math.Round(Math.Clamp(_dragStartCropB - (dyPx / boxH) * 100.0, 0.0, Math.Max(0.0, 98.0 - l.CropTopPct)), 1);
                     break;
                 }
             }
@@ -802,10 +802,10 @@ namespace DecklinkSwitcher
                 l.DestYPct = ParseDouble(r.TxtY.Text, l.DestYPct, 0, 100);
                 l.DestWPct = ParseDouble(r.TxtW.Text, l.DestWPct, 1, 100);
                 l.DestHPct = ParseDouble(r.TxtH.Text, l.DestHPct, 1, 100);
-                l.CropLeftPct = ParseDouble(r.TxtCropL.Text, l.CropLeftPct, 0, 45);
-                l.CropTopPct = ParseDouble(r.TxtCropT.Text, l.CropTopPct, 0, 45);
-                l.CropRightPct = ParseDouble(r.TxtCropR.Text, l.CropRightPct, 0, 45);
-                l.CropBottomPct = ParseDouble(r.TxtCropB.Text, l.CropBottomPct, 0, 45);
+                l.CropLeftPct = ParseDouble(r.TxtCropL.Text, l.CropLeftPct, 0, 98);
+                l.CropTopPct = ParseDouble(r.TxtCropT.Text, l.CropTopPct, 0, 98);
+                l.CropRightPct = ParseDouble(r.TxtCropR.Text, l.CropRightPct, 0, Math.Max(0, 98 - l.CropLeftPct));
+                l.CropBottomPct = ParseDouble(r.TxtCropB.Text, l.CropBottomPct, 0, Math.Max(0, 98 - l.CropTopPct));
                 l.BorderPx = (int)ParseDouble(r.TxtBorder.Text, l.BorderPx, 0, 12);
             }
             UpdateVisualCanvas();
