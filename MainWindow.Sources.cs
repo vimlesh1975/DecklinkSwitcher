@@ -310,6 +310,10 @@ namespace DecklinkSwitcher
             return null;
         }
 
+        private static readonly object _compositeRenderLock = new object();
+        private readonly byte[] _compositeEditWorkUyvy = new byte[1920 * 1080 * 2];
+        private readonly byte[] _compositeEditPreview480 = new byte[480 * 270 * 4];
+
         private void RefreshCompositeScene(
             System.Collections.Generic.List<CompositeLayerConfig> layers,
             string bgHex,
@@ -323,19 +327,27 @@ namespace DecklinkSwitcher
                 snapshot = layers.ToArray();
             }
 
-            CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, _compositeWorkUyvy, _compositePreview480, bgHex);
+            byte[] workUyvy = writeToPgmOutput ? _compositeWorkUyvy : _compositeEditWorkUyvy;
+            byte[] prev480 = writeToPgmOutput ? _compositePreview480 : _compositeEditPreview480;
+            byte[] previewCopy;
 
-            if (writeToPgmOutput)
+            lock (_compositeRenderLock)
             {
-                lock (_pgmLock)
+                CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, workUyvy, prev480, bgHex);
+
+                if (writeToPgmOutput)
                 {
-                    if (LatestCompositeUyvy == null || LatestCompositeUyvy.Length != _compositeWorkUyvy.Length)
-                        LatestCompositeUyvy = new byte[_compositeWorkUyvy.Length];
-                    Buffer.BlockCopy(_compositeWorkUyvy, 0, LatestCompositeUyvy, 0, _compositeWorkUyvy.Length);
+                    lock (_pgmLock)
+                    {
+                        if (LatestCompositeUyvy == null || LatestCompositeUyvy.Length != workUyvy.Length)
+                            LatestCompositeUyvy = new byte[workUyvy.Length];
+                        Buffer.BlockCopy(workUyvy, 0, LatestCompositeUyvy, 0, workUyvy.Length);
+                    }
                 }
+
+                previewCopy = (byte[])prev480.Clone();
             }
 
-            var previewCopy = (byte[])_compositePreview480.Clone();
             Application.Current.Dispatcher.BeginInvoke(() =>
             {
                 tileBmp?.WritePixels(new Int32Rect(0, 0, 480, 270), previewCopy, 480 * 4, 0);
@@ -448,7 +460,10 @@ namespace DecklinkSwitcher
                 () =>
                 {
                     SyncCompositeSourceFlags();
-                    RefreshCompositeFrame(_activeSourceType == 9);
+                    if (sceneId == _activeCompositeSceneId)
+                        RefreshCompositeFrame(_activeSourceType == 9);
+                    else
+                        RefreshCompositeScene(layers, getBgHex(), previewBmp, false, false);
                     SaveCurrentSettings();
                 })
             {
