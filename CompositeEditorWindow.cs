@@ -9,6 +9,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Color = System.Windows.Media.Color;
 using Brushes = System.Windows.Media.Brushes;
+using Point = System.Windows.Point;
+using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace DecklinkSwitcher
 {

@@ -19,6 +19,8 @@ namespace DecklinkSwitcher
         internal static byte[]? LatestCompositeUyvy = new byte[1920 * 1080 * 2];
         internal static byte[]? LatestMediaCompositeUyvy;
         internal static System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers = CompositeSceneCompositor.CreateDefaultLayers();
+        internal static string CompositeBackgroundHex = "#000000";
+        private static volatile bool _isCompositeEditorOpen = false;
         private static readonly byte[] _compositeWorkUyvy = new byte[1920 * 1080 * 2];
         private static readonly byte[] _compositePreview480 = new byte[480 * 270 * 4];
         private static readonly System.Collections.Generic.Dictionary<string, byte[]> _compositeScratchPerSource = new();
@@ -226,7 +228,7 @@ namespace DecklinkSwitcher
                 snapshot = CompositeLayers.ToArray();
             }
 
-            CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, _compositeWorkUyvy, _compositePreview480);
+            CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, _compositeWorkUyvy, _compositePreview480, CompositeBackgroundHex);
 
             lock (_pgmLock)
             {
@@ -269,16 +271,30 @@ namespace DecklinkSwitcher
             sources.Add("NDI");
             sources.Add("Color Bars");
 
-            var dlg = new CompositeEditorWindow(CompositeLayers, sources, () =>
-            {
-                SyncCompositeSourceFlags();
-                RefreshCompositeFrame(_activeSourceType == 9);
-                SaveCurrentSettings();
-            })
+            var dlg = new CompositeEditorWindow(
+                CompositeLayers,
+                sources,
+                _bmpComposite,
+                () => CompositeBackgroundHex,
+                hex => CompositeBackgroundHex = hex,
+                () =>
+                {
+                    SyncCompositeSourceFlags();
+                    RefreshCompositeFrame(_activeSourceType == 9);
+                    SaveCurrentSettings();
+                })
             {
                 Owner = this
             };
-            dlg.ShowDialog();
+            _isCompositeEditorOpen = true;
+            try
+            {
+                dlg.ShowDialog();
+            }
+            finally
+            {
+                _isCompositeEditorOpen = false;
+            }
         }
 
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
@@ -1792,7 +1808,7 @@ namespace DecklinkSwitcher
                                 }
                             }
                         }
-                        else if (++compositeThumbTick >= 6)
+                        else if (_isCompositeEditorOpen || ++compositeThumbTick >= 6)
                         {
                             compositeThumbTick = 0;
                             RefreshCompositeFrame(false);
