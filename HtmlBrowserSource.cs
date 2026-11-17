@@ -787,7 +787,7 @@ namespace DecklinkSwitcher
             }
             else
             {
-                bool isPgmActive = MainWindow.ActiveSourceType == 7;
+                bool isPgmActive = MainWindow.ActiveSourceType == 7 || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite("HTML"));
                 if (isPgmActive)
                 {
                     MainWindow.ConvertBgra1080ToUyvy1080(bgra1080, _uyvyScratch1080);

@@ -89,6 +89,9 @@ namespace DecklinkSwitcher
         public string NdiOverlaySourceName { get; set; } = "";
         public bool NdiOverlayEnabled { get; set; } = false;
         public double NdiOverlayOpacityPercent { get; set; } = 100.0;
+
+        public System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers { get; set; } = new();
+        public string CompositeBackgroundHex { get; set; } = "#000000";
         
         private static string GetSettingsPath()
         {

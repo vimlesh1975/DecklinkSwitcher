@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -439,6 +439,10 @@ namespace DecklinkSwitcher
         }
 
         private double _audioPhase = 0;
+        public volatile bool IsCompositeInput = false;
+        private byte[]? _latestCompositeUyvy1080;
+
+        public byte[]? GetLatestCompositeUyvy1080() => _latestCompositeUyvy1080;
 
         public void ScheduleSyntheticFrame(int sourceType)
         {
@@ -535,6 +539,16 @@ namespace DecklinkSwitcher
                             if (MainWindow.LatestHtmlSourceUyvy != null)
                             {
                                 System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestHtmlSourceUyvy, 0, outputBuffer, MainWindow.LatestHtmlSourceUyvy.Length);
+                            }
+                        }
+                    }
+                    else if (sourceType == 9) // Multi-Box / Composite 1080p UYVY
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestCompositeUyvy != null)
+                            {
+                                System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestCompositeUyvy, 0, outputBuffer, MainWindow.LatestCompositeUyvy.Length);
                             }
                         }
                     }
@@ -646,7 +660,8 @@ namespace DecklinkSwitcher
                 try 
                 {
                     bool shouldUpdatePreview = false;
-                    if (IsProgramSource) shouldUpdatePreview = true;
+                    bool captureForComposite = IsCompositeInput;
+                    if (IsProgramSource || captureForComposite) shouldUpdatePreview = true;
                     else if (PreviewBitmap != null && Environment.TickCount - _lastPreviewTicks > 200) shouldUpdatePreview = true;
 
                     if (shouldUpdatePreview)
@@ -662,6 +677,25 @@ namespace DecklinkSwitcher
                         try
                         {
                             inputBuf.GetBytes(out IntPtr inputBuffer);
+
+                            if (captureForComposite)
+                            {
+                                _latestCompositeUyvy1080 ??= new byte[1920 * 1080 * 2];
+                                unsafe
+                                {
+                                    fixed (byte* compPtr = _latestCompositeUyvy1080)
+                                    {
+                                        if (width == 1920 && height == 1080 && srcRowBytes == 1920 * 2)
+                                        {
+                                            Buffer.MemoryCopy((void*)inputBuffer, compPtr, 1920 * 1080 * 2, 1920 * 1080 * 2);
+                                        }
+                                        else
+                                        {
+                                            ScaleUyvyTo1080Uyvy((byte*)inputBuffer, width, height, srcRowBytes, compPtr, 1920 * 2);
+                                        }
+                                    }
+                                }
+                            }
                             
                             unsafe 
                             {

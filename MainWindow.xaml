@@ -739,6 +739,16 @@
                     </StackPanel>
                 </Border>
 
+                <Border Name="TileComposite" Style="{StaticResource MixerPanel}">
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                        <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}" Margin="0,0,0,10" HorizontalAlignment="Center" MouseLeftButtonDown="PreviewComposite_MouseDown" Cursor="Hand">
+                            <Image Name="PreviewComposite" Stretch="Uniform" Width="178" Height="100"/>
+                        </Border>
+                        <Button Name="BtnComposite" Content="Multi-Box" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnComposite_Click" Background="{DynamicResource ButtonBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Button Name="BtnEditComposite" Content="Edit Layout..." FontSize="11" FontWeight="SemiBold" Height="26" Click="BtnEditComposite_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand" ToolTip="Configure sources, crop, size, and position for Multi-Box"/>
+                    </StackPanel>
+                </Border>
+
                 <Border Name="TileSystemAudio" Style="{StaticResource MixerPanel}">
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">

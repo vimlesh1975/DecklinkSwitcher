@@ -12,9 +12,42 @@ namespace DecklinkSwitcher
 {
     public partial class MainWindow : Window
     {
-        private int _activeSourceType = 0; // 0=Device, 1=ColorBars, 2=Matte, 3=Media
+        private int _activeSourceType = 0; // 0=Device, 1=ColorBars, 2=Matte, 3=Media, 4=Screen, 5=Webcam, 6=YouTube, 7=HTML, 8=NDI, 9=Multi-Box
         public static int ActiveSourceType = 0;
         public static string ActiveInputName = "";
+
+        internal static byte[]? LatestCompositeUyvy = new byte[1920 * 1080 * 2];
+        internal static byte[]? LatestMediaCompositeUyvy;
+        internal static System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers = CompositeSceneCompositor.CreateDefaultLayers();
+        private static readonly byte[] _compositeWorkUyvy = new byte[1920 * 1080 * 2];
+        private static readonly byte[] _compositePreview480 = new byte[480 * 270 * 4];
+        private static readonly System.Collections.Generic.Dictionary<string, byte[]> _compositeScratchPerSource = new();
+        private static readonly object _compositeLock = new();
+        private static byte[]? _compositeColorBarsUyvy;
+
+        internal static bool IsSourceUsedInComposite(string sourceKey)
+        {
+            if (string.IsNullOrWhiteSpace(sourceKey)) return false;
+            lock (_compositeLock)
+            {
+                for (int i = 0; i < CompositeLayers.Count; i++)
+                {
+                    var l = CompositeLayers[i];
+                    if (l.Enabled && string.Equals(l.SourceKey, sourceKey, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        internal void SyncCompositeSourceFlags()
+        {
+            foreach (var input in DynamicInputs)
+            {
+                if (input.Device != null)
+                    input.Device.IsCompositeInput = IsSourceUsedInComposite(input.DisplayName);
+            }
+        }
 
         private void ClearPgmPreview()
         {
@@ -78,6 +111,8 @@ namespace DecklinkSwitcher
             applySourceButtonStyle(BtnYouTube, _activeSourceType == 6);
             applySourceButtonStyle(BtnNdiSource, _activeSourceType == 8);
             applySourceButtonStyle(BtnHtmlSource, _activeSourceType == 7);
+            applySourceButtonStyle(BtnComposite, _activeSourceType == 9);
+            SyncCompositeSourceFlags();
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
             applySourceButtonStyle(BtnSystemAudio, isSysAudioActive);
@@ -123,6 +158,128 @@ namespace DecklinkSwitcher
             AudioOutputR.Value = 0;
         }
         private void PreviewMatte_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnMatte_Click(null, null);
+
+        private byte[]? GetCompositeScratchBuffer(string key)
+        {
+            if (!_compositeScratchPerSource.TryGetValue(key, out var buf) || buf.Length != 1920 * 1080 * 2)
+            {
+                buf = new byte[1920 * 1080 * 2];
+                _compositeScratchPerSource[key] = buf;
+            }
+            return buf;
+        }
+
+        private byte[]? ResolveCompositeSourceUyvy1080(string sourceKey)
+        {
+            foreach (var input in DynamicInputs)
+            {
+                if (string.Equals(input.DisplayName, sourceKey, StringComparison.OrdinalIgnoreCase))
+                    return input.Device?.GetLatestCompositeUyvy1080();
+            }
+
+            if (string.Equals(sourceKey, "YouTube", StringComparison.OrdinalIgnoreCase))
+                return LatestYouTubeUyvy;
+            if (string.Equals(sourceKey, "NDI", StringComparison.OrdinalIgnoreCase))
+                return LatestNdiUyvy;
+            if (string.Equals(sourceKey, "HTML", StringComparison.OrdinalIgnoreCase))
+                return LatestHtmlSourceUyvy;
+            if (string.Equals(sourceKey, "Color Bars", StringComparison.OrdinalIgnoreCase))
+                return _compositeColorBarsUyvy ??= BuildSyntheticUyvy1080(1);
+
+            if (string.Equals(sourceKey, "Media", StringComparison.OrdinalIgnoreCase))
+            {
+                return LatestMediaCompositeUyvy;
+            }
+
+            foreach (var scr in DynamicScreens)
+            {
+                if (string.Equals(scr.DisplayName, sourceKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    var bgra = scr.Context?.Pgm1080Buffer;
+                    if (bgra == null || bgra.Length != 1920 * 1080 * 4) return null;
+                    var dst = GetCompositeScratchBuffer(scr.DisplayName)!;
+                    ConvertBgra1080ToUyvy1080(bgra, dst);
+                    return dst;
+                }
+            }
+
+            foreach (var cam in DynamicWebcams)
+            {
+                if (string.Equals(cam.DisplayName, sourceKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    var bgra = cam.Source?.GetLatestPgmPixels();
+                    if (bgra == null || bgra.Length != 1920 * 1080 * 4) return null;
+                    var dst = GetCompositeScratchBuffer(cam.DisplayName)!;
+                    ConvertBgra1080ToUyvy1080(bgra, dst);
+                    return dst;
+                }
+            }
+
+            return null;
+        }
+
+        private void RefreshCompositeFrame(bool updatePgmPreview)
+        {
+            CompositeLayerConfig[] snapshot;
+            lock (_compositeLock)
+            {
+                snapshot = CompositeLayers.ToArray();
+            }
+
+            CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, _compositeWorkUyvy, _compositePreview480);
+
+            lock (_pgmLock)
+            {
+                if (LatestCompositeUyvy == null || LatestCompositeUyvy.Length != _compositeWorkUyvy.Length)
+                    LatestCompositeUyvy = new byte[_compositeWorkUyvy.Length];
+                Buffer.BlockCopy(_compositeWorkUyvy, 0, LatestCompositeUyvy, 0, _compositeWorkUyvy.Length);
+            }
+
+            var previewCopy = (byte[])_compositePreview480.Clone();
+            Application.Current.Dispatcher.BeginInvoke(() =>
+            {
+                _bmpComposite?.WritePixels(new Int32Rect(0, 0, 480, 270), previewCopy, 480 * 4, 0);
+                if (updatePgmPreview && _activeSourceType == 9)
+                {
+                    WritePgmPreviewFrame(previewCopy);
+                }
+            });
+        }
+
+        private void BtnComposite_Click(object? sender, RoutedEventArgs? e)
+        {
+            if (_activeSourceType != 9) BeginMixIfEnabled();
+            _activeSourceType = 9; ActiveSourceType = 9; ActiveInputName = "Multi-Box";
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
+            UpdateProgramSourceFlags();
+            Log("Switched to Multi-Box");
+            RefreshCompositeFrame(true);
+        }
+        private void PreviewComposite_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnComposite_Click(null, null);
+
+        private void BtnEditComposite_Click(object sender, RoutedEventArgs e)
+        {
+            var sources = new System.Collections.Generic.List<string>();
+            foreach (var input in DynamicInputs) sources.Add(input.DisplayName);
+            foreach (var scr in DynamicScreens) sources.Add(scr.DisplayName);
+            foreach (var cam in DynamicWebcams) sources.Add(cam.DisplayName);
+            sources.Add("Media");
+            sources.Add("YouTube");
+            sources.Add("HTML");
+            sources.Add("NDI");
+            sources.Add("Color Bars");
+
+            var dlg = new CompositeEditorWindow(CompositeLayers, sources, () =>
+            {
+                SyncCompositeSourceFlags();
+                RefreshCompositeFrame(_activeSourceType == 9);
+                SaveCurrentSettings();
+            })
+            {
+                Owner = this
+            };
+            dlg.ShowDialog();
+        }
 
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
         {
@@ -1561,14 +1718,22 @@ namespace DecklinkSwitcher
                 double syntheticAudioPhase = 0;
                 long frameIntervalTicks = Stopwatch.Frequency / 25;
                 long nextFrameTick = Stopwatch.GetTimestamp();
+                int compositeThumbTick = 0;
                 while (!token.IsCancellationRequested)
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 9)
                         {
-                            // Keep _latestPgmFrame fresh for streaming loop
-                            UpdatePgmPreviewSynthetic();
+                            if (_activeSourceType == 9)
+                            {
+                                RefreshCompositeFrame(true);
+                            }
+                            else
+                            {
+                                // Keep _latestPgmFrame fresh for streaming loop
+                                UpdatePgmPreviewSynthetic();
+                            }
 
                             if (_activeOutput != null)
                             {
@@ -1602,6 +1767,13 @@ namespace DecklinkSwitcher
                                             uyvyBytes = (byte[])LatestHtmlSourceUyvy.Clone();
                                         }
                                     }
+                                    else if (_activeSourceType == 9 && LatestCompositeUyvy != null)
+                                    {
+                                        lock (MainWindow._pgmLock)
+                                        {
+                                            uyvyBytes = (byte[])LatestCompositeUyvy.Clone();
+                                        }
+                                    }
                                     else if (_activeSourceType == 1 || _activeSourceType == 2)
                                     {
                                         uyvyBytes = BuildSyntheticUyvy1080(_activeSourceType);
@@ -1619,6 +1791,11 @@ namespace DecklinkSwitcher
                                     System.Runtime.InteropServices.Marshal.FreeCoTaskMem(modifiedAudioBuffer);
                                 }
                             }
+                        }
+                        else if (++compositeThumbTick >= 6)
+                        {
+                            compositeThumbTick = 0;
+                            RefreshCompositeFrame(false);
                         }
                         nextFrameTick += frameIntervalTicks;
                         long remainingTicks = nextFrameTick - Stopwatch.GetTimestamp();

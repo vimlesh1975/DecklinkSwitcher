@@ -59,6 +59,7 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlSource;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpHtmlOverlay;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpNdiOverlay;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpComposite;
         private NdiOverlaySource _ndiOverlaySource = new NdiOverlaySource();
         public static volatile bool IsNdiOverlayEnabled = false;
         internal static volatile PreparedHtmlOverlayFrame? CurrentNdiOverlay = null;
@@ -182,10 +183,12 @@ namespace DecklinkSwitcher
             _bmpHtmlSource = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpHtmlOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpNdiOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpComposite = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewColorBars.Source = _bmpColorBars;
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
             PreviewYouTube.Source = _bmpYouTube;
+            if (PreviewComposite != null) PreviewComposite.Source = _bmpComposite;
             _bmpNdi = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewNdi.Source = _bmpNdi;
             SetupNdiSource();
@@ -201,6 +204,20 @@ namespace DecklinkSwitcher
             {
                 _mediaSource = new VlcMediaSource();
                 _mediaSource.OnVideoAndAudioArrived = (vBuf, w, h, rb, aBuf, aCount) => {
+                    if (vBuf != IntPtr.Zero && IsSourceUsedInComposite("Media"))
+                    {
+                        var compBuf = LatestMediaCompositeUyvy ??= new byte[1920 * 1080 * 2];
+                        unsafe
+                        {
+                            fixed (byte* dst = compBuf)
+                            {
+                                if (w == 1920 && h == 1080 && rb == 1920 * 2)
+                                    Buffer.MemoryCopy((void*)vBuf, dst, 1920 * 1080 * 2, 1920 * 1080 * 2);
+                                else
+                                    DeckLinkDevice.ScaleUyvyTo1080Uyvy((byte*)vBuf, w, h, rb, dst, 1920 * 2);
+                            }
+                        }
+                    }
                     if (_activeSourceType == 3) 
                     {
                         // Push PGM frame to streamer on every VLC frame (not throttled like preview)
@@ -489,6 +506,8 @@ namespace DecklinkSwitcher
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
                     if (ChkMixTransition != null) settings.MixTransitionEnabled = ChkMixTransition.IsChecked == true;
                     settings.MixDurationSeconds = MixDurationSeconds;
+                    settings.CompositeLayers = CompositeLayers;
+                    settings.CompositeBackgroundHex = CompositeBackgroundHex;
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
@@ -814,6 +833,16 @@ namespace DecklinkSwitcher
                 if (ChkMixTransition != null) ChkMixTransition.IsChecked = settings.MixTransitionEnabled;
                 MixDurationSeconds = Math.Clamp(settings.MixDurationSeconds > 0 ? settings.MixDurationSeconds : 0.5, 0.1, 10.0);
                 if (TxtMixDuration != null) TxtMixDuration.Text = MixDurationSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+                if (settings.CompositeLayers != null && settings.CompositeLayers.Count > 0)
+                {
+                    CompositeLayers = settings.CompositeLayers;
+                }
+                if (!string.IsNullOrWhiteSpace(settings.CompositeBackgroundHex))
+                {
+                    CompositeBackgroundHex = settings.CompositeBackgroundHex;
+                }
+                SyncCompositeSourceFlags();
 
                 // System Audio Setup
                 var renderDevices = SystemAudioSource.GetRenderDevices();
