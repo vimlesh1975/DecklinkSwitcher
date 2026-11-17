@@ -148,6 +148,26 @@ namespace DecklinkSwitcher
 
             root.Children.Add(topBar);
 
+            // Crop Split Presets bar
+            var cropPresetRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            cropPresetRow.Children.Add(new TextBlock
+            {
+                Text = "Crop Presets:",
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 8, 0),
+                Foreground = Brushes.Khaki
+            });
+            cropPresetRow.Children.Add(MakePresetButton("2-Split (L/R)", ApplyPreset2SplitCrop));
+            cropPresetRow.Children.Add(MakePresetButton("2-Split (Top/Bot)", ApplyPreset2TopBotCrop));
+            cropPresetRow.Children.Add(MakePresetButton("2-Mid (Center Crop)", ApplyPreset2MiddleCrop));
+            cropPresetRow.Children.Add(MakePresetButton("3-Mid (Center Crop)", ApplyPreset3MiddleCrop));
+            cropPresetRow.Children.Add(MakePresetButton("3-Col Split", ApplyPreset3ColCrop));
+            cropPresetRow.Children.Add(MakePresetButton("4-Col Split", ApplyPreset4ColCrop));
+            cropPresetRow.Children.Add(MakePresetButton("Center Box", ApplyPresetCenterMiddleCrop));
+            cropPresetRow.Children.Add(MakePresetButton("Clear All Crops", ClearAllCrops));
+            root.Children.Add(cropPresetRow);
+
             // Canvas Mode bar (Move/Resize vs Visual Crop)
             var modeRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
             modeRow.Children.Add(new TextBlock
@@ -798,10 +818,10 @@ namespace DecklinkSwitcher
                 var r = _rows[i];
                 l.Enabled = r.ChkEnabled.IsChecked == true;
                 l.SourceKey = r.CmbSource.SelectedItem?.ToString() ?? "";
-                l.DestXPct = ParseDouble(r.TxtX.Text, l.DestXPct, 0, 100);
-                l.DestYPct = ParseDouble(r.TxtY.Text, l.DestYPct, 0, 100);
-                l.DestWPct = ParseDouble(r.TxtW.Text, l.DestWPct, 1, 100);
-                l.DestHPct = ParseDouble(r.TxtH.Text, l.DestHPct, 1, 100);
+                l.DestXPct = ParseDouble(r.TxtX.Text, l.DestXPct, -95, 100);
+                l.DestYPct = ParseDouble(r.TxtY.Text, l.DestYPct, -95, 100);
+                l.DestWPct = ParseDouble(r.TxtW.Text, l.DestWPct, 1, 200);
+                l.DestHPct = ParseDouble(r.TxtH.Text, l.DestHPct, 1, 200);
                 l.CropLeftPct = ParseDouble(r.TxtCropL.Text, l.CropLeftPct, 0, 98);
                 l.CropTopPct = ParseDouble(r.TxtCropT.Text, l.CropTopPct, 0, 98);
                 l.CropRightPct = ParseDouble(r.TxtCropR.Text, l.CropRightPct, 0, Math.Max(0, 98 - l.CropLeftPct));
@@ -874,7 +894,95 @@ namespace DecklinkSwitcher
             _onChanged?.Invoke();
         }
 
-        private void SetBox(int idx, bool enabled, double x, double y, double w, double h, int border)
+        private void ApplyPreset2SplitCrop()
+        {
+            EnsureLayerCount(2);
+            SetBox(0, true, 0, 0, 100, 100, 2, 0, 0, 50, 0);
+            SetBox(1, true, 0, 0, 100, 100, 2, 50, 0, 0, 0);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ApplyPreset2TopBotCrop()
+        {
+            EnsureLayerCount(2);
+            SetBox(0, true, 0, 0, 100, 100, 2, 0, 0, 0, 50);
+            SetBox(1, true, 0, 0, 100, 100, 2, 0, 50, 0, 0);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ApplyPreset2MiddleCrop()
+        {
+            EnsureLayerCount(2);
+            SetBox(0, true, -25, 0, 100, 100, 2, 25, 0, 25, 0);
+            SetBox(1, true, 25, 0, 100, 100, 2, 25, 0, 25, 0);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ApplyPreset3MiddleCrop()
+        {
+            EnsureLayerCount(3);
+            SetBox(0, true, -33.3, 0, 100, 100, 2, 33.3, 0, 33.3, 0);
+            SetBox(1, true, 0, 0, 100, 100, 2, 33.3, 0, 33.3, 0);
+            SetBox(2, true, 33.3, 0, 100, 100, 2, 33.3, 0, 33.3, 0);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ApplyPresetCenterMiddleCrop()
+        {
+            EnsureLayerCount(1);
+            SetBox(0, true, 0, 0, 100, 100, 2, 25, 15, 25, 15);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ApplyPreset3ColCrop()
+        {
+            EnsureLayerCount(3);
+            SetBox(0, true, 0, 0, 100, 100, 2, 0, 0, 66.7, 0);
+            SetBox(1, true, 0, 0, 100, 100, 2, 33.3, 0, 33.3, 0);
+            SetBox(2, true, 0, 0, 100, 100, 2, 66.7, 0, 0, 0);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ApplyPreset4ColCrop()
+        {
+            EnsureLayerCount(4);
+            SetBox(0, true, 0, 0, 100, 100, 2, 0, 0, 75, 0);
+            SetBox(1, true, 0, 0, 100, 100, 2, 25, 0, 50, 0);
+            SetBox(2, true, 0, 0, 100, 100, 2, 50, 0, 25, 0);
+            SetBox(3, true, 0, 0, 100, 100, 2, 75, 0, 0, 0);
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void ClearAllCrops()
+        {
+            for (int i = 0; i < _layers.Count; i++)
+            {
+                _layers[i].CropLeftPct = 0;
+                _layers[i].CropTopPct = 0;
+                _layers[i].CropRightPct = 0;
+                _layers[i].CropBottomPct = 0;
+            }
+            PopulateRows();
+            UpdateVisualCanvas();
+            _onChanged?.Invoke();
+        }
+
+        private void SetBox(int idx, bool enabled, double x, double y, double w, double h, int border,
+            double cropL = 0, double cropT = 0, double cropR = 0, double cropB = 0)
         {
             if (idx >= _layers.Count) return;
             var l = _layers[idx];
@@ -886,6 +994,10 @@ namespace DecklinkSwitcher
             l.DestWPct = w;
             l.DestHPct = h;
             l.BorderPx = border;
+            l.CropLeftPct = cropL;
+            l.CropTopPct = cropT;
+            l.CropRightPct = cropR;
+            l.CropBottomPct = cropB;
         }
     }
 }

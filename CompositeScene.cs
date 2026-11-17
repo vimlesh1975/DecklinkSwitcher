@@ -101,20 +101,22 @@ namespace DecklinkSwitcher
                     double cropT = Math.Clamp(layer.CropTopPct, 0, 98);
                     double cropB = Math.Clamp(layer.CropBottomPct, 0, Math.Max(0, 98 - cropT));
 
-                    int dstX = Math.Clamp(((int)Math.Round(Width * (Math.Clamp(layer.DestXPct, 0, 100) / 100.0))) & ~1, 0, Width - 2);
-                    int dstY = Math.Clamp((int)Math.Round(Height * (Math.Clamp(layer.DestYPct, 0, 100) / 100.0)), 0, Height - 2);
-                    int dstW = ((int)Math.Round(Width * (Math.Clamp(layer.DestWPct, 1, 100) / 100.0))) & ~1;
-                    int dstH = (int)Math.Round(Height * (Math.Clamp(layer.DestHPct, 1, 100) / 100.0));
-
-                    if (dstX + dstW > Width) dstW = (Width - dstX) & ~1;
-                    if (dstY + dstH > Height) dstH = Height - dstY;
+                    int dstX = ((int)Math.Round(Width * (Math.Clamp(layer.DestXPct, -95, 100) / 100.0))) & ~1;
+                    int dstY = (int)Math.Round(Height * (Math.Clamp(layer.DestYPct, -95, 100) / 100.0));
+                    int dstW = ((int)Math.Round(Width * (Math.Clamp(layer.DestWPct, 1, 200) / 100.0))) & ~1;
+                    int dstH = (int)Math.Round(Height * (Math.Clamp(layer.DestHPct, 1, 200) / 100.0));
                     if (dstW < 2 || dstH < 2) continue;
 
                     // Crop masks the frame within the box without stretching, leaving cropped-out areas blank.
-                    int visX = Math.Clamp(dstX + (((int)Math.Round(dstW * (cropL / 100.0))) & ~1), dstX, dstX + dstW - 2);
-                    int visEndX = Math.Clamp(dstX + (((int)Math.Round(dstW * (1.0 - cropR / 100.0))) & ~1), visX + 2, dstX + dstW);
-                    int visY = Math.Clamp(dstY + (int)Math.Round(dstH * (cropT / 100.0)), dstY, dstY + dstH - 2);
-                    int visEndY = Math.Clamp(dstY + (int)Math.Round(dstH * (1.0 - cropB / 100.0)), visY + 2, dstY + dstH);
+                    int rawVisX = dstX + (((int)Math.Round(dstW * (cropL / 100.0))) & ~1);
+                    int rawVisEndX = dstX + (((int)Math.Round(dstW * (1.0 - cropR / 100.0))) & ~1);
+                    int rawVisY = dstY + (int)Math.Round(dstH * (cropT / 100.0));
+                    int rawVisEndY = dstY + (int)Math.Round(dstH * (1.0 - cropB / 100.0));
+
+                    int visX = Math.Clamp(rawVisX, 0, Width - 2) & ~1;
+                    int visEndX = Math.Clamp(rawVisEndX, visX + 2, Width) & ~1;
+                    int visY = Math.Clamp(rawVisY, 0, Height - 2);
+                    int visEndY = Math.Clamp(rawVisEndY, visY + 2, Height);
                     int visW = visEndX - visX;
                     int visH = visEndY - visY;
                     if (visW < 2 || visH < 2) continue;

@@ -83,12 +83,25 @@ namespace DecklinkSwitcher
         internal static bool IsSourceUsedInComposite(string sourceKey)
         {
             if (string.IsNullOrWhiteSpace(sourceKey)) return false;
+            string? altKey = null;
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                if (string.Equals(extra.Config.Id, sourceKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    altKey = extra.Config.Name;
+                    break;
+                }
+            }
+            bool match(string? k) =>
+                string.Equals(k, sourceKey, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(altKey) && string.Equals(k, altKey, StringComparison.OrdinalIgnoreCase));
+
             lock (_compositeLock)
             {
                 for (int i = 0; i < CompositeLayers.Count; i++)
                 {
                     var l = CompositeLayers[i];
-                    if (l.Enabled && string.Equals(l.SourceKey, sourceKey, StringComparison.OrdinalIgnoreCase))
+                    if (l.Enabled && match(l.SourceKey))
                         return true;
                 }
                 for (int s = 0; s < _extraCompositeScenes.Count; s++)
@@ -97,7 +110,7 @@ namespace DecklinkSwitcher
                     for (int i = 0; i < layers.Count; i++)
                     {
                         var l = layers[i];
-                        if (l.Enabled && string.Equals(l.SourceKey, sourceKey, StringComparison.OrdinalIgnoreCase))
+                        if (l.Enabled && match(l.SourceKey))
                             return true;
                     }
                 }
@@ -568,7 +581,9 @@ namespace DecklinkSwitcher
             var bottomGrid = new Grid();
             bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
-            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
 
             var editBtn = new Button
             {
@@ -584,6 +599,20 @@ namespace DecklinkSwitcher
             Grid.SetColumn(editBtn, 0);
             bottomGrid.Children.Add(editBtn);
 
+            var renBtn = new Button
+            {
+                Content = "✎",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Height = 26,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"Rename {cfg.Name}"
+            };
+            renBtn.SetResourceReference(Button.BackgroundProperty, "ButtonAltBg");
+            renBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimary");
+            Grid.SetColumn(renBtn, 2);
+            bottomGrid.Children.Add(renBtn);
+
             var delBtn = new Button
             {
                 Content = "✕",
@@ -595,7 +624,7 @@ namespace DecklinkSwitcher
                 Cursor = System.Windows.Input.Cursors.Hand,
                 ToolTip = $"Remove {cfg.Name} from source panel"
             };
-            Grid.SetColumn(delBtn, 2);
+            Grid.SetColumn(delBtn, 4);
             bottomGrid.Children.Add(delBtn);
 
             stack.Children.Add(bottomGrid);
@@ -622,6 +651,21 @@ namespace DecklinkSwitcher
 
             cutBtn.Click += (_, _) => activateScene();
             imgBorder.MouseLeftButtonDown += (_, _) => activateScene();
+            renBtn.Click += (_, _) =>
+            {
+                string? newName = PromptRenameDialog("Rename Multi-Box Scene", scene.Config.Name);
+                if (!string.IsNullOrWhiteSpace(newName) && newName != scene.Config.Name)
+                {
+                    scene.Config.Name = newName;
+                    cutBtn.Content = newName;
+                    editBtn.ToolTip = $"Configure layout for {newName}";
+                    renBtn.ToolTip = $"Rename {newName}";
+                    delBtn.ToolTip = $"Remove {newName} from source panel";
+                    if (_activeSourceType == 9 && _activeCompositeSceneId == scene.Config.Id)
+                        ActiveInputName = newName;
+                    SaveCurrentSettings();
+                }
+            };
             editBtn.Click += (_, _) => OpenCompositeEditor(
                 scene.Config.Id,
                 $"{scene.Config.Name} - Layout Editor",
@@ -826,6 +870,84 @@ namespace DecklinkSwitcher
             }
         }
 
+        private string? PromptRenameDialog(string title, string currentName)
+        {
+            var dlg = new Window
+            {
+                Title = title,
+                Width = 340,
+                Height = 145,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(24, 28, 38)),
+                Foreground = System.Windows.Media.Brushes.White
+            };
+            var sp = new System.Windows.Controls.StackPanel { Margin = new Thickness(14) };
+            sp.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Enter new name:",
+                FontSize = 12,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 210, 230)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            var tb = new System.Windows.Controls.TextBox
+            {
+                Text = currentName,
+                Height = 28,
+                FontSize = 12.5,
+                Padding = new Thickness(6, 3, 6, 3),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16, 20, 28)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(65, 85, 120)),
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+            tb.SelectAll();
+            sp.Children.Add(tb);
+
+            var btnPanel = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnCancel = new System.Windows.Controls.Button { Content = "Cancel", Width = 72, Height = 26, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+            var btnOk = new System.Windows.Controls.Button
+            {
+                Content = "Save",
+                Width = 72,
+                Height = 26,
+                IsDefault = true,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0)
+            };
+            btnOk.Click += (_, __) => dlg.DialogResult = true;
+            btnPanel.Children.Add(btnCancel);
+            btnPanel.Children.Add(btnOk);
+            sp.Children.Add(btnPanel);
+            dlg.Content = sp;
+            tb.Focus();
+
+            return dlg.ShowDialog() == true ? tb.Text.Trim() : null;
+        }
+
+        private void RenameCompositeSourceKey(string oldName, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName)) return;
+            lock (_compositeLock)
+            {
+                foreach (var l in CompositeLayers)
+                {
+                    if (string.Equals(l.SourceKey, oldName, StringComparison.OrdinalIgnoreCase))
+                        l.SourceKey = newName;
+                }
+                foreach (var sc in _extraCompositeScenes)
+                {
+                    foreach (var l in sc.Config.Layers)
+                    {
+                        if (string.Equals(l.SourceKey, oldName, StringComparison.OrdinalIgnoreCase))
+                            l.SourceKey = newName;
+                    }
+                }
+            }
+        }
+
         private DynamicExtraSource AddDynamicExtraSource(ExtraSourceConfig cfg)
         {
             if (string.IsNullOrWhiteSpace(cfg.Id))
@@ -853,9 +975,10 @@ namespace DecklinkSwitcher
 
             var stack = new System.Windows.Controls.StackPanel();
 
-            // Header row: Name + Remove (✕)
+            // Header row: Name + Rename (✎) + Remove (✕)
             var headerGrid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 6) };
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
 
             string icon = cfg.Kind == "Matte" ? "🎨 " : cfg.Kind == "Html" ? "🌐 " : cfg.Kind == "Ndi" ? "📡 " : cfg.Kind == "Media" ? "🎬 " : "▶ ";
@@ -866,11 +989,44 @@ namespace DecklinkSwitcher
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = "Double-click to rename"
             };
             extra.TitleText = titleTxt;
+            Action renameExtra = () =>
+            {
+                string? newName = PromptRenameDialog("Rename Source", cfg.Name);
+                if (!string.IsNullOrWhiteSpace(newName) && newName != cfg.Name)
+                {
+                    string oldName = cfg.Name;
+                    cfg.Name = newName;
+                    titleTxt.Text = icon + newName;
+                    extra.CutButton.Content = newName.ToUpperInvariant();
+                    RenameCompositeSourceKey(oldName, newName);
+                    SyncCompositeSourceFlags();
+                    SaveCurrentSettings();
+                }
+            };
+            titleTxt.MouseLeftButtonDown += (_, e) => { if (e.ClickCount == 2) renameExtra(); };
             System.Windows.Controls.Grid.SetColumn(titleTxt, 0);
             headerGrid.Children.Add(titleTxt);
+
+            var btnRename = new System.Windows.Controls.Button
+            {
+                Content = "✎",
+                Width = 20,
+                Height = 20,
+                Background = System.Windows.Media.Brushes.Transparent,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
+                BorderThickness = new Thickness(0),
+                FontSize = 11,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Focusable = false,
+                ToolTip = "Rename Source"
+            };
+            btnRename.Click += (_, __) => renameExtra();
+            System.Windows.Controls.Grid.SetColumn(btnRename, 1);
+            headerGrid.Children.Add(btnRename);
 
             var btnRemove = new System.Windows.Controls.Button
             {
@@ -886,7 +1042,7 @@ namespace DecklinkSwitcher
                 ToolTip = "Remove Source"
             };
             btnRemove.Click += (_, __) => RemoveDynamicExtraSource(extra);
-            System.Windows.Controls.Grid.SetColumn(btnRemove, 1);
+            System.Windows.Controls.Grid.SetColumn(btnRemove, 2);
             headerGrid.Children.Add(btnRemove);
             stack.Children.Add(headerGrid);
 
@@ -982,7 +1138,7 @@ namespace DecklinkSwitcher
             }
             else if (cfg.Kind == "Html")
             {
-                var htmlSrc = new HtmlBrowserSource(false, cfg.Name) { TargetFps = cfg.Fps > 0 ? cfg.Fps : 30 };
+                var htmlSrc = new HtmlBrowserSource(false, cfg.Id) { TargetFps = cfg.Fps > 0 ? cfg.Fps : 30 };
                 extra.HtmlSource = htmlSrc;
 
                 htmlSrc.OnPreviewBufferUpdated += bgra480 =>
@@ -1027,6 +1183,7 @@ namespace DecklinkSwitcher
                 var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
                 ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
 
                 var btnStart = new System.Windows.Controls.Button
                 {
@@ -1043,9 +1200,32 @@ namespace DecklinkSwitcher
                 };
                 extra.StartStopButton = btnStart;
 
+                var cmbFps = new System.Windows.Controls.ComboBox
+                {
+                    Width = 54,
+                    Height = 24,
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 4, 0),
+                    ToolTip = "HTML Render FPS"
+                };
+                int[] fpsChoices = { 25, 30, 50, 60 };
+                foreach (int fpsVal in fpsChoices) cmbFps.Items.Add($"{fpsVal}p");
+                int fpsIdx = Array.IndexOf(fpsChoices, cfg.Fps > 0 ? cfg.Fps : 30);
+                cmbFps.SelectedIndex = fpsIdx >= 0 ? fpsIdx : 1;
+                cmbFps.SelectionChanged += (_, __) =>
+                {
+                    if (cmbFps.SelectedIndex >= 0 && cmbFps.SelectedIndex < fpsChoices.Length)
+                    {
+                        int fpsVal = fpsChoices[cmbFps.SelectedIndex];
+                        cfg.Fps = fpsVal;
+                        htmlSrc.TargetFps = fpsVal;
+                        SaveCurrentSettings();
+                    }
+                };
+
                 var cmbMute = new System.Windows.Controls.ComboBox
                 {
-                    Width = 58,
+                    Width = 54,
                     Height = 24,
                     FontSize = 10
                 };
@@ -1085,8 +1265,10 @@ namespace DecklinkSwitcher
                 };
 
                 System.Windows.Controls.Grid.SetColumn(btnStart, 0);
-                System.Windows.Controls.Grid.SetColumn(cmbMute, 1);
+                System.Windows.Controls.Grid.SetColumn(cmbFps, 1);
+                System.Windows.Controls.Grid.SetColumn(cmbMute, 2);
                 ctrlRow.Children.Add(btnStart);
+                ctrlRow.Children.Add(cmbFps);
                 ctrlRow.Children.Add(cmbMute);
                 stack.Children.Add(ctrlRow);
 
