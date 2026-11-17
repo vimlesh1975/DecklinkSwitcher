@@ -44,6 +44,9 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output.
     *   **Image Support:** Also supports routing static images (JPG, PNG, BMP) seamlessly into the broadcast.
     *   **Loop Mode:** Features a toggleable gapless playback loop for continuous playback of a selected file.
+*   **Multi-Box / Composite Source:** Combine multiple live inputs (DeckLink, Screen, Webcam, Media, YouTube, HTML, NDI, Color Bars) into a single `1920×1080` switcher tile.
+    *   **Visual Layout & Crop Editor:** Open **Edit Layout...** to drag/resize boxes visually on a live `480×270` canvas, switch to **Crop Edges** mode to drag Left/Top/Right/Bottom crop handles (`0–45%`), dynamically **+ Add Box** or remove (`✕`) layers, reorder Z-order (`▲`/`▼`), adjust borders, pick a background color, or apply presets (**2-Up**, **PiP**, **3-Box**, **2×2 Quad**).
+*   **Mix Transitions & AFV Audio Crossfade:** Toggle **Mix** and set the **Mix Duration** (`0.1–10.0 s` numeric spinner) below Program Output to perform smooth cross-dissolve video transitions (rendered in both the in-app PGM preview and broadcast outputs) with synchronized AFV audio crossfading.
 *   **Synthetic Sources:**
     *   **Color Bars + Tone:** Generate an 8-stripe SMPTE-style UYVY color bar pattern with a perfectly synchronized, phase-continuous 1kHz sine wave audio tone for calibrating equipment.
     *   **Matte Color Generator:** Send a full-screen solid matte color directly to the output. Supports on-the-fly switching between Black, White, Red, Green, Blue, Yellow, Cyan, and Magenta.
@@ -83,7 +86,8 @@ This stops any running instance of the app, compiles the project in **Release** 
 2. Select your designated **Output Device** from the right-side control panel (or select "None" to operate in software-only mode).
 3. Map your physical DeckLink inputs to **Input 1**, **Input 2**, etc.
 4. Click **Apply Settings & Start**. The switcher initializes hardware feeds and activates the multiview panel.
-5. **Switching Sources:** Click on any input's preview thumbnail or Cut button (**Input**, **Screen 1/2**, **Webcam 1/2**, **YouTube Live**, **HTML / Web**, **NDI**, **Media**, **Color Bars**, **Matte**) to cut it to Program output. The active source button turns red. Drag tiles to reorder them.
+5. **Switching Sources & Mix:** Click on any input's preview thumbnail or Cut button (**Input**, **Screen 1/2**, **Webcam 1/2**, **YouTube Live**, **HTML / Web**, **NDI**, **Media**, **Color Bars**, **Matte**, **Multi-Box**) to switch it to Program output. Check **Mix** and adjust the duration box (`0.1–10.0 s`) for cross-dissolve video & AFV audio transitions. Drag tiles to reorder them.
+6. **Multi-Box Layout:** On the **Multi-Box** tile, click **Edit Layout...** to add/remove boxes, pick sources, choose a background color, or drag boxes and **Crop Edges** handles directly on the live preview.
 6. **Screen Capture:** Each detected computer monitor displays as an individual tile (**Screen 1**, **Screen 2**, etc.). Cut to any screen to send it to Program.
 7. **Webcams:** Each detected webcam has its own dedicated tile with live video, VU meters, volume fader, and AFV/ON/OFF audio control.
 8. **System Audio:** Use the **System Audio** tile to capture your PC's audio playback (YouTube, Zoom, music). Select your audio device, adjust the volume slider, and set the mode to **AFV** (follows screen capture) or **ON** (always mixed).
