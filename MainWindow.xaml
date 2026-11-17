@@ -516,7 +516,25 @@
 
             <!-- SWITCHER SCROLL VIEWER -->
             <Border Grid.Row="1" Background="{DynamicResource SourcesSectionBg}" BorderBrush="{DynamicResource SourcesSectionBorder}" BorderThickness="1.5" CornerRadius="10" Padding="8">
-                <ScrollViewer Name="SwitcherScrollViewer" AllowDrop="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" PanningMode="VerticalOnly" CanContentScroll="False">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,4,6">
+                        <Button Name="BtnAddSourceMenu" Content="+ Add Source ▾" Click="BtnAddSourceMenu_Click" Background="#252E42" Foreground="#DCE8FF" BorderBrush="#3B4D70" BorderThickness="1" Padding="10,4" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Focusable="False">
+                            <Button.ContextMenu>
+                                <ContextMenu Name="AddSourceContextMenu" Background="#1D2230" Foreground="White" BorderBrush="#3B4D70">
+                                    <MenuItem Header="🎨  Matte Color" Click="MenuAddMatte_Click"/>
+                                    <MenuItem Header="🌐  HTML / Web Page" Click="MenuAddHtml_Click"/>
+                                    <MenuItem Header="▶  YouTube Live / Video" Click="MenuAddYouTube_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="▦  Multi-Box Scene" Click="BtnAddCompositeScene_Click"/>
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" Name="SwitcherScrollViewer" AllowDrop="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" PanningMode="VerticalOnly" CanContentScroll="False">
                     <WrapPanel Name="SwitcherPanel" IsEnabled="False" Orientation="Horizontal" HorizontalAlignment="Center" AllowDrop="True" ItemWidth="245" MaxWidth="1470">
 
 
@@ -782,6 +800,7 @@
 
                 </WrapPanel>
                 </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
 

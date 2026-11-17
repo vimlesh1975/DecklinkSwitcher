@@ -97,6 +97,7 @@ namespace DecklinkSwitcher
         private long _lastPreviewDispatchMs = 0;
 
         public Action<byte[]>? OnPreviewBufferUpdated;
+        public Action<byte[]>? OnUyvy1080Updated;
         public Action<string, bool, bool>? OnStatusChanged; // (status, isLive, isError)
         internal Action<PreparedHtmlOverlayFrame?>? OnOverlayFrameUpdated;
 
@@ -787,7 +788,9 @@ namespace DecklinkSwitcher
             }
             else
             {
-                bool isPgmActive = MainWindow.ActiveSourceType == 7 || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite("HTML"));
+                bool isPgmActive = OnUyvy1080Updated != null
+                    ? (MainWindow.ActiveSourceType == 10 || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite(_instanceName)))
+                    : (MainWindow.ActiveSourceType == 7 || (MainWindow.ActiveSourceType == 9 && MainWindow.IsSourceUsedInComposite("HTML")));
                 if (isPgmActive)
                 {
                     MainWindow.ConvertBgra1080ToUyvy1080(bgra1080, _uyvyScratch1080);
@@ -804,11 +807,18 @@ namespace DecklinkSwitcher
                         _hasCapturedFrame = true;
                     }
 
-                    lock (MainWindow._pgmLock)
+                    if (OnUyvy1080Updated != null)
                     {
-                        if (MainWindow.LatestHtmlSourceUyvy == null || MainWindow.LatestHtmlSourceUyvy.Length != UyvyFrameBytes)
-                            MainWindow.LatestHtmlSourceUyvy = new byte[UyvyFrameBytes];
-                        Buffer.BlockCopy(_deflickerUyvy1080, 0, MainWindow.LatestHtmlSourceUyvy, 0, _deflickerUyvy1080.Length);
+                        OnUyvy1080Updated(_deflickerUyvy1080);
+                    }
+                    else
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestHtmlSourceUyvy == null || MainWindow.LatestHtmlSourceUyvy.Length != UyvyFrameBytes)
+                                MainWindow.LatestHtmlSourceUyvy = new byte[UyvyFrameBytes];
+                            Buffer.BlockCopy(_deflickerUyvy1080, 0, MainWindow.LatestHtmlSourceUyvy, 0, _deflickerUyvy1080.Length);
+                        }
                     }
                 }
                 else

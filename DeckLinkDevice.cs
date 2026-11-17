@@ -552,6 +552,16 @@ namespace DecklinkSwitcher
                             }
                         }
                     }
+                    else if (sourceType == 10) // Dynamic Extra Source 1080p UYVY
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestExtraSourceUyvy != null)
+                            {
+                                System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestExtraSourceUyvy, 0, outputBuffer, MainWindow.LatestExtraSourceUyvy.Length);
+                            }
+                        }
+                    }
                     else if (sourceType == 4 || sourceType == 5) // Desktop Capture or Webcam
                     {
                         byte[] deskUyvy = null;

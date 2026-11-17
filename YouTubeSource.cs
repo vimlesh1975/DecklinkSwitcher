@@ -20,6 +20,8 @@ namespace DecklinkSwitcher
         private int _height = 1080;
 
         public Action<byte[]>? OnPreviewBufferUpdated;
+        public Action<IntPtr, int>? OnUyvy1080Frame;
+        public string AudioChannelName { get; set; } = "YouTube";
         public Action<double, double>? OnAudioLevelArrived;
         public Action<string, bool, bool>? OnStatusChanged; // (statusText, isLive, isError)
 
@@ -214,11 +216,18 @@ namespace DecklinkSwitcher
         private void DisplayVideo(IntPtr opaque, IntPtr picture)
         {
             // 1. Maintain full-resolution 1080p UYVY broadcast buffer directly from decoder
-            lock (MainWindow._pgmLock)
+            if (OnUyvy1080Frame != null)
             {
-                if (MainWindow.LatestYouTubeUyvy == null || MainWindow.LatestYouTubeUyvy.Length != _width * _height * 2)
-                    MainWindow.LatestYouTubeUyvy = new byte[_width * _height * 2];
-                Marshal.Copy(_videoBuffer, MainWindow.LatestYouTubeUyvy, 0, _width * _height * 2);
+                OnUyvy1080Frame(_videoBuffer, _width * _height * 2);
+            }
+            else
+            {
+                lock (MainWindow._pgmLock)
+                {
+                    if (MainWindow.LatestYouTubeUyvy == null || MainWindow.LatestYouTubeUyvy.Length != _width * _height * 2)
+                        MainWindow.LatestYouTubeUyvy = new byte[_width * _height * 2];
+                    Marshal.Copy(_videoBuffer, MainWindow.LatestYouTubeUyvy, 0, _width * _height * 2);
+                }
             }
 
             // 2. Convert to full-resolution 1080p BGRA for PGM streaming consumers
@@ -288,11 +297,11 @@ namespace DecklinkSwitcher
                     while (_delayQueue.Count > 0)
                     {
                         var flushed = _delayQueue.Dequeue();
-                        DecklinkSwitcher.MainWindow.PushAudioPacket("YouTube", flushed);
+                        DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, flushed);
                     }
                     _delayBufferedSamples = 0;
                 }
-                DecklinkSwitcher.MainWindow.PushAudioPacket("YouTube", packet);
+                DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, packet);
                 UpdateAudioMeter(packet);
                 return;
             }
@@ -307,7 +316,7 @@ namespace DecklinkSwitcher
                 {
                     short[] emitPacket = _delayQueue.Dequeue();
                     _delayBufferedSamples -= emitPacket.Length;
-                    DecklinkSwitcher.MainWindow.PushAudioPacket("YouTube", emitPacket);
+                    DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, emitPacket);
                     UpdateAudioMeter(emitPacket);
                 }
             }

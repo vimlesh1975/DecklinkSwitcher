@@ -93,6 +93,7 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers { get; set; } = new();
         public string CompositeBackgroundHex { get; set; } = "#000000";
         public System.Collections.Generic.List<CompositeSceneConfig> ExtraCompositeScenes { get; set; } = new();
+        public System.Collections.Generic.List<ExtraSourceConfig> ExtraSources { get; set; } = new();
         
         private static string GetSettingsPath()
         {
@@ -131,5 +132,18 @@ namespace DecklinkSwitcher
             }
             catch { }
         }
+    }
+
+    public class ExtraSourceConfig
+    {
+        public string Id { get; set; } = "";
+        public string Kind { get; set; } = "Matte"; // "Matte", "Html", "YouTube"
+        public string Name { get; set; } = "";
+        public string ColorHex { get; set; } = "#0055AA";
+        public string Url { get; set; } = "";
+        public double AudioLevel { get; set; } = 0.0;
+        public string AudioState { get; set; } = "AFV";
+        public int Fps { get; set; } = 30;
+        public int AudioDelayMs { get; set; } = 0;
     }
 }

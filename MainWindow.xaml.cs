@@ -511,6 +511,9 @@ namespace DecklinkSwitcher
                     settings.ExtraCompositeScenes = new System.Collections.Generic.List<CompositeSceneConfig>();
                     foreach (var sc in _extraCompositeScenes)
                         settings.ExtraCompositeScenes.Add(sc.Config);
+                    settings.ExtraSources = new System.Collections.Generic.List<ExtraSourceConfig>();
+                    foreach (var extra in GetExtraSourcesSnapshot())
+                        settings.ExtraSources.Add(extra.Config);
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
@@ -850,6 +853,13 @@ namespace DecklinkSwitcher
                     foreach (var scCfg in settings.ExtraCompositeScenes)
                     {
                         AddDynamicCompositeScene(scCfg);
+                    }
+                }
+                if (settings.ExtraSources != null && settings.ExtraSources.Count > 0)
+                {
+                    foreach (var exCfg in settings.ExtraSources)
+                    {
+                        AddDynamicExtraSource(exCfg);
                     }
                 }
                 SyncCompositeSourceFlags();
@@ -1436,6 +1446,7 @@ namespace DecklinkSwitcher
 
         protected override void OnClosed(EventArgs e)
         {
+            try { DisposeExtraSources(); } catch { }
             try { NdiOut.Stop(); } catch { }
             try { SrtOut.Stop(); } catch { }
             base.OnClosed(e);

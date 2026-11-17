@@ -338,6 +338,15 @@ namespace DecklinkSwitcher
                 if (DynamicMicStates.ContainsKey(key)) st = DynamicMicStates[key];
                 mixSource(key, level, st, false, false);
             }
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                if (extra.Config.Kind == "YouTube")
+                {
+                    mixSource(extra.Config.Id, (float)extra.AudioLevel, extra.AudioState,
+                        activeSourceType == 10 && activeInputName == extra.Config.Id,
+                        audioMixRunning && prevType == 10 && prevName == extra.Config.Id);
+                }
+            }
 
             LogAudioDiagnostics();
 

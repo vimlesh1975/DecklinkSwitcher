@@ -17,12 +17,49 @@ namespace DecklinkSwitcher
         public static string ActiveInputName = "";
 
         internal static byte[]? LatestCompositeUyvy = new byte[1920 * 1080 * 2];
+        internal static byte[]? LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
         internal static byte[]? LatestMediaCompositeUyvy;
         internal static System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers = CompositeSceneCompositor.CreateDefaultLayers();
         internal static string CompositeBackgroundHex = "#000000";
         private static volatile bool _isCompositeEditorOpen = false;
         private static string? _editingCompositeSceneId = null;
         private string? _activeCompositeSceneId = null;
+
+        private static readonly object _extraSourcesLock = new object();
+        private static readonly System.Collections.Generic.List<DynamicExtraSource> _extraSources = new();
+        private static DynamicExtraSource? _activeExtraSource = null;
+
+        private static DynamicExtraSource[] GetExtraSourcesSnapshot()
+        {
+            lock (_extraSourcesLock) return _extraSources.ToArray();
+        }
+
+        private sealed class DynamicExtraSource
+        {
+            public ExtraSourceConfig Config { get; }
+            public System.Windows.Controls.Border TileBorder { get; set; } = null!;
+            public System.Windows.Controls.Button CutButton { get; set; } = null!;
+            public System.Windows.Media.Imaging.WriteableBitmap PreviewBitmap { get; set; } = null!;
+            public byte[] Uyvy1080 { get; } = new byte[1920 * 1080 * 2];
+            public byte[] Preview480 { get; } = new byte[480 * 270 * 4];
+            public volatile bool HasFrame;
+            public double AudioLevel { get; set; }
+            public AudioState AudioState { get; set; } = AudioState.AFV;
+            public HtmlBrowserSource? HtmlSource { get; set; }
+            public YouTubeSource? YtSource { get; set; }
+            public System.Windows.Controls.TextBlock? StatusText { get; set; }
+            public System.Windows.Controls.TextBlock? TitleText { get; set; }
+            public System.Windows.Controls.Border? ColorSwatch { get; set; }
+            public System.Windows.Controls.Button? StartStopButton { get; set; }
+            public bool IsRunning { get; set; }
+
+            public DynamicExtraSource(ExtraSourceConfig config)
+            {
+                Config = config;
+                AudioLevel = config.AudioLevel;
+                AudioState = Enum.TryParse<AudioState>(config.AudioState, true, out var st) ? st : AudioState.AFV;
+            }
+        }
 
         internal sealed class DynamicCompositeScene
         {
@@ -141,6 +178,10 @@ namespace DecklinkSwitcher
             {
                 applySourceButtonStyle(sc.CutButton, _activeSourceType == 9 && _activeCompositeSceneId == sc.Config.Id);
             }
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                applySourceButtonStyle(extra.CutButton, _activeSourceType == 10 && _activeExtraSource == extra);
+            }
             SyncCompositeSourceFlags();
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
@@ -156,9 +197,19 @@ namespace DecklinkSwitcher
 
         private void UpdateHtmlSourceMuteState()
         {
-            if (_htmlSource == null) return;
-            bool shouldPlayAudio = (StateHtml == AudioState.ON) || (StateHtml == AudioState.AFV && _activeSourceType == 7);
-            _htmlSource.SetMuted(!shouldPlayAudio);
+            if (_htmlSource != null)
+            {
+                bool shouldPlayAudio = (StateHtml == AudioState.ON) || (StateHtml == AudioState.AFV && _activeSourceType == 7);
+                _htmlSource.SetMuted(!shouldPlayAudio);
+            }
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                if (extra.HtmlSource != null)
+                {
+                    bool play = (extra.AudioState == AudioState.ON) || (extra.AudioState == AudioState.AFV && _activeSourceType == 10 && _activeExtraSource == extra);
+                    extra.HtmlSource.SetMuted(!play);
+                }
+            }
         }
 
         private void BtnColorBars_Click(object sender, RoutedEventArgs e)
@@ -241,6 +292,15 @@ namespace DecklinkSwitcher
                     var dst = GetCompositeScratchBuffer(cam.DisplayName)!;
                     ConvertBgra1080ToUyvy1080(bgra, dst);
                     return dst;
+                }
+            }
+
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                if (string.Equals(extra.Config.Name, sourceKey, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(extra.Config.Id, sourceKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    return extra.HasFrame ? extra.Uyvy1080 : null;
                 }
             }
 
@@ -361,6 +421,10 @@ namespace DecklinkSwitcher
             sources.Add("HTML");
             sources.Add("NDI");
             sources.Add("Color Bars");
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                sources.Add(extra.Config.Name);
+            }
             return sources;
         }
 
@@ -581,6 +645,576 @@ namespace DecklinkSwitcher
             SwitcherPanel.Children.Remove(scene.TileBorder);
             SyncCompositeSourceFlags();
             SaveCurrentSettings();
+        }
+
+        private void BtnAddSourceMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnAddSourceMenu?.ContextMenu != null)
+            {
+                BtnAddSourceMenu.ContextMenu.PlacementTarget = BtnAddSourceMenu;
+                BtnAddSourceMenu.ContextMenu.IsOpen = true;
+            }
+        }
+
+        private string NextExtraSourceName(string baseLabel)
+        {
+            var existing = GetExtraSourcesSnapshot();
+            int n = 2;
+            while (existing.Any(x => string.Equals(x.Config.Name, $"{baseLabel} {n}", StringComparison.OrdinalIgnoreCase)))
+                n++;
+            return $"{baseLabel} {n}";
+        }
+
+        private void MenuAddMatte_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = new ExtraSourceConfig
+            {
+                Id = "extra_matte_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                Kind = "Matte",
+                Name = NextExtraSourceName("Matte"),
+                ColorHex = "#0055AA"
+            };
+            AddDynamicExtraSource(cfg);
+            SaveCurrentSettings();
+        }
+
+        private void MenuAddHtml_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = new ExtraSourceConfig
+            {
+                Id = "extra_html_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                Kind = "Html",
+                Name = NextExtraSourceName("HTML"),
+                Url = "https://www.google.com",
+                Fps = 30,
+                AudioState = "AFV"
+            };
+            AddDynamicExtraSource(cfg);
+            SaveCurrentSettings();
+        }
+
+        private void MenuAddYouTube_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = new ExtraSourceConfig
+            {
+                Id = "extra_yt_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                Kind = "YouTube",
+                Name = NextExtraSourceName("YouTube"),
+                Url = "",
+                AudioLevel = 1.0,
+                AudioState = "AFV",
+                AudioDelayMs = 0
+            };
+            AddDynamicExtraSource(cfg);
+            SaveCurrentSettings();
+        }
+
+        private void ActivateExtraSource(DynamicExtraSource extra)
+        {
+            if (_activeSourceType != 10 || _activeExtraSource != extra) BeginMixIfEnabled();
+            _activeSourceType = 10;
+            ActiveSourceType = 10;
+            ActiveInputName = extra.Config.Id;
+            _activeExtraSource = extra;
+            _activeScreen = null;
+            _activeWebcam = null;
+            _activeInput = null;
+            _activeCompositeSceneId = null;
+
+            lock (_pgmLock)
+            {
+                if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
+                    LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
+                Buffer.BlockCopy(extra.Uyvy1080, 0, LatestExtraSourceUyvy, 0, extra.Uyvy1080.Length);
+            }
+            WritePgmPreviewFrame(extra.Preview480);
+            UpdateProgramSourceFlags();
+            Log($"Switched to {extra.Config.Name}");
+        }
+
+        private void UpdateExtraMatteBuffers(DynamicExtraSource extra)
+        {
+            CompositeSceneCompositor.FillColorUyvy1080(extra.Uyvy1080, extra.Config.ColorHex);
+            extra.HasFrame = true;
+
+            byte r = 0, g = 85, b = 170;
+            try
+            {
+                var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(extra.Config.ColorHex);
+                r = c.R; g = c.G; b = c.B;
+            }
+            catch { }
+
+            var buf = extra.Preview480;
+            for (int i = 0; i < buf.Length; i += 4)
+            {
+                buf[i] = b; buf[i + 1] = g; buf[i + 2] = r; buf[i + 3] = 255;
+            }
+            extra.PreviewBitmap?.WritePixels(new Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+            if (extra.ColorSwatch != null)
+            {
+                extra.ColorSwatch.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+            }
+            if (_activeSourceType == 10 && _activeExtraSource == extra)
+            {
+                lock (_pgmLock)
+                {
+                    if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
+                        LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
+                    Buffer.BlockCopy(extra.Uyvy1080, 0, LatestExtraSourceUyvy, 0, extra.Uyvy1080.Length);
+                }
+                WritePgmPreviewFrame(buf);
+            }
+        }
+
+        private DynamicExtraSource AddDynamicExtraSource(ExtraSourceConfig cfg)
+        {
+            if (string.IsNullOrWhiteSpace(cfg.Id))
+                cfg.Id = "extra_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            if (string.IsNullOrWhiteSpace(cfg.Name))
+                cfg.Name = NextExtraSourceName(cfg.Kind);
+
+            var extra = new DynamicExtraSource(cfg);
+            lock (_extraSourcesLock) _extraSources.Add(extra);
+
+            var bmp = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            extra.PreviewBitmap = bmp;
+
+            var tile = new System.Windows.Controls.Border
+            {
+                Name = "TileExtra_" + cfg.Id,
+                Width = 232,
+                Margin = new Thickness(5),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(29, 34, 48)),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(45, 55, 76)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8)
+            };
+
+            var stack = new System.Windows.Controls.StackPanel();
+
+            // Header row: Name + Remove (✕)
+            var headerGrid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 6) };
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            string icon = cfg.Kind == "Matte" ? "🎨 " : cfg.Kind == "Html" ? "🌐 " : "▶ ";
+            var titleTxt = new System.Windows.Controls.TextBlock
+            {
+                Text = icon + cfg.Name,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 232, 255)),
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            extra.TitleText = titleTxt;
+            System.Windows.Controls.Grid.SetColumn(titleTxt, 0);
+            headerGrid.Children.Add(titleTxt);
+
+            var btnRemove = new System.Windows.Controls.Button
+            {
+                Content = "✕",
+                Width = 20,
+                Height = 20,
+                Background = System.Windows.Media.Brushes.Transparent,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
+                BorderThickness = new Thickness(0),
+                FontSize = 11,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Focusable = false,
+                ToolTip = "Remove Source"
+            };
+            btnRemove.Click += (_, __) => RemoveDynamicExtraSource(extra);
+            System.Windows.Controls.Grid.SetColumn(btnRemove, 1);
+            headerGrid.Children.Add(btnRemove);
+            stack.Children.Add(headerGrid);
+
+            // Preview image
+            var previewBorder = new System.Windows.Controls.Border
+            {
+                Height = 118,
+                Background = System.Windows.Media.Brushes.Black,
+                CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 0, 0, 6),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            var img = new System.Windows.Controls.Image
+            {
+                Source = bmp,
+                Stretch = System.Windows.Media.Stretch.Uniform
+            };
+            previewBorder.Child = img;
+            previewBorder.MouseDown += (_, __) => ActivateExtraSource(extra);
+            stack.Children.Add(previewBorder);
+
+            // Kind-specific controls
+            if (cfg.Kind == "Matte")
+            {
+                var row = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 6) };
+                row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var swatch = new System.Windows.Controls.Border
+                {
+                    Width = 26,
+                    Height = 24,
+                    CornerRadius = new CornerRadius(4),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 95, 120)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Pick Color"
+                };
+                extra.ColorSwatch = swatch;
+                swatch.MouseLeftButtonDown += (_, __) =>
+                {
+                    using var cd = new System.Windows.Forms.ColorDialog();
+                    try
+                    {
+                        var wc = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(cfg.ColorHex);
+                        cd.Color = System.Drawing.Color.FromArgb(wc.R, wc.G, wc.B);
+                    }
+                    catch { }
+                    if (cd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        cfg.ColorHex = $"#{cd.Color.R:X2}{cd.Color.G:X2}{cd.Color.B:X2}";
+                        UpdateExtraMatteBuffers(extra);
+                        SaveCurrentSettings();
+                    }
+                };
+                System.Windows.Controls.Grid.SetColumn(swatch, 0);
+                row.Children.Add(swatch);
+
+                var btnPick = new System.Windows.Controls.Button
+                {
+                    Content = "Pick Color",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false
+                };
+                btnPick.Click += (_, __) =>
+                {
+                    using var cd = new System.Windows.Forms.ColorDialog();
+                    try
+                    {
+                        var wc = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(cfg.ColorHex);
+                        cd.Color = System.Drawing.Color.FromArgb(wc.R, wc.G, wc.B);
+                    }
+                    catch { }
+                    if (cd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        cfg.ColorHex = $"#{cd.Color.R:X2}{cd.Color.G:X2}{cd.Color.B:X2}";
+                        UpdateExtraMatteBuffers(extra);
+                        SaveCurrentSettings();
+                    }
+                };
+                System.Windows.Controls.Grid.SetColumn(btnPick, 1);
+                row.Children.Add(btnPick);
+                stack.Children.Add(row);
+
+                UpdateExtraMatteBuffers(extra);
+            }
+            else if (cfg.Kind == "Html")
+            {
+                var htmlSrc = new HtmlBrowserSource(false, cfg.Name) { TargetFps = cfg.Fps > 0 ? cfg.Fps : 30 };
+                extra.HtmlSource = htmlSrc;
+
+                htmlSrc.OnPreviewBufferUpdated += bgra480 =>
+                {
+                    Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        extra.PreviewBitmap.WritePixels(new Int32Rect(0, 0, 480, 270), bgra480, 480 * 4, 0);
+                        if (_activeSourceType == 10 && _activeExtraSource == extra)
+                            WritePgmPreviewFrame(bgra480);
+                    });
+                };
+                htmlSrc.OnUyvy1080Updated += uyvy1080 =>
+                {
+                    Buffer.BlockCopy(uyvy1080, 0, extra.Uyvy1080, 0, Math.Min(uyvy1080.Length, extra.Uyvy1080.Length));
+                    extra.HasFrame = true;
+                    if (_activeSourceType == 10 && _activeExtraSource == extra)
+                    {
+                        lock (_pgmLock)
+                        {
+                            if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
+                                LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
+                            Buffer.BlockCopy(uyvy1080, 0, LatestExtraSourceUyvy, 0, Math.Min(uyvy1080.Length, LatestExtraSourceUyvy.Length));
+                        }
+                    }
+                };
+
+                var urlBox = new System.Windows.Controls.TextBox
+                {
+                    Text = cfg.Url ?? "",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    FontSize = 10.5,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    Margin = new Thickness(0, 0, 0, 4)
+                };
+                urlBox.LostFocus += (_, __) => { cfg.Url = urlBox.Text.Trim(); SaveCurrentSettings(); };
+                stack.Children.Add(urlBox);
+
+                var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var btnStart = new System.Windows.Controls.Button
+                {
+                    Content = "Load",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                extra.StartStopButton = btnStart;
+
+                var cmbMute = new System.Windows.Controls.ComboBox
+                {
+                    Width = 58,
+                    Height = 24,
+                    FontSize = 10,
+                    SelectedIndex = (int)extra.AudioState
+                };
+                cmbMute.Items.Add("ON");
+                cmbMute.Items.Add("OFF");
+                cmbMute.Items.Add("AFV");
+                cmbMute.SelectionChanged += (_, __) =>
+                {
+                    if (cmbMute.SelectedIndex >= 0)
+                    {
+                        extra.AudioState = (AudioState)cmbMute.SelectedIndex;
+                        cfg.AudioState = extra.AudioState.ToString();
+                        UpdateHtmlSourceMuteState();
+                        SaveCurrentSettings();
+                    }
+                };
+
+                btnStart.Click += async (_, __) =>
+                {
+                    if (!extra.IsRunning)
+                    {
+                        cfg.Url = urlBox.Text.Trim();
+                        if (string.IsNullOrWhiteSpace(cfg.Url)) return;
+                        extra.IsRunning = true;
+                        btnStart.Content = "Stop";
+                        SaveCurrentSettings();
+                        await htmlSrc.StartAsync(cfg.Url);
+                        UpdateHtmlSourceMuteState();
+                    }
+                    else
+                    {
+                        extra.IsRunning = false;
+                        btnStart.Content = "Load";
+                        htmlSrc.Stop();
+                    }
+                };
+
+                System.Windows.Controls.Grid.SetColumn(btnStart, 0);
+                System.Windows.Controls.Grid.SetColumn(cmbMute, 1);
+                ctrlRow.Children.Add(btnStart);
+                ctrlRow.Children.Add(cmbMute);
+                stack.Children.Add(ctrlRow);
+
+                var statusTxt = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Idle",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                extra.StatusText = statusTxt;
+                htmlSrc.OnStatusChanged += (st, _, __) => Dispatcher.BeginInvoke(() => statusTxt.Text = st);
+                stack.Children.Add(statusTxt);
+            }
+            else if (cfg.Kind == "YouTube")
+            {
+                var ytSrc = new YouTubeSource
+                {
+                    AudioChannelName = cfg.Id,
+                    AudioDelayMs = cfg.AudioDelayMs
+                };
+                extra.YtSource = ytSrc;
+
+                ytSrc.OnPreviewBufferUpdated += bgra480 =>
+                {
+                    Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        extra.PreviewBitmap.WritePixels(new Int32Rect(0, 0, 480, 270), bgra480, 480 * 4, 0);
+                        if (_activeSourceType == 10 && _activeExtraSource == extra)
+                            WritePgmPreviewFrame(bgra480);
+                    });
+                };
+                ytSrc.OnUyvy1080Frame += (ptr, len) =>
+                {
+                    int copyLen = Math.Min(len, extra.Uyvy1080.Length);
+                    System.Runtime.InteropServices.Marshal.Copy(ptr, extra.Uyvy1080, 0, copyLen);
+                    extra.HasFrame = true;
+                    if (_activeSourceType == 10 && _activeExtraSource == extra)
+                    {
+                        lock (_pgmLock)
+                        {
+                            if (LatestExtraSourceUyvy == null || LatestExtraSourceUyvy.Length != 1920 * 1080 * 2)
+                                LatestExtraSourceUyvy = new byte[1920 * 1080 * 2];
+                            System.Runtime.InteropServices.Marshal.Copy(ptr, LatestExtraSourceUyvy, 0, copyLen);
+                        }
+                    }
+                };
+
+                var urlBox = new System.Windows.Controls.TextBox
+                {
+                    Text = cfg.Url ?? "",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    FontSize = 10.5,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    Margin = new Thickness(0, 0, 0, 4)
+                };
+                urlBox.LostFocus += (_, __) => { cfg.Url = urlBox.Text.Trim(); SaveCurrentSettings(); };
+                stack.Children.Add(urlBox);
+
+                var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+                var btnStart = new System.Windows.Controls.Button
+                {
+                    Content = "Play",
+                    Height = 24,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 11,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Focusable = false,
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+                extra.StartStopButton = btnStart;
+
+                var cmbAudio = new System.Windows.Controls.ComboBox
+                {
+                    Width = 58,
+                    Height = 24,
+                    FontSize = 10,
+                    SelectedIndex = (int)extra.AudioState
+                };
+                cmbAudio.Items.Add("ON");
+                cmbAudio.Items.Add("OFF");
+                cmbAudio.Items.Add("AFV");
+                cmbAudio.SelectionChanged += (_, __) =>
+                {
+                    if (cmbAudio.SelectedIndex >= 0)
+                    {
+                        extra.AudioState = (AudioState)cmbAudio.SelectedIndex;
+                        cfg.AudioState = extra.AudioState.ToString();
+                        SaveCurrentSettings();
+                    }
+                };
+
+                btnStart.Click += async (_, __) =>
+                {
+                    if (!extra.IsRunning)
+                    {
+                        cfg.Url = urlBox.Text.Trim();
+                        if (string.IsNullOrWhiteSpace(cfg.Url)) return;
+                        extra.IsRunning = true;
+                        btnStart.Content = "Stop";
+                        SaveCurrentSettings();
+                        await ytSrc.StartAsync(cfg.Url);
+                    }
+                    else
+                    {
+                        extra.IsRunning = false;
+                        btnStart.Content = "Play";
+                        ytSrc.Stop();
+                    }
+                };
+
+                System.Windows.Controls.Grid.SetColumn(btnStart, 0);
+                System.Windows.Controls.Grid.SetColumn(cmbAudio, 1);
+                ctrlRow.Children.Add(btnStart);
+                ctrlRow.Children.Add(cmbAudio);
+                stack.Children.Add(ctrlRow);
+
+                var statusTxt = new System.Windows.Controls.TextBlock
+                {
+                    Text = "Idle",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 160, 185)),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                extra.StatusText = statusTxt;
+                ytSrc.OnStatusChanged += (st, _, __) => Dispatcher.BeginInvoke(() => statusTxt.Text = st);
+                stack.Children.Add(statusTxt);
+            }
+
+            // Cut / Switch button
+            var btnCut = new System.Windows.Controls.Button
+            {
+                Content = cfg.Name.ToUpperInvariant(),
+                Height = 28,
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Focusable = false,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(42, 47, 61)),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 224, 232)),
+                BorderThickness = new Thickness(1)
+            };
+            btnCut.Click += (_, __) => ActivateExtraSource(extra);
+            extra.CutButton = btnCut;
+            stack.Children.Add(btnCut);
+
+            tile.Child = stack;
+            extra.TileBorder = tile;
+            SwitcherPanel.Children.Add(tile);
+            UpdateProgramSourceFlags();
+            return extra;
+        }
+
+        private void RemoveDynamicExtraSource(DynamicExtraSource extra)
+        {
+            if (_activeSourceType == 10 && _activeExtraSource == extra)
+            {
+                _activeExtraSource = null;
+                BtnColorBars_Click(null, null);
+            }
+            lock (_extraSourcesLock) _extraSources.Remove(extra);
+            SwitcherPanel.Children.Remove(extra.TileBorder);
+            try { extra.HtmlSource?.Dispose(); } catch { }
+            try { extra.YtSource?.Dispose(); } catch { }
+            SyncCompositeSourceFlags();
+            SaveCurrentSettings();
+        }
+
+        private void DisposeExtraSources()
+        {
+            foreach (var extra in GetExtraSourcesSnapshot())
+            {
+                try { extra.HtmlSource?.Dispose(); } catch { }
+                try { extra.YtSource?.Dispose(); } catch { }
+            }
         }
 
         private void BtnMedia_Click(object sender, RoutedEventArgs e)
@@ -1516,7 +2150,7 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
-            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8) // Media, Desktop, Webcam, YouTube, HTML, or NDI
+            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 10) // Media, Desktop, Webcam, YouTube, HTML, NDI, or Extra Source
             {
                 // Handled continuously by streaming/capture callbacks
                 return;
@@ -2025,7 +2659,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 9)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 9 || _activeSourceType == 10)
                         {
                             if (_activeSourceType == 9)
                             {
@@ -2074,6 +2708,13 @@ namespace DecklinkSwitcher
                                         lock (MainWindow._pgmLock)
                                         {
                                             uyvyBytes = (byte[])LatestCompositeUyvy.Clone();
+                                        }
+                                    }
+                                    else if (_activeSourceType == 10 && LatestExtraSourceUyvy != null)
+                                    {
+                                        lock (MainWindow._pgmLock)
+                                        {
+                                            uyvyBytes = (byte[])LatestExtraSourceUyvy.Clone();
                                         }
                                     }
                                     else if (_activeSourceType == 1 || _activeSourceType == 2)
