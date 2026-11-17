@@ -41,6 +41,7 @@ namespace DecklinkSwitcher
         private readonly List<TextBlock> _canvasLabels = new();
         private readonly List<Rectangle> _resizeHandles = new();
         private readonly List<Rectangle[]> _cropHandles = new(); // [L, T, R, B]
+        private Grid _layerTableGrid = null!;
         private ComboBox _cmbBgColor = null!;
         private RadioButton _rbModeMove = null!;
         private RadioButton _rbModeCrop = null!;
@@ -116,6 +117,10 @@ namespace DecklinkSwitcher
             presetRow.Children.Add(MakePresetButton("PiP (Main + Corner)", ApplyPresetPip));
             presetRow.Children.Add(MakePresetButton("3-Box (1 + 2 Side)", ApplyPreset3Box));
             presetRow.Children.Add(MakePresetButton("2×2 Quad", ApplyPreset4Quad));
+            var btnAddBox = MakePresetButton("+ Add Box", AddNewBox);
+            btnAddBox.Background = new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xc0));
+            btnAddBox.FontWeight = FontWeights.Bold;
+            presetRow.Children.Add(btnAddBox);
             DockPanel.SetDock(presetRow, Dock.Left);
             topBar.Children.Add(presetRow);
 
@@ -200,6 +205,61 @@ namespace DecklinkSwitcher
                 _visualCanvas.Children.Add(liveImg);
             }
 
+            root.Children.Add(canvasBorder);
+
+            // Scrollable Layer table
+            _layerTableGrid = new Grid();
+            var scroller = new ScrollViewer
+            {
+                MaxHeight = 220,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = _layerTableGrid
+            };
+            root.Children.Add(scroller);
+
+            var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
+            var note = new TextBlock
+            {
+                Text = "Drag boxes on the preview to move/resize or switch to Crop Edges. Last box draws on top.",
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            DockPanel.SetDock(note, Dock.Left);
+            footer.Children.Add(note);
+
+            var btnClose = new Button
+            {
+                Content = "Done",
+                Width = 90,
+                Height = 28,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Background = new SolidColorBrush(Color.FromRgb(0x2e, 0x7d, 0x32)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold
+            };
+            btnClose.Click += (_, _) => Close();
+            DockPanel.SetDock(btnClose, Dock.Right);
+            footer.Children.Add(btnClose);
+            root.Children.Add(footer);
+
+            Content = root;
+            RebuildLayerUi();
+        }
+
+        private void RebuildLayerUi()
+        {
+            // Rebuild canvas overlay boxes (keep liveImg at index 0 if present)
+            int startKeep = _livePreviewBmp != null ? 1 : 0;
+            while (_visualCanvas.Children.Count > startKeep)
+                _visualCanvas.Children.RemoveAt(_visualCanvas.Children.Count - 1);
+
+            _canvasBoxes.Clear();
+            _canvasLabels.Clear();
+            _resizeHandles.Clear();
+            _cropHandles.Clear();
+
             for (int i = 0; i < _layers.Count; i++)
             {
                 int idx = i;
@@ -254,7 +314,6 @@ namespace DecklinkSwitcher
                 innerGrid.Children.Add(resizeHandle);
                 _resizeHandles.Add(resizeHandle);
 
-                // 4 visual crop edge handles (shown in Crop Edges mode)
                 var cropL = MakeCropHandle(idx, 2, Brushes.Yellow, 6, double.NaN, HorizontalAlignment.Left, VerticalAlignment.Stretch, Cursors.SizeWE);
                 var cropT = MakeCropHandle(idx, 3, Brushes.Yellow, double.NaN, 6, HorizontalAlignment.Stretch, VerticalAlignment.Top, Cursors.SizeNS);
                 var cropR = MakeCropHandle(idx, 4, Brushes.Yellow, 6, double.NaN, HorizontalAlignment.Right, VerticalAlignment.Stretch, Cursors.SizeWE);
@@ -287,16 +346,18 @@ namespace DecklinkSwitcher
                 _visualCanvas.Children.Add(box);
             }
 
-            root.Children.Add(canvasBorder);
+            // Rebuild table rows
+            _layerTableGrid.Children.Clear();
+            _layerTableGrid.RowDefinitions.Clear();
+            _layerTableGrid.ColumnDefinitions.Clear();
+            _rows.Clear();
 
-            // Layer table
-            var grid = new Grid();
-            double[] widths = { 30, 44, 46, 126, 50, 50, 50, 50, 50, 50, 50, 50, 48, 52 };
+            double[] widths = { 28, 44, 46, 122, 48, 48, 48, 48, 48, 48, 48, 48, 46, 48, 28 };
             foreach (double w in widths)
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+                _layerTableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
 
-            string[] headers = { "On", "Z", "Layer", "Source", "X %", "Y %", "W %", "H %", "Crop L%", "Crop T%", "Crop R%", "Crop B%", "Border", "Crop" };
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            string[] headers = { "On", "Z", "Layer", "Source", "X %", "Y %", "W %", "H %", "Crop L%", "Crop T%", "Crop R%", "Crop B%", "Border", "Crop", "" };
+            _layerTableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             for (int c = 0; c < headers.Length; c++)
             {
                 var tb = new TextBlock
@@ -310,13 +371,13 @@ namespace DecklinkSwitcher
                 };
                 Grid.SetRow(tb, 0);
                 Grid.SetColumn(tb, c);
-                grid.Children.Add(tb);
+                _layerTableGrid.Children.Add(tb);
             }
 
             for (int i = 0; i < _layers.Count; i++)
             {
                 int idx = i;
-                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(36) });
+                _layerTableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(36) });
                 int rowIdx = i + 1;
                 var row = new LayerRowControls();
 
@@ -325,9 +386,8 @@ namespace DecklinkSwitcher
                 row.ChkEnabled.Unchecked += (_, _) => SyncFromUi();
                 Grid.SetRow(row.ChkEnabled, rowIdx);
                 Grid.SetColumn(row.ChkEnabled, 0);
-                grid.Children.Add(row.ChkEnabled);
+                _layerTableGrid.Children.Add(row.ChkEnabled);
 
-                // Z-order buttons
                 var zPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 var btnUp = MakeMiniButton("▲", "Move layer down (behind)", () => SwapLayers(idx, idx - 1), i > 0);
                 var btnDown = MakeMiniButton("▼", "Move layer up (in front)", () => SwapLayers(idx, idx + 1), i < _layers.Count - 1);
@@ -335,7 +395,7 @@ namespace DecklinkSwitcher
                 zPanel.Children.Add(btnDown);
                 Grid.SetRow(zPanel, rowIdx);
                 Grid.SetColumn(zPanel, 1);
-                grid.Children.Add(zPanel);
+                _layerTableGrid.Children.Add(zPanel);
 
                 var lbl = new TextBlock
                 {
@@ -347,7 +407,7 @@ namespace DecklinkSwitcher
                 };
                 Grid.SetRow(lbl, rowIdx);
                 Grid.SetColumn(lbl, 2);
-                grid.Children.Add(lbl);
+                _layerTableGrid.Children.Add(lbl);
 
                 row.CmbSource = new ComboBox
                 {
@@ -361,17 +421,17 @@ namespace DecklinkSwitcher
                 row.CmbSource.SelectionChanged += (_, _) => SyncFromUi();
                 Grid.SetRow(row.CmbSource, rowIdx);
                 Grid.SetColumn(row.CmbSource, 3);
-                grid.Children.Add(row.CmbSource);
+                _layerTableGrid.Children.Add(row.CmbSource);
 
-                row.TxtX = MakeNumBox(grid, rowIdx, 4);
-                row.TxtY = MakeNumBox(grid, rowIdx, 5);
-                row.TxtW = MakeNumBox(grid, rowIdx, 6);
-                row.TxtH = MakeNumBox(grid, rowIdx, 7);
-                row.TxtCropL = MakeNumBox(grid, rowIdx, 8);
-                row.TxtCropT = MakeNumBox(grid, rowIdx, 9);
-                row.TxtCropR = MakeNumBox(grid, rowIdx, 10);
-                row.TxtCropB = MakeNumBox(grid, rowIdx, 11);
-                row.TxtBorder = MakeNumBox(grid, rowIdx, 12);
+                row.TxtX = MakeNumBox(_layerTableGrid, rowIdx, 4);
+                row.TxtY = MakeNumBox(_layerTableGrid, rowIdx, 5);
+                row.TxtW = MakeNumBox(_layerTableGrid, rowIdx, 6);
+                row.TxtH = MakeNumBox(_layerTableGrid, rowIdx, 7);
+                row.TxtCropL = MakeNumBox(_layerTableGrid, rowIdx, 8);
+                row.TxtCropT = MakeNumBox(_layerTableGrid, rowIdx, 9);
+                row.TxtCropR = MakeNumBox(_layerTableGrid, rowIdx, 10);
+                row.TxtCropB = MakeNumBox(_layerTableGrid, rowIdx, 11);
+                row.TxtBorder = MakeNumBox(_layerTableGrid, rowIdx, 12);
 
                 var btnResetCrop = new Button
                 {
@@ -398,40 +458,58 @@ namespace DecklinkSwitcher
                 };
                 Grid.SetRow(btnResetCrop, rowIdx);
                 Grid.SetColumn(btnResetCrop, 13);
-                grid.Children.Add(btnResetCrop);
+                _layerTableGrid.Children.Add(btnResetCrop);
+
+                var btnRemove = new Button
+                {
+                    Content = "✕",
+                    Width = 22,
+                    Height = 22,
+                    FontSize = 10,
+                    Padding = new Thickness(0),
+                    Background = new SolidColorBrush(Color.FromRgb(0x8e, 0x24, 0x24)),
+                    Foreground = Brushes.White,
+                    IsEnabled = _layers.Count > 1,
+                    ToolTip = "Remove this box"
+                };
+                btnRemove.Click += (_, _) => RemoveBox(idx);
+                Grid.SetRow(btnRemove, rowIdx);
+                Grid.SetColumn(btnRemove, 14);
+                _layerTableGrid.Children.Add(btnRemove);
 
                 _rows.Add(row);
             }
 
-            root.Children.Add(grid);
+            UpdateHandleVisibility();
+            PopulateRows();
+            UpdateVisualCanvas();
+        }
 
-            var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
-            var note = new TextBlock
+        private void AddNewBox()
+        {
+            int idx = _layers.Count;
+            double offset = (idx % 4) * 8.0;
+            _layers.Add(new CompositeLayerConfig
             {
-                Text = "Drag boxes on the preview to move, or drag the bottom-right corner to resize. Box 4 draws on top of Box 1.",
-                FontSize = 11,
-                Foreground = Brushes.Gray,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            DockPanel.SetDock(note, Dock.Left);
-            footer.Children.Add(note);
+                Enabled = true,
+                SourceKey = GetSourceOrFallback(idx),
+                DestXPct = Math.Min(60, 10 + offset),
+                DestYPct = Math.Min(60, 10 + offset),
+                DestWPct = 35,
+                DestHPct = 35,
+                BorderPx = 2
+            });
+            RebuildLayerUi();
+            _onChanged?.Invoke();
+        }
 
-            var btnClose = new Button
-            {
-                Content = "Done",
-                Width = 90,
-                Height = 28,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Background = new SolidColorBrush(Color.FromRgb(0x2e, 0x7d, 0x32)),
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold
-            };
-            btnClose.Click += (_, _) => Close();
-            DockPanel.SetDock(btnClose, Dock.Right);
-            footer.Children.Add(btnClose);
-            root.Children.Add(footer);
-
-            Content = root;
+        private void RemoveBox(int idx)
+        {
+            if (_layers.Count <= 1 || idx < 0 || idx >= _layers.Count) return;
+            _dragLayerIdx = -1;
+            _layers.RemoveAt(idx);
+            RebuildLayerUi();
+            _onChanged?.Invoke();
         }
 
         private Rectangle MakeCropHandle(
@@ -581,8 +659,7 @@ namespace DecklinkSwitcher
         {
             if (a < 0 || b < 0 || a >= _layers.Count || b >= _layers.Count) return;
             (_layers[a], _layers[b]) = (_layers[b], _layers[a]);
-            PopulateRows();
-            UpdateVisualCanvas();
+            RebuildLayerUi();
             _onChanged?.Invoke();
         }
 
@@ -741,12 +818,24 @@ namespace DecklinkSwitcher
             return _availableSources.Count > 0 ? _availableSources[0] : "";
         }
 
+        private void EnsureLayerCount(int minCount)
+        {
+            bool changed = false;
+            while (_layers.Count < minCount)
+            {
+                _layers.Add(new CompositeLayerConfig());
+                changed = true;
+            }
+            for (int i = minCount; i < _layers.Count; i++)
+                _layers[i].Enabled = false;
+            if (changed) RebuildLayerUi();
+        }
+
         private void ApplyPreset2Up()
         {
+            EnsureLayerCount(2);
             SetBox(0, true, 0, 10, 50, 80, 2);
             SetBox(1, true, 50, 10, 50, 80, 2);
-            SetBox(2, false, 0, 50, 50, 50, 2);
-            SetBox(3, false, 50, 50, 50, 50, 2);
             PopulateRows();
             UpdateVisualCanvas();
             _onChanged?.Invoke();
@@ -754,10 +843,9 @@ namespace DecklinkSwitcher
 
         private void ApplyPresetPip()
         {
+            EnsureLayerCount(2);
             SetBox(0, true, 0, 0, 100, 100, 0);
             SetBox(1, true, 68, 66, 28, 28, 3);
-            SetBox(2, false, 0, 50, 50, 50, 2);
-            SetBox(3, false, 50, 50, 50, 50, 2);
             PopulateRows();
             UpdateVisualCanvas();
             _onChanged?.Invoke();
@@ -765,10 +853,10 @@ namespace DecklinkSwitcher
 
         private void ApplyPreset3Box()
         {
+            EnsureLayerCount(3);
             SetBox(0, true, 0, 0, 66, 100, 2);
             SetBox(1, true, 66, 0, 34, 50, 2);
             SetBox(2, true, 66, 50, 34, 50, 2);
-            SetBox(3, false, 50, 50, 50, 50, 2);
             PopulateRows();
             UpdateVisualCanvas();
             _onChanged?.Invoke();
@@ -776,6 +864,7 @@ namespace DecklinkSwitcher
 
         private void ApplyPreset4Quad()
         {
+            EnsureLayerCount(4);
             SetBox(0, true, 0, 0, 50, 50, 2);
             SetBox(1, true, 50, 0, 50, 50, 2);
             SetBox(2, true, 0, 50, 50, 50, 2);
