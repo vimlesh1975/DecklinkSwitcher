@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Color = System.Windows.Media.Color;
 using Brushes = System.Windows.Media.Brushes;
+using Brush = System.Windows.Media.Brush;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
 
@@ -38,14 +39,19 @@ namespace DecklinkSwitcher
         private readonly Canvas _visualCanvas = new() { Width = CanvasW, Height = CanvasH, ClipToBounds = true, Background = Brushes.Black };
         private readonly List<Border> _canvasBoxes = new();
         private readonly List<TextBlock> _canvasLabels = new();
+        private readonly List<Rectangle> _resizeHandles = new();
+        private readonly List<Rectangle[]> _cropHandles = new(); // [L, T, R, B]
         private ComboBox _cmbBgColor = null!;
+        private RadioButton _rbModeMove = null!;
+        private RadioButton _rbModeCrop = null!;
         private bool _isUpdatingUi = false;
 
-        // Drag / resize state
+        // Drag / resize / crop state
         private int _dragLayerIdx = -1;
-        private bool _isResizing = false;
+        private int _dragMode = 0; // 0=move, 1=resize, 2=cropL, 3=cropT, 4=cropR, 5=cropB
         private Point _dragStartMouse;
         private double _dragStartX, _dragStartY, _dragStartW, _dragStartH;
+        private double _dragStartCropL, _dragStartCropT, _dragStartCropR, _dragStartCropB;
 
         private sealed class LayerRowControls
         {
@@ -79,7 +85,7 @@ namespace DecklinkSwitcher
 
             Title = "Multi-Box / Composite Layout Editor";
             Width = 960;
-            Height = 650;
+            Height = 685;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x20));
@@ -136,6 +142,39 @@ namespace DecklinkSwitcher
             topBar.Children.Add(bgRow);
 
             root.Children.Add(topBar);
+
+            // Canvas Mode bar (Move/Resize vs Visual Crop)
+            var modeRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
+            modeRow.Children.Add(new TextBlock
+            {
+                Text = "Canvas Tool:",
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.Silver,
+                Margin = new Thickness(0, 0, 10, 0)
+            });
+            _rbModeMove = new RadioButton
+            {
+                Content = "Move / Resize",
+                IsChecked = true,
+                Foreground = Brushes.White,
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 14, 0)
+            };
+            _rbModeCrop = new RadioButton
+            {
+                Content = "Crop Edges (drag L / T / R / B handles)",
+                Foreground = Brushes.Yellow,
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _rbModeMove.Checked += (_, _) => UpdateHandleVisibility();
+            _rbModeCrop.Checked += (_, _) => UpdateHandleVisibility();
+            modeRow.Children.Add(_rbModeMove);
+            modeRow.Children.Add(_rbModeCrop);
+            root.Children.Add(modeRow);
 
             // Interactive 480x270 visual canvas
             var canvasBorder = new Border
@@ -199,7 +238,7 @@ namespace DecklinkSwitcher
                 };
                 resizeHandle.MouseLeftButtonDown += (s, e) =>
                 {
-                    StartDrag(idx, true, e.GetPosition(_visualCanvas));
+                    StartDrag(idx, 1, e.GetPosition(_visualCanvas));
                     resizeHandle.CaptureMouse();
                     e.Handled = true;
                 };
@@ -213,11 +252,23 @@ namespace DecklinkSwitcher
                     }
                 };
                 innerGrid.Children.Add(resizeHandle);
+                _resizeHandles.Add(resizeHandle);
+
+                // 4 visual crop edge handles (shown in Crop Edges mode)
+                var cropL = MakeCropHandle(idx, 2, Brushes.Yellow, 6, double.NaN, HorizontalAlignment.Left, VerticalAlignment.Stretch, Cursors.SizeWE);
+                var cropT = MakeCropHandle(idx, 3, Brushes.Yellow, double.NaN, 6, HorizontalAlignment.Stretch, VerticalAlignment.Top, Cursors.SizeNS);
+                var cropR = MakeCropHandle(idx, 4, Brushes.Yellow, 6, double.NaN, HorizontalAlignment.Right, VerticalAlignment.Stretch, Cursors.SizeWE);
+                var cropB = MakeCropHandle(idx, 5, Brushes.Yellow, double.NaN, 6, HorizontalAlignment.Stretch, VerticalAlignment.Bottom, Cursors.SizeNS);
+                innerGrid.Children.Add(cropL);
+                innerGrid.Children.Add(cropT);
+                innerGrid.Children.Add(cropR);
+                innerGrid.Children.Add(cropB);
+                _cropHandles.Add(new[] { cropL, cropT, cropR, cropB });
 
                 box.Child = innerGrid;
                 box.MouseLeftButtonDown += (s, e) =>
                 {
-                    StartDrag(idx, false, e.GetPosition(_visualCanvas));
+                    StartDrag(idx, 0, e.GetPosition(_visualCanvas));
                     box.CaptureMouse();
                     e.Handled = true;
                 };
@@ -383,34 +434,114 @@ namespace DecklinkSwitcher
             Content = root;
         }
 
-        private void StartDrag(int idx, bool resizing, Point pos)
+        private Rectangle MakeCropHandle(
+            int idx, int mode, Brush fill,
+            double w, double h,
+            HorizontalAlignment hAlign, VerticalAlignment vAlign,
+            Cursor cursor)
+        {
+            var r = new Rectangle
+            {
+                Fill = fill,
+                Opacity = 0.85,
+                HorizontalAlignment = hAlign,
+                VerticalAlignment = vAlign,
+                Cursor = cursor,
+                Visibility = Visibility.Collapsed
+            };
+            if (!double.IsNaN(w)) r.Width = w;
+            if (!double.IsNaN(h)) r.Height = h;
+
+            r.MouseLeftButtonDown += (_, e) =>
+            {
+                StartDrag(idx, mode, e.GetPosition(_visualCanvas));
+                r.CaptureMouse();
+                e.Handled = true;
+            };
+            r.MouseMove += (_, e) => OnCanvasMouseMove(e.GetPosition(_visualCanvas));
+            r.MouseLeftButtonUp += (_, _) =>
+            {
+                if (_dragLayerIdx == idx)
+                {
+                    _dragLayerIdx = -1;
+                    r.ReleaseMouseCapture();
+                }
+            };
+            return r;
+        }
+
+        private void UpdateHandleVisibility()
+        {
+            bool isCrop = _rbModeCrop?.IsChecked == true;
+            for (int i = 0; i < _resizeHandles.Count; i++)
+                _resizeHandles[i].Visibility = isCrop ? Visibility.Collapsed : Visibility.Visible;
+            for (int i = 0; i < _cropHandles.Count; i++)
+                foreach (var h in _cropHandles[i])
+                    h.Visibility = isCrop ? Visibility.Visible : Visibility.Collapsed;
+            for (int i = 0; i < _canvasBoxes.Count; i++)
+                _canvasBoxes[i].Cursor = isCrop ? Cursors.Arrow : Cursors.SizeAll;
+        }
+
+        private void StartDrag(int idx, int mode, Point pos)
         {
             if (idx < 0 || idx >= _layers.Count) return;
             _dragLayerIdx = idx;
-            _isResizing = resizing;
+            _dragMode = mode;
             _dragStartMouse = pos;
             _dragStartX = _layers[idx].DestXPct;
             _dragStartY = _layers[idx].DestYPct;
             _dragStartW = _layers[idx].DestWPct;
             _dragStartH = _layers[idx].DestHPct;
+            _dragStartCropL = _layers[idx].CropLeftPct;
+            _dragStartCropT = _layers[idx].CropTopPct;
+            _dragStartCropR = _layers[idx].CropRightPct;
+            _dragStartCropB = _layers[idx].CropBottomPct;
         }
 
         private void OnCanvasMouseMove(Point pos)
         {
             if (_dragLayerIdx < 0 || _dragLayerIdx >= _layers.Count) return;
-            double dxPct = ((pos.X - _dragStartMouse.X) / CanvasW) * 100.0;
-            double dyPct = ((pos.Y - _dragStartMouse.Y) / CanvasH) * 100.0;
+            double dxPx = pos.X - _dragStartMouse.X;
+            double dyPx = pos.Y - _dragStartMouse.Y;
+            double dxPct = (dxPx / CanvasW) * 100.0;
+            double dyPct = (dyPx / CanvasH) * 100.0;
             var l = _layers[_dragLayerIdx];
 
-            if (_isResizing)
+            switch (_dragMode)
             {
-                l.DestWPct = Math.Round(Math.Clamp(_dragStartW + dxPct, 5.0, 100.0 - l.DestXPct), 1);
-                l.DestHPct = Math.Round(Math.Clamp(_dragStartH + dyPct, 5.0, 100.0 - l.DestYPct), 1);
-            }
-            else
-            {
-                l.DestXPct = Math.Round(Math.Clamp(_dragStartX + dxPct, 0.0, 100.0 - l.DestWPct), 1);
-                l.DestYPct = Math.Round(Math.Clamp(_dragStartY + dyPct, 0.0, 100.0 - l.DestHPct), 1);
+                case 0: // Move
+                    if (_rbModeCrop?.IsChecked == true) return;
+                    l.DestXPct = Math.Round(Math.Clamp(_dragStartX + dxPct, 0.0, 100.0 - l.DestWPct), 1);
+                    l.DestYPct = Math.Round(Math.Clamp(_dragStartY + dyPct, 0.0, 100.0 - l.DestHPct), 1);
+                    break;
+                case 1: // Resize
+                    l.DestWPct = Math.Round(Math.Clamp(_dragStartW + dxPct, 5.0, 100.0 - l.DestXPct), 1);
+                    l.DestHPct = Math.Round(Math.Clamp(_dragStartH + dyPct, 5.0, 100.0 - l.DestYPct), 1);
+                    break;
+                case 2: // Crop Left
+                {
+                    double boxW = Math.Max(20.0, CanvasW * (l.DestWPct / 100.0));
+                    l.CropLeftPct = Math.Round(Math.Clamp(_dragStartCropL + (dxPx / boxW) * 100.0, 0.0, 45.0), 1);
+                    break;
+                }
+                case 3: // Crop Top
+                {
+                    double boxH = Math.Max(20.0, CanvasH * (l.DestHPct / 100.0));
+                    l.CropTopPct = Math.Round(Math.Clamp(_dragStartCropT + (dyPx / boxH) * 100.0, 0.0, 45.0), 1);
+                    break;
+                }
+                case 4: // Crop Right
+                {
+                    double boxW = Math.Max(20.0, CanvasW * (l.DestWPct / 100.0));
+                    l.CropRightPct = Math.Round(Math.Clamp(_dragStartCropR - (dxPx / boxW) * 100.0, 0.0, 45.0), 1);
+                    break;
+                }
+                case 5: // Crop Bottom
+                {
+                    double boxH = Math.Max(20.0, CanvasH * (l.DestHPct / 100.0));
+                    l.CropBottomPct = Math.Round(Math.Clamp(_dragStartCropB - (dyPx / boxH) * 100.0, 0.0, 45.0), 1);
+                    break;
+                }
             }
 
             PopulateRows();
