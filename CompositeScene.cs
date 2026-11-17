@@ -277,29 +277,76 @@ namespace DecklinkSwitcher
             if (availW < 60 || availH < 28) return;
 
             var lbl = GetOrBuildLabel(label, availW);
+
+            // 5-second animation loop: 0.55s left-to-right wipe reveal, 3.90s hold, 0.55s right-to-left wipe hide
+            double t = ((double)System.Diagnostics.Stopwatch.GetTimestamp() / System.Diagnostics.Stopwatch.Frequency) % 5.0;
+            double revealFrac;
+            if (t < 0.55)
+            {
+                double p = t / 0.55;
+                revealFrac = 1.0 - (1.0 - p) * (1.0 - p) * (1.0 - p);
+            }
+            else if (t > 4.45)
+            {
+                double p = (t - 4.45) / 0.55;
+                revealFrac = 1.0 - (p * p * p);
+            }
+            else
+            {
+                revealFrac = 1.0;
+            }
+
             int lx = (visX + border + 12) & ~1;
             int ly = visY + visH - border - lbl.Height - 12;
-            if (lx < 0 || ly < 0 || lx + lbl.Width > Width || ly + lbl.Height > Height) return;
+            int minLx = (visX + border + 2) & ~1;
+            int maxRx = (visX + visW - border - 2) & ~1;
+            if (ly < 0 || ly + lbl.Height > Height) return;
+
+            int revealW = ((int)Math.Round(lbl.Width * revealFrac)) & ~1;
+            int startPx = lx < minLx ? (minLx - lx) : 0;
+            int endPx = Math.Min(revealW, maxRx - lx);
+            if (endPx <= startPx + 1) return;
+
+            // Subtle sheen highlight sweeping across the pill between 1.5s and 2.5s
+            int sheenCenter = (t >= 1.5 && t <= 2.5)
+                ? (int)(((t - 1.5) / 1.0) * (lbl.Width + 60)) - 30
+                : -999;
 
             for (int py = 0; py < lbl.Height; py++)
             {
                 byte* dRow = dstPtr + (ly + py) * strideBytes + lx * 2;
                 int sOff = py * lbl.Width;
-                for (int px = 0; px < lbl.Width; px += 2)
+                for (int px = startPx; px < endPx; px += 2)
                 {
                     int i0 = sOff + px;
                     int i1 = i0 + 1;
-                    int a0 = lbl.A[i0];
-                    int a1 = lbl.A[i1];
+                    int edgeFade = (revealFrac < 0.999 && endPx - px <= 8)
+                        ? Math.Max(32, ((endPx - px) * 256) / 8)
+                        : 256;
+                    int a0 = (lbl.A[i0] * edgeFade) >> 8;
+                    int a1 = (lbl.A[i1] * edgeFade) >> 8;
                     if ((a0 | a1) == 0) continue;
+
+                    int y0 = lbl.Y[i0];
+                    int y1 = lbl.Y[i1];
+                    if (sheenCenter > -30)
+                    {
+                        int dist = Math.Abs(px - sheenCenter);
+                        if (dist < 22)
+                        {
+                            int boost = ((22 - dist) * 28) / 22;
+                            y0 = Math.Min(235, y0 + boost);
+                            y1 = Math.Min(235, y1 + boost);
+                        }
+                    }
 
                     int dOff = px * 2;
                     if (a0 == 255 && a1 == 255)
                     {
                         dRow[dOff + 0] = (byte)((lbl.U[i0] + lbl.U[i1]) >> 1);
-                        dRow[dOff + 1] = lbl.Y[i0];
+                        dRow[dOff + 1] = (byte)y0;
                         dRow[dOff + 2] = (byte)((lbl.V[i0] + lbl.V[i1]) >> 1);
-                        dRow[dOff + 3] = lbl.Y[i1];
+                        dRow[dOff + 3] = (byte)y1;
                     }
                     else
                     {
@@ -310,9 +357,9 @@ namespace DecklinkSwitcher
                         int uAvg = (lbl.U[i0] + lbl.U[i1]) >> 1;
                         int vAvg = (lbl.V[i0] + lbl.V[i1]) >> 1;
                         dRow[dOff + 0] = (byte)((dRow[dOff + 0] * invAvg + uAvg * aAvg) / 255);
-                        dRow[dOff + 1] = (byte)((dRow[dOff + 1] * inv0 + lbl.Y[i0] * a0) / 255);
+                        dRow[dOff + 1] = (byte)((dRow[dOff + 1] * inv0 + y0 * a0) / 255);
                         dRow[dOff + 2] = (byte)((dRow[dOff + 2] * invAvg + vAvg * aAvg) / 255);
-                        dRow[dOff + 3] = (byte)((dRow[dOff + 3] * inv1 + lbl.Y[i1] * a1) / 255);
+                        dRow[dOff + 3] = (byte)((dRow[dOff + 3] * inv1 + y1 * a1) / 255);
                     }
                 }
             }
