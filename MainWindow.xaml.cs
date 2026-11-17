@@ -508,6 +508,9 @@ namespace DecklinkSwitcher
                     settings.MixDurationSeconds = MixDurationSeconds;
                     settings.CompositeLayers = CompositeLayers;
                     settings.CompositeBackgroundHex = CompositeBackgroundHex;
+                    settings.ExtraCompositeScenes = new System.Collections.Generic.List<CompositeSceneConfig>();
+                    foreach (var sc in _extraCompositeScenes)
+                        settings.ExtraCompositeScenes.Add(sc.Config);
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
@@ -841,6 +844,13 @@ namespace DecklinkSwitcher
                 if (!string.IsNullOrWhiteSpace(settings.CompositeBackgroundHex))
                 {
                     CompositeBackgroundHex = settings.CompositeBackgroundHex;
+                }
+                if (settings.ExtraCompositeScenes != null && settings.ExtraCompositeScenes.Count > 0)
+                {
+                    foreach (var scCfg in settings.ExtraCompositeScenes)
+                    {
+                        AddDynamicCompositeScene(scCfg);
+                    }
                 }
                 SyncCompositeSourceFlags();
 

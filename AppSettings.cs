@@ -92,6 +92,7 @@ namespace DecklinkSwitcher
 
         public System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers { get; set; } = new();
         public string CompositeBackgroundHex { get; set; } = "#000000";
+        public System.Collections.Generic.List<CompositeSceneConfig> ExtraCompositeScenes { get; set; } = new();
         
         private static string GetSettingsPath()
         {

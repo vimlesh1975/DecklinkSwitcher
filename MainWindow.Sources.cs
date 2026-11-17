@@ -21,6 +21,19 @@ namespace DecklinkSwitcher
         internal static System.Collections.Generic.List<CompositeLayerConfig> CompositeLayers = CompositeSceneCompositor.CreateDefaultLayers();
         internal static string CompositeBackgroundHex = "#000000";
         private static volatile bool _isCompositeEditorOpen = false;
+        private static string? _editingCompositeSceneId = null;
+        private string? _activeCompositeSceneId = null;
+
+        internal sealed class DynamicCompositeScene
+        {
+            public CompositeSceneConfig Config { get; init; } = null!;
+            public System.Windows.Media.Imaging.WriteableBitmap PreviewBmp { get; init; } = null!;
+            public Border TileBorder { get; init; } = null!;
+            public Button CutButton { get; init; } = null!;
+        }
+
+        private static readonly System.Collections.Generic.List<DynamicCompositeScene> _extraCompositeScenes = new();
+
         private static readonly byte[] _compositeWorkUyvy = new byte[1920 * 1080 * 2];
         private static readonly byte[] _compositePreview480 = new byte[480 * 270 * 4];
         private static readonly System.Collections.Generic.Dictionary<string, byte[]> _compositeScratchPerSource = new();
@@ -37,6 +50,16 @@ namespace DecklinkSwitcher
                     var l = CompositeLayers[i];
                     if (l.Enabled && string.Equals(l.SourceKey, sourceKey, StringComparison.OrdinalIgnoreCase))
                         return true;
+                }
+                for (int s = 0; s < _extraCompositeScenes.Count; s++)
+                {
+                    var layers = _extraCompositeScenes[s].Config.Layers;
+                    for (int i = 0; i < layers.Count; i++)
+                    {
+                        var l = layers[i];
+                        if (l.Enabled && string.Equals(l.SourceKey, sourceKey, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
                 }
             }
             return false;
@@ -113,7 +136,11 @@ namespace DecklinkSwitcher
             applySourceButtonStyle(BtnYouTube, _activeSourceType == 6);
             applySourceButtonStyle(BtnNdiSource, _activeSourceType == 8);
             applySourceButtonStyle(BtnHtmlSource, _activeSourceType == 7);
-            applySourceButtonStyle(BtnComposite, _activeSourceType == 9);
+            applySourceButtonStyle(BtnComposite, _activeSourceType == 9 && _activeCompositeSceneId == null);
+            foreach (var sc in _extraCompositeScenes)
+            {
+                applySourceButtonStyle(sc.CutButton, _activeSourceType == 9 && _activeCompositeSceneId == sc.Config.Id);
+            }
             SyncCompositeSourceFlags();
 
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
@@ -220,27 +247,35 @@ namespace DecklinkSwitcher
             return null;
         }
 
-        private void RefreshCompositeFrame(bool updatePgmPreview)
+        private void RefreshCompositeScene(
+            System.Collections.Generic.List<CompositeLayerConfig> layers,
+            string bgHex,
+            System.Windows.Media.Imaging.WriteableBitmap? tileBmp,
+            bool writeToPgmOutput,
+            bool updatePgmPreview)
         {
             CompositeLayerConfig[] snapshot;
             lock (_compositeLock)
             {
-                snapshot = CompositeLayers.ToArray();
+                snapshot = layers.ToArray();
             }
 
-            CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, _compositeWorkUyvy, _compositePreview480, CompositeBackgroundHex);
+            CompositeSceneCompositor.CompositeFrame(snapshot, ResolveCompositeSourceUyvy1080, _compositeWorkUyvy, _compositePreview480, bgHex);
 
-            lock (_pgmLock)
+            if (writeToPgmOutput)
             {
-                if (LatestCompositeUyvy == null || LatestCompositeUyvy.Length != _compositeWorkUyvy.Length)
-                    LatestCompositeUyvy = new byte[_compositeWorkUyvy.Length];
-                Buffer.BlockCopy(_compositeWorkUyvy, 0, LatestCompositeUyvy, 0, _compositeWorkUyvy.Length);
+                lock (_pgmLock)
+                {
+                    if (LatestCompositeUyvy == null || LatestCompositeUyvy.Length != _compositeWorkUyvy.Length)
+                        LatestCompositeUyvy = new byte[_compositeWorkUyvy.Length];
+                    Buffer.BlockCopy(_compositeWorkUyvy, 0, LatestCompositeUyvy, 0, _compositeWorkUyvy.Length);
+                }
             }
 
             var previewCopy = (byte[])_compositePreview480.Clone();
             Application.Current.Dispatcher.BeginInvoke(() =>
             {
-                _bmpComposite?.WritePixels(new Int32Rect(0, 0, 480, 270), previewCopy, 480 * 4, 0);
+                tileBmp?.WritePixels(new Int32Rect(0, 0, 480, 270), previewCopy, 480 * 4, 0);
                 if (updatePgmPreview && _activeSourceType == 9)
                 {
                     WritePgmPreviewFrame(previewCopy);
@@ -248,9 +283,65 @@ namespace DecklinkSwitcher
             });
         }
 
+        private void RefreshCompositeFrame(bool updatePgmPreview)
+        {
+            string? activeId = _activeCompositeSceneId;
+            DynamicCompositeScene? activeExtra = null;
+            if (!string.IsNullOrEmpty(activeId))
+            {
+                for (int i = 0; i < _extraCompositeScenes.Count; i++)
+                {
+                    if (_extraCompositeScenes[i].Config.Id == activeId)
+                    {
+                        activeExtra = _extraCompositeScenes[i];
+                        break;
+                    }
+                }
+            }
+
+            if (activeExtra != null)
+            {
+                RefreshCompositeScene(activeExtra.Config.Layers, activeExtra.Config.BackgroundHex, activeExtra.PreviewBmp, true, updatePgmPreview);
+            }
+            else
+            {
+                RefreshCompositeScene(CompositeLayers, CompositeBackgroundHex, _bmpComposite, _activeSourceType == 9 || string.IsNullOrEmpty(activeId), updatePgmPreview && activeId == null);
+            }
+
+            // If editing a different scene in the editor, keep its preview live too
+            if (_isCompositeEditorOpen && !string.IsNullOrEmpty(_editingCompositeSceneId) && _editingCompositeSceneId != activeId)
+            {
+                for (int i = 0; i < _extraCompositeScenes.Count; i++)
+                {
+                    var sc = _extraCompositeScenes[i];
+                    if (sc.Config.Id == _editingCompositeSceneId)
+                    {
+                        RefreshCompositeScene(sc.Config.Layers, sc.Config.BackgroundHex, sc.PreviewBmp, false, false);
+                        break;
+                    }
+                }
+            }
+            else if (_isCompositeEditorOpen && _editingCompositeSceneId == null && activeExtra != null)
+            {
+                RefreshCompositeScene(CompositeLayers, CompositeBackgroundHex, _bmpComposite, false, false);
+            }
+
+            // Refresh background thumbnails when not on Multi-Box PGM
+            if (!updatePgmPreview)
+            {
+                for (int i = 0; i < _extraCompositeScenes.Count; i++)
+                {
+                    var sc = _extraCompositeScenes[i];
+                    if (sc != activeExtra)
+                        RefreshCompositeScene(sc.Config.Layers, sc.Config.BackgroundHex, sc.PreviewBmp, false, false);
+                }
+            }
+        }
+
         private void BtnComposite_Click(object? sender, RoutedEventArgs? e)
         {
-            if (_activeSourceType != 9) BeginMixIfEnabled();
+            if (_activeSourceType != 9 || _activeCompositeSceneId != null) BeginMixIfEnabled();
+            _activeCompositeSceneId = null;
             _activeSourceType = 9; ActiveSourceType = 9; ActiveInputName = "Multi-Box";
             _activeScreen = null; _activeWebcam = null; _activeInput = null;
             UpdateProgramSourceFlags();
@@ -259,7 +350,7 @@ namespace DecklinkSwitcher
         }
         private void PreviewComposite_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnComposite_Click(null, null);
 
-        private void BtnEditComposite_Click(object sender, RoutedEventArgs e)
+        private System.Collections.Generic.List<string> BuildCompositeSourceList()
         {
             var sources = new System.Collections.Generic.List<string>();
             foreach (var input in DynamicInputs) sources.Add(input.DisplayName);
@@ -270,13 +361,23 @@ namespace DecklinkSwitcher
             sources.Add("HTML");
             sources.Add("NDI");
             sources.Add("Color Bars");
+            return sources;
+        }
 
+        private void OpenCompositeEditor(
+            string? sceneId,
+            string title,
+            System.Collections.Generic.List<CompositeLayerConfig> layers,
+            System.Windows.Media.Imaging.WriteableBitmap previewBmp,
+            Func<string> getBgHex,
+            Action<string> setBgHex)
+        {
             var dlg = new CompositeEditorWindow(
-                CompositeLayers,
-                sources,
-                _bmpComposite,
-                () => CompositeBackgroundHex,
-                hex => CompositeBackgroundHex = hex,
+                layers,
+                BuildCompositeSourceList(),
+                previewBmp,
+                getBgHex,
+                setBgHex,
                 () =>
                 {
                     SyncCompositeSourceFlags();
@@ -284,8 +385,10 @@ namespace DecklinkSwitcher
                     SaveCurrentSettings();
                 })
             {
-                Owner = this
+                Owner = this,
+                Title = title
             };
+            _editingCompositeSceneId = sceneId;
             _isCompositeEditorOpen = true;
             try
             {
@@ -294,7 +397,190 @@ namespace DecklinkSwitcher
             finally
             {
                 _isCompositeEditorOpen = false;
+                _editingCompositeSceneId = null;
             }
+        }
+
+        private void BtnEditComposite_Click(object sender, RoutedEventArgs e)
+        {
+            OpenCompositeEditor(
+                null,
+                "Multi-Box / Composite Layout Editor",
+                CompositeLayers,
+                _bmpComposite,
+                () => CompositeBackgroundHex,
+                hex => CompositeBackgroundHex = hex);
+        }
+
+        private void BtnAddCompositeScene_Click(object sender, RoutedEventArgs e)
+        {
+            int num = _extraCompositeScenes.Count + 2;
+            var cfg = new CompositeSceneConfig
+            {
+                Id = "S" + DateTime.UtcNow.Ticks,
+                Name = $"Multi-Box {num}",
+                BackgroundHex = "#000000",
+                Layers = CompositeSceneCompositor.CreateDefaultLayers()
+            };
+            var scene = AddDynamicCompositeScene(cfg);
+            SyncCompositeSourceFlags();
+            RefreshCompositeFrame(false);
+            SaveCurrentSettings();
+            OpenCompositeEditor(
+                scene.Config.Id,
+                $"{scene.Config.Name} - Layout Editor",
+                scene.Config.Layers,
+                scene.PreviewBmp,
+                () => scene.Config.BackgroundHex,
+                hex => scene.Config.BackgroundHex = hex);
+        }
+
+        internal DynamicCompositeScene AddDynamicCompositeScene(CompositeSceneConfig cfg)
+        {
+            if (string.IsNullOrWhiteSpace(cfg.Id)) cfg.Id = "S" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            if (cfg.Layers == null || cfg.Layers.Count == 0) cfg.Layers = CompositeSceneCompositor.CreateDefaultLayers();
+
+            var bmp = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+
+            var border = new Border
+            {
+                Name = "TileComposite_" + cfg.Id,
+                Style = (Style)FindResource("MixerPanel")
+            };
+
+            var stack = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center };
+
+            var imgBorder = new Border
+            {
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                Margin = new Thickness(0, 0, 0, 10),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            imgBorder.SetResourceReference(Border.BorderBrushProperty, "ControlBorder");
+            imgBorder.SetResourceReference(Border.BackgroundProperty, "ImageBg");
+            var img = new System.Windows.Controls.Image
+            {
+                Source = bmp,
+                Stretch = System.Windows.Media.Stretch.Uniform,
+                Width = 178,
+                Height = 100
+            };
+            imgBorder.Child = img;
+            stack.Children.Add(imgBorder);
+
+            var cutBtn = new Button
+            {
+                Content = cfg.Name,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Height = 36,
+                Margin = new Thickness(0, 0, 0, 8),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            cutBtn.SetResourceReference(Button.BackgroundProperty, "ButtonBg");
+            cutBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimary");
+            stack.Children.Add(cutBtn);
+
+            var bottomGrid = new Grid();
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+
+            var editBtn = new Button
+            {
+                Content = "Edit Layout...",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Height = 26,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"Configure layout for {cfg.Name}"
+            };
+            editBtn.SetResourceReference(Button.BackgroundProperty, "ButtonAltBg");
+            editBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimary");
+            Grid.SetColumn(editBtn, 0);
+            bottomGrid.Children.Add(editBtn);
+
+            var delBtn = new Button
+            {
+                Content = "✕",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Height = 26,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8e, 0x24, 0x24)),
+                Foreground = System.Windows.Media.Brushes.White,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"Remove {cfg.Name} from source panel"
+            };
+            Grid.SetColumn(delBtn, 2);
+            bottomGrid.Children.Add(delBtn);
+
+            stack.Children.Add(bottomGrid);
+            border.Child = stack;
+
+            var scene = new DynamicCompositeScene
+            {
+                Config = cfg,
+                PreviewBmp = bmp,
+                TileBorder = border,
+                CutButton = cutBtn
+            };
+
+            Action activateScene = () =>
+            {
+                if (_activeSourceType != 9 || _activeCompositeSceneId != scene.Config.Id) BeginMixIfEnabled();
+                _activeCompositeSceneId = scene.Config.Id;
+                _activeSourceType = 9; ActiveSourceType = 9; ActiveInputName = scene.Config.Name;
+                _activeScreen = null; _activeWebcam = null; _activeInput = null;
+                UpdateProgramSourceFlags();
+                Log($"Switched to {scene.Config.Name}");
+                RefreshCompositeFrame(true);
+            };
+
+            cutBtn.Click += (_, _) => activateScene();
+            imgBorder.MouseLeftButtonDown += (_, _) => activateScene();
+            editBtn.Click += (_, _) => OpenCompositeEditor(
+                scene.Config.Id,
+                $"{scene.Config.Name} - Layout Editor",
+                scene.Config.Layers,
+                scene.PreviewBmp,
+                () => scene.Config.BackgroundHex,
+                hex => scene.Config.BackgroundHex = hex);
+            delBtn.Click += (_, _) => RemoveDynamicCompositeScene(scene);
+
+            _extraCompositeScenes.Add(scene);
+
+            int insertIdx = SwitcherPanel.Children.IndexOf(TileComposite);
+            if (insertIdx >= 0)
+            {
+                int offset = 1;
+                while (insertIdx + offset < SwitcherPanel.Children.Count &&
+                       SwitcherPanel.Children[insertIdx + offset] is FrameworkElement fe &&
+                       fe.Name.StartsWith("TileComposite_", StringComparison.Ordinal))
+                {
+                    offset++;
+                }
+                SwitcherPanel.Children.Insert(insertIdx + offset, border);
+            }
+            else
+            {
+                SwitcherPanel.Children.Add(border);
+            }
+
+            return scene;
+        }
+
+        private void RemoveDynamicCompositeScene(DynamicCompositeScene scene)
+        {
+            if (_activeSourceType == 9 && _activeCompositeSceneId == scene.Config.Id)
+            {
+                BtnComposite_Click(null, null);
+            }
+            _extraCompositeScenes.Remove(scene);
+            SwitcherPanel.Children.Remove(scene.TileBorder);
+            SyncCompositeSourceFlags();
+            SaveCurrentSettings();
         }
 
         private void BtnMedia_Click(object sender, RoutedEventArgs e)

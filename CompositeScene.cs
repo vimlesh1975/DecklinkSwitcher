@@ -19,6 +19,14 @@ namespace DecklinkSwitcher
         public int BorderPx { get; set; } = 2;
     }
 
+    public class CompositeSceneConfig
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "Scene";
+        public string BackgroundHex { get; set; } = "#000000";
+        public List<CompositeLayerConfig> Layers { get; set; } = new();
+    }
+
     internal static class CompositeSceneCompositor
     {
         public const int Width = 1920;
