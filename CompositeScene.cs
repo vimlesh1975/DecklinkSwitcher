@@ -17,6 +17,7 @@ namespace DecklinkSwitcher
         public double CropRightPct { get; set; } = 0;
         public double CropBottomPct { get; set; } = 0;
         public int BorderPx { get; set; } = 2;
+        public string Label { get; set; } = "";
     }
 
     public class CompositeSceneConfig
@@ -167,11 +168,152 @@ namespace DecklinkSwitcher
                             }
                         });
                     }
+
+                    if (!string.IsNullOrWhiteSpace(layer.Label))
+                    {
+                        BlendLabelUyvy(dstPtr, strideBytes, visX, visY, visW, visH, border, layer.Label.Trim());
+                    }
                 }
 
                 fixed (byte* pPrev = outPreview480)
                 {
                     DeckLinkDevice.ConvertUYVYToBGRA_Downsampled((IntPtr)dstPtr, Width, Height, strideBytes, (IntPtr)pPrev, 480, 270, 480 * 4);
+                }
+            }
+        }
+
+        private sealed class CachedLabel
+        {
+            public int Width;
+            public int Height;
+            public byte[] Y = Array.Empty<byte>();
+            public byte[] U = Array.Empty<byte>();
+            public byte[] V = Array.Empty<byte>();
+            public byte[] A = Array.Empty<byte>();
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CachedLabel> _labelCache = new();
+
+        private static CachedLabel GetOrBuildLabel(string text, int maxW)
+        {
+            int cappedMaxW = Math.Max(60, Math.Min(maxW, 900)) & ~1;
+            string key = $"{cappedMaxW}|{text}";
+            return _labelCache.GetOrAdd(key, _ =>
+            {
+                using var measureBmp = new System.Drawing.Bitmap(16, 16, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                using var measureG = System.Drawing.Graphics.FromImage(measureBmp);
+                using var font = new System.Drawing.Font("Segoe UI", 18f, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+                var sz = measureG.MeasureString(text, font);
+
+                int padL = 16, padR = 14, padY = 6;
+                int w = (Math.Clamp((int)Math.Ceiling(sz.Width) + padL + padR, 60, cappedMaxW) + 1) & ~1;
+                int h = Math.Clamp((int)Math.Ceiling(sz.Height) + padY * 2, 28, 56);
+
+                using var bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                using (var g = System.Drawing.Graphics.FromImage(bmp))
+                {
+                    g.Clear(System.Drawing.Color.Transparent);
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+
+                    using var bgBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(215, 16, 22, 34));
+                    g.FillRectangle(bgBrush, 0, 0, w, h);
+
+                    using var accentBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(255, 56, 189, 248));
+                    g.FillRectangle(accentBrush, 0, 0, 5, h);
+
+                    using var sf = new System.Drawing.StringFormat { Trimming = System.Drawing.StringTrimming.EllipsisCharacter, FormatFlags = System.Drawing.StringFormatFlags.NoWrap };
+                    var textRect = new System.Drawing.RectangleF(12, padY - 1, w - 20, h - padY * 2 + 4);
+                    g.DrawString(text, font, System.Drawing.Brushes.White, textRect, sf);
+                }
+
+                int total = w * h;
+                var yArr = new byte[total];
+                var uArr = new byte[total];
+                var vArr = new byte[total];
+                var aArr = new byte[total];
+
+                var data = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                try
+                {
+                    unsafe
+                    {
+                        byte* p = (byte*)data.Scan0;
+                        for (int py = 0; py < h; py++)
+                        {
+                            byte* row = p + py * data.Stride;
+                            for (int px = 0; px < w; px++)
+                            {
+                                byte b = row[px * 4 + 0];
+                                byte g = row[px * 4 + 1];
+                                byte r = row[px * 4 + 2];
+                                byte a = row[px * 4 + 3];
+                                int idx = py * w + px;
+                                aArr[idx] = a;
+                                int yy = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
+                                int uu = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
+                                int vv = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+                                yArr[idx] = (byte)Math.Clamp(yy, 16, 235);
+                                uArr[idx] = (byte)Math.Clamp(uu, 16, 240);
+                                vArr[idx] = (byte)Math.Clamp(vv, 16, 240);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    bmp.UnlockBits(data);
+                }
+
+                if (_labelCache.Count > 64) _labelCache.Clear();
+                return new CachedLabel { Width = w, Height = h, Y = yArr, U = uArr, V = vArr, A = aArr };
+            });
+        }
+
+        private static unsafe void BlendLabelUyvy(byte* dstPtr, int strideBytes, int visX, int visY, int visW, int visH, int border, string label)
+        {
+            int availW = visW - border * 2 - 20;
+            int availH = visH - border * 2 - 16;
+            if (availW < 60 || availH < 28) return;
+
+            var lbl = GetOrBuildLabel(label, availW);
+            int lx = (visX + border + 12) & ~1;
+            int ly = visY + visH - border - lbl.Height - 12;
+            if (lx < 0 || ly < 0 || lx + lbl.Width > Width || ly + lbl.Height > Height) return;
+
+            for (int py = 0; py < lbl.Height; py++)
+            {
+                byte* dRow = dstPtr + (ly + py) * strideBytes + lx * 2;
+                int sOff = py * lbl.Width;
+                for (int px = 0; px < lbl.Width; px += 2)
+                {
+                    int i0 = sOff + px;
+                    int i1 = i0 + 1;
+                    int a0 = lbl.A[i0];
+                    int a1 = lbl.A[i1];
+                    if ((a0 | a1) == 0) continue;
+
+                    int dOff = px * 2;
+                    if (a0 == 255 && a1 == 255)
+                    {
+                        dRow[dOff + 0] = (byte)((lbl.U[i0] + lbl.U[i1]) >> 1);
+                        dRow[dOff + 1] = lbl.Y[i0];
+                        dRow[dOff + 2] = (byte)((lbl.V[i0] + lbl.V[i1]) >> 1);
+                        dRow[dOff + 3] = lbl.Y[i1];
+                    }
+                    else
+                    {
+                        int inv0 = 255 - a0;
+                        int inv1 = 255 - a1;
+                        int aAvg = (a0 + a1) >> 1;
+                        int invAvg = 255 - aAvg;
+                        int uAvg = (lbl.U[i0] + lbl.U[i1]) >> 1;
+                        int vAvg = (lbl.V[i0] + lbl.V[i1]) >> 1;
+                        dRow[dOff + 0] = (byte)((dRow[dOff + 0] * invAvg + uAvg * aAvg) / 255);
+                        dRow[dOff + 1] = (byte)((dRow[dOff + 1] * inv0 + lbl.Y[i0] * a0) / 255);
+                        dRow[dOff + 2] = (byte)((dRow[dOff + 2] * invAvg + vAvg * aAvg) / 255);
+                        dRow[dOff + 3] = (byte)((dRow[dOff + 3] * inv1 + lbl.Y[i1] * a1) / 255);
+                    }
                 }
             }
         }

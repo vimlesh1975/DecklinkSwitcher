@@ -58,6 +58,7 @@ namespace DecklinkSwitcher
         {
             public CheckBox ChkEnabled = null!;
             public ComboBox CmbSource = null!;
+            public TextBox TxtLabel = null!;
             public TextBox TxtX = null!;
             public TextBox TxtY = null!;
             public TextBox TxtW = null!;
@@ -85,8 +86,8 @@ namespace DecklinkSwitcher
             _onChanged = onChanged;
 
             Title = "Multi-Box / Composite Layout Editor";
-            Width = 960;
-            Height = 685;
+            Width = 1055;
+            Height = 700;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x20));
@@ -372,11 +373,11 @@ namespace DecklinkSwitcher
             _layerTableGrid.ColumnDefinitions.Clear();
             _rows.Clear();
 
-            double[] widths = { 28, 44, 46, 122, 48, 48, 48, 48, 48, 48, 48, 48, 46, 48, 28 };
+            double[] widths = { 28, 44, 46, 114, 102, 46, 46, 46, 46, 46, 46, 46, 46, 44, 48, 28 };
             foreach (double w in widths)
                 _layerTableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
 
-            string[] headers = { "On", "Z", "Layer", "Source", "X %", "Y %", "W %", "H %", "Crop L%", "Crop T%", "Crop R%", "Crop B%", "Border", "Crop", "" };
+            string[] headers = { "On", "Z", "Layer", "Source", "Title / Name", "X %", "Y %", "W %", "H %", "Crop L%", "Crop T%", "Crop R%", "Crop B%", "Border", "Crop", "" };
             _layerTableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             for (int c = 0; c < headers.Length; c++)
             {
@@ -387,7 +388,7 @@ namespace DecklinkSwitcher
                     FontWeight = FontWeights.SemiBold,
                     Foreground = Brushes.Silver,
                     Margin = new Thickness(2, 0, 2, 6),
-                    HorizontalAlignment = c >= 4 || c == 1 ? HorizontalAlignment.Center : HorizontalAlignment.Left
+                    HorizontalAlignment = c >= 5 || c == 1 ? HorizontalAlignment.Center : HorizontalAlignment.Left
                 };
                 Grid.SetRow(tb, 0);
                 Grid.SetColumn(tb, c);
@@ -443,15 +444,32 @@ namespace DecklinkSwitcher
                 Grid.SetColumn(row.CmbSource, 3);
                 _layerTableGrid.Children.Add(row.CmbSource);
 
-                row.TxtX = MakeNumBox(_layerTableGrid, rowIdx, 4);
-                row.TxtY = MakeNumBox(_layerTableGrid, rowIdx, 5);
-                row.TxtW = MakeNumBox(_layerTableGrid, rowIdx, 6);
-                row.TxtH = MakeNumBox(_layerTableGrid, rowIdx, 7);
-                row.TxtCropL = MakeNumBox(_layerTableGrid, rowIdx, 8);
-                row.TxtCropT = MakeNumBox(_layerTableGrid, rowIdx, 9);
-                row.TxtCropR = MakeNumBox(_layerTableGrid, rowIdx, 10);
-                row.TxtCropB = MakeNumBox(_layerTableGrid, rowIdx, 11);
-                row.TxtBorder = MakeNumBox(_layerTableGrid, rowIdx, 12);
+                row.TxtLabel = new TextBox
+                {
+                    Height = 24,
+                    FontSize = 11,
+                    Margin = new Thickness(2, 0, 4, 0),
+                    Padding = new Thickness(4, 2, 4, 2),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Background = new SolidColorBrush(Color.FromRgb(0x22, 0x24, 0x30)),
+                    Foreground = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0x45, 0x45, 0x55)),
+                    ToolTip = "Participant name / title overlay (bottom-left of box)"
+                };
+                row.TxtLabel.TextChanged += (_, _) => SyncFromUi();
+                Grid.SetRow(row.TxtLabel, rowIdx);
+                Grid.SetColumn(row.TxtLabel, 4);
+                _layerTableGrid.Children.Add(row.TxtLabel);
+
+                row.TxtX = MakeNumBox(_layerTableGrid, rowIdx, 5);
+                row.TxtY = MakeNumBox(_layerTableGrid, rowIdx, 6);
+                row.TxtW = MakeNumBox(_layerTableGrid, rowIdx, 7);
+                row.TxtH = MakeNumBox(_layerTableGrid, rowIdx, 8);
+                row.TxtCropL = MakeNumBox(_layerTableGrid, rowIdx, 9);
+                row.TxtCropT = MakeNumBox(_layerTableGrid, rowIdx, 10);
+                row.TxtCropR = MakeNumBox(_layerTableGrid, rowIdx, 11);
+                row.TxtCropB = MakeNumBox(_layerTableGrid, rowIdx, 12);
+                row.TxtBorder = MakeNumBox(_layerTableGrid, rowIdx, 13);
 
                 var btnResetCrop = new Button
                 {
@@ -477,7 +495,7 @@ namespace DecklinkSwitcher
                     }
                 };
                 Grid.SetRow(btnResetCrop, rowIdx);
-                Grid.SetColumn(btnResetCrop, 13);
+                Grid.SetColumn(btnResetCrop, 14);
                 _layerTableGrid.Children.Add(btnResetCrop);
 
                 var btnRemove = new Button
@@ -494,7 +512,7 @@ namespace DecklinkSwitcher
                 };
                 btnRemove.Click += (_, _) => RemoveBox(idx);
                 Grid.SetRow(btnRemove, rowIdx);
-                Grid.SetColumn(btnRemove, 14);
+                Grid.SetColumn(btnRemove, 15);
                 _layerTableGrid.Children.Add(btnRemove);
 
                 _rows.Add(row);
@@ -785,6 +803,7 @@ namespace DecklinkSwitcher
                     if (!string.IsNullOrEmpty(l.SourceKey) && !r.CmbSource.Items.Contains(l.SourceKey))
                         r.CmbSource.Items.Add(l.SourceKey);
                     r.CmbSource.SelectedItem = l.SourceKey ?? "";
+                    r.TxtLabel.Text = l.Label ?? "";
                     r.TxtX.Text = l.DestXPct.ToString("0.#", CultureInfo.InvariantCulture);
                     r.TxtY.Text = l.DestYPct.ToString("0.#", CultureInfo.InvariantCulture);
                     r.TxtW.Text = l.DestWPct.ToString("0.#", CultureInfo.InvariantCulture);
@@ -818,6 +837,7 @@ namespace DecklinkSwitcher
                 var r = _rows[i];
                 l.Enabled = r.ChkEnabled.IsChecked == true;
                 l.SourceKey = r.CmbSource.SelectedItem?.ToString() ?? "";
+                l.Label = r.TxtLabel.Text ?? "";
                 l.DestXPct = ParseDouble(r.TxtX.Text, l.DestXPct, -95, 100);
                 l.DestYPct = ParseDouble(r.TxtY.Text, l.DestYPct, -95, 100);
                 l.DestWPct = ParseDouble(r.TxtW.Text, l.DestWPct, 1, 200);
