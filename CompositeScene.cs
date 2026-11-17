@@ -101,13 +101,6 @@ namespace DecklinkSwitcher
                     double cropT = Math.Clamp(layer.CropTopPct, 0, 45);
                     double cropB = Math.Clamp(layer.CropBottomPct, 0, 45);
 
-                    int srcX = ((int)Math.Round(Width * (cropL / 100.0))) & ~1;
-                    int srcEndX = ((int)Math.Round(Width * (1.0 - cropR / 100.0))) & ~1;
-                    int srcY = Math.Clamp((int)Math.Round(Height * (cropT / 100.0)), 0, Height - 2);
-                    int srcEndY = Math.Clamp((int)Math.Round(Height * (1.0 - cropB / 100.0)), srcY + 2, Height);
-                    int srcW = Math.Max(2, srcEndX - srcX);
-                    int srcH = Math.Max(2, srcEndY - srcY);
-
                     int dstX = Math.Clamp(((int)Math.Round(Width * (Math.Clamp(layer.DestXPct, 0, 100) / 100.0))) & ~1, 0, Width - 2);
                     int dstY = Math.Clamp((int)Math.Round(Height * (Math.Clamp(layer.DestYPct, 0, 100) / 100.0)), 0, Height - 2);
                     int dstW = ((int)Math.Round(Width * (Math.Clamp(layer.DestWPct, 1, 100) / 100.0))) & ~1;
@@ -117,40 +110,51 @@ namespace DecklinkSwitcher
                     if (dstY + dstH > Height) dstH = Height - dstY;
                     if (dstW < 2 || dstH < 2) continue;
 
+                    // Crop masks the frame within the box without stretching, leaving cropped-out areas blank.
+                    int visX = Math.Clamp(dstX + (((int)Math.Round(dstW * (cropL / 100.0))) & ~1), dstX, dstX + dstW - 2);
+                    int visEndX = Math.Clamp(dstX + (((int)Math.Round(dstW * (1.0 - cropR / 100.0))) & ~1), visX + 2, dstX + dstW);
+                    int visY = Math.Clamp(dstY + (int)Math.Round(dstH * (cropT / 100.0)), dstY, dstY + dstH - 2);
+                    int visEndY = Math.Clamp(dstY + (int)Math.Round(dstH * (1.0 - cropB / 100.0)), visY + 2, dstY + dstH);
+                    int visW = visEndX - visX;
+                    int visH = visEndY - visY;
+                    if (visW < 2 || visH < 2) continue;
+
                     int border = Math.Clamp(layer.BorderPx, 0, 12);
 
                     fixed (byte* pSrcBase = srcUyvy)
                     {
                         byte* srcPtr = pSrcBase;
-                        int capSrcX = srcX, capSrcY = srcY, capSrcW = srcW, capSrcH = srcH;
                         int capDstX = dstX, capDstY = dstY, capDstW = dstW, capDstH = dstH;
+                        int capVisX = visX, capVisY = visY, capVisW = visW, capVisH = visH;
 
-                        Parallel.For(0, capDstH, dy =>
+                        Parallel.For(0, capVisH, vy =>
                         {
-                            int sy = capSrcY + (dy * capSrcH) / capDstH;
+                            int boxY = (capVisY - capDstY) + vy;
+                            int sy = Math.Clamp((boxY * Height) / capDstH, 0, Height - 1);
                             byte* sRow = srcPtr + sy * strideBytes;
-                            byte* dRow = dstPtr + (capDstY + dy) * strideBytes + capDstX * 2;
+                            byte* dRow = dstPtr + (capVisY + vy) * strideBytes + capVisX * 2;
 
-                            bool isBorderRow = border > 0 && (dy < border || dy >= capDstH - border);
+                            bool isBorderRow = border > 0 && (vy < border || vy >= capVisH - border);
                             if (isBorderRow)
                             {
                                 uint* dRow32 = (uint*)dRow;
-                                int pairs = capDstW >> 1;
+                                int pairs = capVisW >> 1;
                                 for (int p = 0; p < pairs; p++)
                                     dRow32[p] = 0xEB80EB80u; // White border (U=128, Y=235, V=128, Y=235)
                                 return;
                             }
 
-                            for (int dx = 0; dx < capDstW; dx += 2)
+                            int boxXOffset = capVisX - capDstX;
+                            for (int dx = 0; dx < capVisW; dx += 2)
                             {
-                                if (border > 0 && (dx < border || dx >= capDstW - border))
+                                if (border > 0 && (dx < border || dx >= capVisW - border))
                                 {
                                     *(uint*)(dRow + dx * 2) = 0xEB80EB80u;
                                     continue;
                                 }
 
-                                int sx0 = capSrcX + (dx * capSrcW) / capDstW;
-                                int sx1 = capSrcX + ((dx + 1) * capSrcW) / capDstW;
+                                int sx0 = Math.Clamp(((boxXOffset + dx) * Width) / capDstW, 0, Width - 1);
+                                int sx1 = Math.Clamp(((boxXOffset + dx + 1) * Width) / capDstW, 0, Width - 1);
                                 int mp0 = (sx0 >> 1) << 2;
                                 int mp1 = (sx1 >> 1) << 2;
 
