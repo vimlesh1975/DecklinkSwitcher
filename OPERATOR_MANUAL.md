@@ -16,13 +16,14 @@
 ---
 
 ## 3. Program (PGM) & Transitions
-- **Cut Switching**: With **Mix** turned off, clicking any source cuts immediately to PGM.
-- **Mix (Dissolve) Transition**:
-  - Enable the **Mix** toggle and set **Mix Duration** (`0.1s` – `10.0s`).
-  - Switching sources performs a smooth video dissolve (visible in the in-app PGM preview, Fullscreen Preview, DeckLink SDI, Stream, Record, NDI, and SRT) along with a synchronized **AFV audio crossfade**.
+- **Transition Selector** (below PGM preview, beside the duration box `0.1s` – `10.0s`):
+  - **`Cut`**: Instant switch to the selected source.
+  - **`Mix`**: Smooth cross-dissolve video transition + synchronized **AFV audio crossfade**.
+  - **`Wipe L→R` / `Wipe R→L` / `Wipe T→B` / `Wipe B→T` / `Box Out`**: Directional and center-expanding broadcast wipes (rendered in both the in-app PGM preview and 1080p DeckLink, Fullscreen, Stream, Record, NDI, and SRT outputs).
+  - **`Stinger`**: Plays an alpha-keyed PNG/image sequence over the transition. When **Stinger** is selected, click **`📁`** to choose a folder of image frames (natural-sorted, up to 300 frames). The outgoing source stays underneath for the first 50% and cuts cleanly to the incoming source at the midpoint while the Stinger graphic finishes playing out.
 - **Fullscreen Preview**:
-  - Click **`⛶ Fullscreen Preview`** to send a clean `1920×1080` program feed (including all overlays) to a secondary monitor (or primary display if only one monitor is connected).
-  - Click **`✕ Exit Fullscreen`** (or close the window) to exit.
+  - Click **`⛶ Fullscreen`**, **double-click** the PGM preview box, or press **`F11`** to send a crisp `1920×1080` program feed (including all overlays) to a secondary monitor (or the current display if only one monitor is connected).
+  - Press **`ESC`**, **`F11`**, **double-click** the fullscreen window, or click **`✕ Exit Fullscreen`** to exit.
 
 ---
 
@@ -36,7 +37,7 @@
 | **YouTube Live / Video** | Paste YouTube URL, click `Connect` / `Stop`, `AFV / ON / OFF`. Automatic PTS-based A/V lip-sync (`libvlc_clock`), and auto-connects on startup if a URL is saved. |
 | **HTML / Web Source** | Enter URL or local `.html` file (runs at 60 fps by default), `Load` / `Stop`, `AFV / ON / OFF` mute control. |
 | **NDI Source** | Scan network NDI sources, select & `Connect` / `Stop`, `AFV / ON / OFF`. |
-| **Color Bars & Matte** | Built-in `1080p` SMPTE Color Bars (with `-20 dBFS` 1 kHz tone when audio is active) and custom Matte Color picker. |
+| **Color Bars & Matte** | Built-in `1080p` SMPTE Color Bars (with `-20 dBFS` 1 kHz tone when audio is active) and **Matte Color** with a 2×5 **Color Swatch Grid** (9 presets + **`...`** custom RGB color picker). |
 
 ---
 
@@ -102,7 +103,7 @@ Use each channel's vertical gain slider (`0.0` – `1.5`) and the **Master PGM**
 ---
 
 ## 9. Outputs (Stream, Record, NDI, SRT)
-- **Local Recording (`START RECORDING`)**: Records the 1080p composited PGM video + mixed audio to disk.
+- **Local Recording (`START RECORDING`)**: Records the 1080p composited PGM video + mixed audio to disk (supports MP4, TS, ProRes, XDCAM HD422, and **XDCAM Sony Compatible** `.mxf` with 2 discrete 24-bit 48 kHz mono `pcm_s24le` audio tracks, in Infinite or Interval mode).
 - **Live Streaming (`START STREAM`)**: Streams PGM to your configured RTMP / YouTube Live ingest URL & stream key.
 - **NDI Output (`START NDI`)**: Publishes the composited PGM feed as an NDI source on your local network.
 - **SRT Output (`START SRT`)**: Streams PGM over SRT to the configured target address/port.
