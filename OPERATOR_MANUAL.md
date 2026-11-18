@@ -33,8 +33,8 @@
 | **Screen Capture** | Captures connected monitors at 25 fps. Works both on PGM and inside Multi-Box scenes. |
 | **Webcam** | USB / UVC cameras with live preview and audio routing. |
 | **Local Video (Media)** | `Select File` (video or image), `Cue`, `Pause`, `Resume`, `Stop`, `Loop`, seek slider, L/R meters, gain slider, `AFV / ON / OFF`. |
-| **YouTube Live / Video** | Paste YouTube URL, click `Connect` / `Stop`, adjust `Sync` audio delay (`0–60000 ms`, default `200 ms`), `AFV / ON / OFF`. Auto-connects on startup if a URL is saved. |
-| **HTML / Web Source** | Enter URL or local `.html` file, choose FPS (`25 / 30 / 50 / 60`), `Load` / `Stop`, `AFV / ON / OFF` mute control. |
+| **YouTube Live / Video** | Paste YouTube URL, click `Connect` / `Stop`, `AFV / ON / OFF`. Automatic PTS-based A/V lip-sync (`libvlc_clock`), and auto-connects on startup if a URL is saved. |
+| **HTML / Web Source** | Enter URL or local `.html` file (runs at 60 fps by default), `Load` / `Stop`, `AFV / ON / OFF` mute control. |
 | **NDI Source** | Scan network NDI sources, select & `Connect` / `Stop`, `AFV / ON / OFF`. |
 | **Color Bars & Matte** | Built-in `1080p` SMPTE Color Bars (with `-20 dBFS` 1 kHz tone when audio is active) and custom Matte Color picker. |
 
@@ -43,8 +43,8 @@
 ## 5. Dynamic Sources (`+ Add Source ▾`)
 Click **`+ Add Source ▾`** at the top-right of the Source Panel to add extra independent sources at any time:
 - **`🎨 Matte Color`**: Pick any custom solid color via the color swatch or **Pick Color** button.
-- **`🌐 HTML / Web Page`**: Independent offscreen browser source with URL bar, `Load / Stop`, `25p / 30p / 50p / 60p` FPS selector, and `AFV / ON / OFF` audio control.
-- **`▶ YouTube Live / Video`**: Independent YouTube player with L/R meters, gain slider, `Connect / Stop`, `Sync` audio delay (`0–60000 ms`), `AFV / ON / OFF`, and automatic startup reconnect when a URL is saved.
+- **`🌐 HTML / Web Page`**: Independent offscreen browser source (60 fps) with URL bar, `Load / Stop`, and `AFV / ON / OFF` audio control.
+- **`▶ YouTube Live / Video`**: Independent YouTube player with L/R meters, gain slider, `Connect / Stop`, automatic PTS-based A/V sync, `AFV / ON / OFF`, and automatic startup reconnect when a URL is saved.
 - **`📡 NDI Source`**: Independent NDI receiver with `🔍` network scan, `Connect / Stop`, and `AFV / ON / OFF`.
 - **`🎬 Media / Video File`**: Independent VLC media player with `Select File`, `Cue`, `Pause`, `Resume`, `Stop`, `Loop`, seek slider, L/R meters, gain slider, and `AFV / ON / OFF`.
 - **`▦ Multi-Box Scene`**: Creates an additional Multi-Box scene tile with its own independent layout and **Edit Layout...** window.
@@ -67,8 +67,8 @@ Click **Edit Layout...** on any Multi-Box tile to open the visual layout editor.
 - **On**: Enable/disable the box.
 - **Z (`▲ / ▼`)**: Reorder layer stacking (front/back).
 - **Source**: Choose any DeckLink input, Screen, Webcam, Media, YouTube, HTML, NDI, Color Bars, or dynamically added source.
-- **Title / Name**: Enter a participant name or title to display an animated lower-third badge inside the bottom-left of that box (plays a **5-second looping left-to-right wipe reveal**). Leave blank for no badge.
-- **X %, Y %, W %, H %, Crop L/T/R/B %, Border**: Fine-tune coordinates numerically (`X/Y` supports `-95%` to `100%` for center-cropped positioning).
+- **Title / Name (use `$$` for loop)**: Enter a participant name/title (or multiple captions separated by `$$`, e.g. `Alex Rivera$$Host & Producer`) to display a lower-third badge inside the bottom-left of that box. The background pill stays visible while only the text wipes in/out left-to-right every **5 seconds** in a continuous loop. Leave blank for no badge.
+- **Border & Crop Reset**: Adjust box border thickness (`0–12 px`) or click **Reset** to clear crop edges; all positioning, resizing, and cropping are done visually on the canvas.
 - **`+ Add Box` / `✕`**: Dynamically add or remove boxes.
 - **Background**: Set the canvas background color (Black, Navy, Broadcast Blue, Slate, Chroma Green, or Custom).
 

@@ -28,12 +28,15 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   **YouTube Live Stream as a Source:**
     *   **Direct YouTube Live Ingestion:** Connect to any public YouTube Live broadcast URL (or direct HLS `.m3u8` link) and ingest it directly as an active broadcast source.
     *   **Dedicated Multiview Tile with Expandable URL Input:** Expandable stream URL input directly on the tile allows pasting live links on the fly, with one-click **Connect** / **Stop** controls and real-time status indicators (`OFFLINE`, `Resolving...`, `LIVE`, `Buffering...`).
-    *   **Low-Latency Playback & Synchronization:** Powered by `YoutubeExplode` and LibVLC with tuned low-latency network caching, decoding full 1080p UYVY broadcast video and 48kHz 16-bit stereo PCM audio.
-    *   **Full Switcher & Mixer Integration:** Switch between YouTube Live and other inputs via the "YouTube Live" button or preview click. Supports dedicated L/R VU meters, volume fader, adjustable **Audio Delay (ms)** slider for lip-sync tuning, and AFV / ON / OFF audio modes.
+    *   **Automatic PTS-Based A/V Sync:** Powered by `YoutubeExplode` and LibVLC, decoding full 1080p UYVY broadcast video and 48kHz 16-bit stereo PCM audio with automatic presentation-timestamp (`libvlc_clock`) pacing so audio stays locked in sync without manual delay tuning.
+    *   **Full Switcher & Mixer Integration:** Switch between YouTube Live and other inputs via the "YouTube Live" button or preview click. Supports dedicated L/R VU meters, volume fader, and AFV / ON / OFF audio modes.
 *   **HTML / Web as a Source:**
-    *   **Live Web & Local HTML Ingestion:** Powered by **CefSharp.OffScreen** (`1920×1080` offscreen Chromium with D3D11 shared-texture accelerated rendering), load any web URL (`https://...`) or local `.html` file as a switcher source.
-    *   **Smooth Frame Capture & 1080i Deflicker:** Supports a live **FPS** selector (`15–60 fps`) with a `1080i` vertical `1-2-1` broadcast deflicker filter for clean scrolling tickers and text on interlaced DeckLink outputs.
+    *   **Live Web & Local HTML Ingestion:** Powered by **CefSharp.OffScreen** (`1920×1080` offscreen Chromium with D3D11 shared-texture accelerated rendering at 60 fps), load any web URL (`https://...`) or local `.html` file as a switcher source.
+    *   **Smooth Frame Capture & 1080i Deflicker:** Applies a `1080i` vertical `1-2-1` broadcast deflicker filter for clean scrolling tickers and text on interlaced DeckLink outputs.
     *   **Audio & Transport Controls:** Includes Load, Reload (`↻`), Stop, and AFV / ON / OFF audio routing.
+*   **Dynamic Source Panel (`+ Add Source ▾`):**
+    *   **Add Extra Sources On the Fly:** Dynamically add independent **Matte Color**, **HTML / Web Page**, **YouTube Live / Video** (auto-connects on startup when a URL is saved), **NDI Source**, **Media / Video File**, and **Multi-Box Scene** tiles directly in the switcher panel.
+    *   **Rename & Remove:** Rename any dynamic source or Multi-Box scene via `✎` (or double-click), automatically updating Multi-Box layer references, or remove with `✕`.
 *   **PGM Overlays (Live Compositing onto Program Output):**
     *   **PGM HTML CG Overlay:** Dedicated transparent-background CefSharp CG overlay (left of Program Output) with live preview, Load/Reload/Stop, `CG: ON/OFF`, Opacity slider (`10%–100%`), live FPS selector (`15–60 fps`), and `1080i` alpha-weighted vertical deflicker.
     *   **PGM NDI CG Overlay:** Scan and composite alpha-channel NDI CG feeds directly onto PGM with live preview, `CG: ON/OFF`, and Opacity control.
@@ -44,8 +47,10 @@ A lightweight and efficient WPF application designed for Blackmagic DeckLink dev
 *   **Local Media Playback:** Powered by LibVLC, load and play local video files (MP4, MKV, AVI, etc.) directly into the switcher's program output.
     *   **Image Support:** Also supports routing static images (JPG, PNG, BMP) seamlessly into the broadcast.
     *   **Loop Mode:** Features a toggleable gapless playback loop for continuous playback of a selected file.
-*   **Multi-Box / Composite Source:** Combine multiple live inputs (DeckLink, Screen, Webcam, Media, YouTube, HTML, NDI, Color Bars) into a single `1920×1080` switcher tile.
-    *   **Visual Layout & Crop Editor:** Open **Edit Layout...** to drag/resize boxes visually on a live `480×270` canvas, switch to **Crop Edges** mode to drag Left/Top/Right/Bottom crop handles (`0–45%`), dynamically **+ Add Box** or remove (`✕`) layers, reorder Z-order (`▲`/`▼`), adjust borders, pick a background color, or apply presets (**2-Up**, **PiP**, **3-Box**, **2×2 Quad**).
+*   **Multi-Box / Composite Source:** Combine multiple live inputs (DeckLink, Screen, Webcam, Media, YouTube, HTML, NDI, Color Bars, and dynamically added sources) into one or more independent `1920×1080` switcher tiles. Editing a non-active Multi-Box scene does not disturb live PGM output.
+    *   **Visual Layout & In-Place Crop Editor:** Open **Edit Layout...** to drag/resize boxes visually on a live `480×270` canvas, switch to **Crop Edges** mode to drag Left/Top/Right/Bottom crop handles (`0–98%`, in-place masking without stretching), dynamically **+ Add Box** or remove (`✕`) layers, reorder Z-order (`▲`/`▼`), adjust borders, pick a background color, or apply **Standard Presets** (**2-Up**, **PiP**, **3-Box**, **2×2 Quad**) and **Crop Presets** (**2-Split L/R**, **2-Split Top/Bot**, **2-Mid / 3-Mid Center Crop**, **3-Col / 4-Col Split**, **Center Box**).
+    *   **Animated Multi-Caption Box Titles:** Add a **Title / Name** to any box to render a sleek lower-third pill inside that box; separate multiple captions with `$$` to cycle through them one by one in a 5-second left-to-right text wipe reveal loop while keeping the background pill steady.
+*   **Fullscreen Preview:** Output a clean `1920×1080` Program feed (including all overlays) to a secondary monitor or primary display via **Fullscreen Preview**.
 *   **Mix Transitions & AFV Audio Crossfade:** Toggle **Mix** and set the **Mix Duration** (`0.1–10.0 s` numeric spinner) below Program Output to perform smooth cross-dissolve video transitions (rendered in both the in-app PGM preview and broadcast outputs) with synchronized AFV audio crossfading.
 *   **Synthetic Sources:**
     *   **Color Bars + Tone:** Generate an 8-stripe SMPTE-style UYVY color bar pattern with a perfectly synchronized, phase-continuous 1kHz sine wave audio tone for calibrating equipment.
@@ -87,14 +92,20 @@ This stops any running instance of the app, compiles the project in **Release** 
 3. Map your physical DeckLink inputs to **Input 1**, **Input 2**, etc.
 4. Click **Apply Settings & Start**. The switcher initializes hardware feeds and activates the multiview panel.
 5. **Switching Sources & Mix:** Click on any input's preview thumbnail or Cut button (**Input**, **Screen 1/2**, **Webcam 1/2**, **YouTube Live**, **HTML / Web**, **NDI**, **Media**, **Color Bars**, **Matte**, **Multi-Box**) to switch it to Program output. Check **Mix** and adjust the duration box (`0.1–10.0 s`) for cross-dissolve video & AFV audio transitions. Drag tiles to reorder them.
-6. **Multi-Box Layout:** On the **Multi-Box** tile, click **Edit Layout...** to add/remove boxes, pick sources, choose a background color, or drag boxes and **Crop Edges** handles directly on the live preview.
-6. **Screen Capture:** Each detected computer monitor displays as an individual tile (**Screen 1**, **Screen 2**, etc.). Cut to any screen to send it to Program.
-7. **Webcams:** Each detected webcam has its own dedicated tile with live video, VU meters, volume fader, and AFV/ON/OFF audio control.
-8. **System Audio:** Use the **System Audio** tile to capture your PC's audio playback (YouTube, Zoom, music). Select your audio device, adjust the volume slider, and set the mode to **AFV** (follows screen capture) or **ON** (always mixed).
-9. **Audio Mixer:** Adjust volume faders and define audio modes (**AFV** - Audio Follows Video, **ON**, **OFF**) for every channel.
-10. **Local Video:** Load media files with **Select File**, use **Cue**, **Pause**, **Resume**, and toggle **Loop**.
-11. **YouTube Live Source:** On the **YouTube Live** tile, expand the **Stream URL / Live** field, paste your YouTube Live stream link, and click **Connect**. Adjust **Delay (ms)** if needed for lip-sync, then cut to YouTube Live to send it to Program.
-12. **HTML / Web Source:** On the **HTML / Web** tile, enter a URL or browse for a local `.html` file and click **Load**, then cut to the tile to send it to Program.
-13. **PGM Overlays:** Use the **PGM NDI CG OVERLAY** / **PGM HTML CG OVERLAY** panels on the left of Program Output to load and toggle live CG overlays, and **PGM LOGO OVERLAY** on the right to load a static image or animated video/GIF (`Logo...`) or image sequence folder (`Seq...`), set **Seq FPS**, adjust position/size/opacity, and toggle `LOGO: ON/OFF`.
-14. **Streaming & NDI:** Enter your YouTube Stream Key and click **START STREAM**, configure SRT Caller/Listener settings and click **START SRT**, or click **START NDI** to publish the Program feed over NDI.
-15. **Recording:** Choose a recording profile (MP4, ProRes, XDCAM) and destination folder, then click **START RECORDING**.
+9. **Multi-Box Layout:** On any **Multi-Box** tile, click **Edit Layout...** to add/remove boxes, pick sources, enter **Title / Name** captions (use `$$` to cycle multiple captions), choose presets/background color, or drag boxes and **Crop Edges** handles directly on the live preview.
+10. **Dynamic Sources (`+ Add Source ▾`):** Add extra **Matte**, **HTML**, **YouTube**, **NDI**, **Media**, or **Multi-Box** tiles directly in the source panel, rename them via `✎`, and remove them with `✕`.
+11. **Screen Capture:** Each detected computer monitor displays as an individual tile (**Screen 1**, **Screen 2**, etc.). Cut to any screen to send it to Program or use it inside Multi-Box scenes.
+12. **Webcams:** Each detected webcam has its own dedicated tile with live video, VU meters, volume fader, and AFV/ON/OFF audio control.
+13. **System Audio:** Use the **System Audio** tile to capture your PC's audio playback (YouTube, Zoom, music). Select your audio device, adjust the volume slider, and set the mode to **AFV** (follows screen capture) or **ON** (always mixed).
+14. **Audio Mixer:** Adjust volume faders and define audio modes (**AFV** - Audio Follows Video, **ON**, **OFF**) for every channel.
+15. **Local Video:** Load media files with **Select File**, use **Cue**, **Pause**, **Resume**, and toggle **Loop**.
+16. **YouTube Live Source:** On any **YouTube** tile, paste your YouTube Live stream link and click **Connect** (A/V sync is handled automatically via PTS pacing).
+17. **HTML / Web Source:** On any **HTML / Web** tile, enter a URL or browse for a local `.html` file and click **Load**, then cut to the tile to send it to Program.
+18. **PGM Overlays:** Use the **PGM NDI CG OVERLAY** / **PGM HTML CG OVERLAY** panels on the left of Program Output to load and toggle live CG overlays, and **PGM LOGO OVERLAY** on the right to load a static image or animated video/GIF (`Logo...`) or image sequence folder (`Seq...`), set **Seq FPS**, adjust position/size/opacity, and toggle `LOGO: ON/OFF`.
+19. **Streaming, Fullscreen & NDI:** Click **Fullscreen Preview** for 1080p monitor output, enter your YouTube Stream Key and click **START STREAM**, configure SRT Caller/Listener settings and click **START SRT**, or click **START NDI** to publish the Program feed over NDI.
+20. **Recording:** Choose a recording profile (MP4, ProRes, XDCAM) and destination folder, then click **START RECORDING**.
+
+## Documentation
+
+*   [Operator Manual (Markdown)](OPERATOR_MANUAL.md)
+*   [Operator Manual (PDF)](OPERATOR_MANUAL.pdf)
