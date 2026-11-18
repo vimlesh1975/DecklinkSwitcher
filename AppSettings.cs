@@ -5,6 +5,7 @@ using System.Text.Json;
 namespace DecklinkSwitcher
 {
     public enum AudioState { AFV, ON, OFF }
+    public enum TransitionType { Cut, Mix, WipeLR, WipeRL, WipeTB, WipeBT, BoxOut }
 
     public class AppSettings
     {
@@ -53,6 +54,7 @@ namespace DecklinkSwitcher
         public int YouTubeAudioDelayMs { get; set; } = 200;
         public bool InvertDeckLinkRightChannel { get; set; } = false;
         public bool MixTransitionEnabled { get; set; } = false;
+        public TransitionType SelectedTransitionType { get; set; } = TransitionType.Cut;
         public double MixDurationSeconds { get; set; } = 0.5;
         public string NdiSourceName { get; set; } = "";
         public double AudioLevelNdi { get; set; } = 1.0;

@@ -355,7 +355,15 @@
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                         <CheckBox Name="ChkSystemAudioOut" Content="System Audio" Foreground="{DynamicResource TextDim}" Margin="0,0,10,0" VerticalAlignment="Center" Checked="ChkSystemAudioOut_Checked" Unchecked="ChkSystemAudioOut_Unchecked"/>
                                         <CheckBox Name="ChkInvertDeckLinkR" Content="Invert R" ToolTip="Flips polarity of the right channel of DeckLink inputs. Use if audio is good in stereo but noisy/low on mono phone speakers." Foreground="{DynamicResource TextDim}" Margin="0,0,10,0" VerticalAlignment="Center" Checked="ChkInvertDeckLinkR_Changed" Unchecked="ChkInvertDeckLinkR_Changed"/>
-                                        <CheckBox Name="ChkMixTransition" Content="Mix" ToolTip="When checked, switching sources performs a smooth cross-dissolve mix. When unchecked, switching performs an instant cut." Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" Margin="0,0,6,0" VerticalAlignment="Center" Checked="ChkMixTransition_Changed" Unchecked="ChkMixTransition_Changed"/>
+                                        <ComboBox Name="CmbTransitionType" Width="92" Height="24" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" SelectedIndex="0" SelectionChanged="CmbTransitionType_SelectionChanged" ToolTip="Select transition effect when switching sources (Cut = instant)">
+                                            <ComboBoxItem Content="Cut" Tag="Cut"/>
+                                            <ComboBoxItem Content="Mix" Tag="Mix"/>
+                                            <ComboBoxItem Content="Wipe L→R" Tag="WipeLR"/>
+                                            <ComboBoxItem Content="Wipe R→L" Tag="WipeRL"/>
+                                            <ComboBoxItem Content="Wipe T→B" Tag="WipeTB"/>
+                                            <ComboBoxItem Content="Wipe B→T" Tag="WipeBT"/>
+                                            <ComboBoxItem Content="Box Out" Tag="BoxOut"/>
+                                        </ComboBox>
                                         <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Height="24" Margin="0,0,2,0" VerticalAlignment="Center" ToolTip="Mix transition duration in seconds (0.1 - 10.0)">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>

@@ -503,7 +503,8 @@ namespace DecklinkSwitcher
                         settings.AudioStateNdi = (AudioState)CmbAudioStateNdi.SelectedIndex;
                     settings.NdiSourceName = (CmbNdiSources?.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiSourceName ?? settings.NdiSourceName;
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
-                    if (ChkMixTransition != null) settings.MixTransitionEnabled = ChkMixTransition.IsChecked == true;
+                    settings.SelectedTransitionType = ActiveTransitionType;
+                    settings.MixTransitionEnabled = IsMixEnabled;
                     settings.MixDurationSeconds = MixDurationSeconds;
                     settings.CompositeLayers = CompositeLayers;
                     settings.CompositeBackgroundHex = CompositeBackgroundHex;
@@ -828,8 +829,23 @@ namespace DecklinkSwitcher
                 _pendingNdiSourceName = settings.NdiSourceName;
                 InvertDeckLinkRight = settings.InvertDeckLinkRightChannel;
                 if (ChkInvertDeckLinkR != null) ChkInvertDeckLinkR.IsChecked = settings.InvertDeckLinkRightChannel;
-                IsMixEnabled = settings.MixTransitionEnabled;
-                if (ChkMixTransition != null) ChkMixTransition.IsChecked = settings.MixTransitionEnabled;
+                var loadedTransition = settings.SelectedTransitionType;
+                if (loadedTransition == TransitionType.Cut && settings.MixTransitionEnabled)
+                    loadedTransition = TransitionType.Mix;
+                ActiveTransitionType = loadedTransition;
+                IsMixEnabled = loadedTransition != TransitionType.Cut;
+                if (CmbTransitionType != null)
+                {
+                    string targetTag = loadedTransition.ToString();
+                    foreach (ComboBoxItem item in CmbTransitionType.Items)
+                    {
+                        if (string.Equals(item.Tag?.ToString(), targetTag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            CmbTransitionType.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
                 MixDurationSeconds = Math.Clamp(settings.MixDurationSeconds > 0 ? settings.MixDurationSeconds : 0.5, 0.1, 10.0);
                 if (TxtMixDuration != null) TxtMixDuration.Text = MixDurationSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -1359,10 +1375,21 @@ namespace DecklinkSwitcher
             if (IsLoaded) SaveCurrentSettings();
         }
 
-        private void ChkMixTransition_Changed(object sender, RoutedEventArgs e)
+        private void CmbTransitionType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            IsMixEnabled = ChkMixTransition.IsChecked == true;
-            if (IsLoaded) SaveCurrentSettings();
+            if (CmbTransitionType?.SelectedItem is ComboBoxItem item &&
+                Enum.TryParse<TransitionType>(item.Tag?.ToString(), true, out var parsed))
+            {
+                ActiveTransitionType = parsed;
+                IsMixEnabled = parsed != TransitionType.Cut;
+            }
+            else
+            {
+                ActiveTransitionType = TransitionType.Cut;
+                IsMixEnabled = false;
+            }
+
+            if (IsLoaded && !_isLoadingSettings) SaveCurrentSettings();
         }
 
         private void StepMixDuration(double delta)
