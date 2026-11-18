@@ -834,6 +834,56 @@ namespace DecklinkSwitcher
             return true;
         }
 
+        public static int WipeBorderWidth = 8;
+        public static byte WipeBorderR = 255;
+        public static byte WipeBorderG = 255;
+        public static byte WipeBorderB = 255;
+        public static byte WipeBorderY = 235;
+        public static byte WipeBorderU = 128;
+        public static byte WipeBorderV = 128;
+
+        public void SetWipeBorderColorHex(string? hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex)) return;
+            try
+            {
+                var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+                SetWipeBorderColor(c.R, c.G, c.B);
+            }
+            catch { }
+        }
+
+        public void SetWipeBorderColor(byte r, byte g, byte b)
+        {
+            WipeBorderR = r;
+            WipeBorderG = g;
+            WipeBorderB = b;
+
+            int y = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
+            int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
+            int v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+
+            WipeBorderY = (byte)Math.Clamp(y, 16, 235);
+            WipeBorderU = (byte)Math.Clamp(u, 16, 240);
+            WipeBorderV = (byte)Math.Clamp(v, 16, 240);
+
+            if (BtnWipeBorderColor != null)
+            {
+                BtnWipeBorderColor.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+            }
+        }
+
+        private static unsafe void FillBgraSpan(byte* dst, int pixelCount, byte b, byte g, byte r)
+        {
+            for (int i = 0; i < pixelCount; i++)
+            {
+                dst[i * 4 + 0] = b;
+                dst[i * 4 + 1] = g;
+                dst[i * 4 + 2] = r;
+                dst[i * 4 + 3] = 255;
+            }
+        }
+
         public static void BeginMixIfEnabled()
         {
             if (!IsMixEnabled || ActiveTransitionType == TransitionType.Cut) return;
@@ -875,29 +925,42 @@ namespace DecklinkSwitcher
             const int rowBytes = width * 4;
             const int totalBytes = rowBytes * height;
 
+            int bw = WipeBorderWidth > 0 ? Math.Max(1, (int)Math.Round(WipeBorderWidth / 4.0)) : 0;
+            byte br = WipeBorderR, bg = WipeBorderG, bb = WipeBorderB;
+
             switch (type)
             {
                 case TransitionType.WipeLR:
                 {
-                    int splitBytes = Math.Clamp((int)Math.Round(width * progress), 0, width) * 4;
+                    int splitX = Math.Clamp((int)Math.Round(width * progress), 0, width);
+                    int splitBytes = splitX * 4;
                     int rightBytes = rowBytes - splitBytes;
+                    int bx1 = Math.Max(0, splitX - bw / 2);
+                    int bx2 = Math.Min(width, bx1 + bw);
+                    int bLen = bx2 - bx1;
                     for (int y = 0; y < height; y++)
                     {
                         int rowOffset = y * rowBytes;
                         if (splitBytes > 0) Buffer.MemoryCopy(pTo + rowOffset, pOut + rowOffset, splitBytes, splitBytes);
                         if (rightBytes > 0) Buffer.MemoryCopy(pFrom + rowOffset + splitBytes, pOut + rowOffset + splitBytes, rightBytes, rightBytes);
+                        if (bw > 0 && bLen > 0) FillBgraSpan(pOut + rowOffset + bx1 * 4, bLen, bb, bg, br);
                     }
                     break;
                 }
                 case TransitionType.WipeRL:
                 {
-                    int splitBytes = Math.Clamp((int)Math.Round(width * (1.0 - progress)), 0, width) * 4;
+                    int splitX = Math.Clamp((int)Math.Round(width * (1.0 - progress)), 0, width);
+                    int splitBytes = splitX * 4;
                     int rightBytes = rowBytes - splitBytes;
+                    int bx1 = Math.Max(0, splitX - bw / 2);
+                    int bx2 = Math.Min(width, bx1 + bw);
+                    int bLen = bx2 - bx1;
                     for (int y = 0; y < height; y++)
                     {
                         int rowOffset = y * rowBytes;
                         if (splitBytes > 0) Buffer.MemoryCopy(pFrom + rowOffset, pOut + rowOffset, splitBytes, splitBytes);
                         if (rightBytes > 0) Buffer.MemoryCopy(pTo + rowOffset + splitBytes, pOut + rowOffset + splitBytes, rightBytes, rightBytes);
+                        if (bw > 0 && bLen > 0) FillBgraSpan(pOut + rowOffset + bx1 * 4, bLen, bb, bg, br);
                     }
                     break;
                 }
@@ -908,6 +971,12 @@ namespace DecklinkSwitcher
                     int bottomBytes = totalBytes - topBytes;
                     if (topBytes > 0) Buffer.MemoryCopy(pTo, pOut, topBytes, topBytes);
                     if (bottomBytes > 0) Buffer.MemoryCopy(pFrom + topBytes, pOut + topBytes, bottomBytes, bottomBytes);
+                    if (bw > 0)
+                    {
+                        int by1 = Math.Max(0, splitY - bw / 2);
+                        int by2 = Math.Min(height, by1 + bw);
+                        for (int y = by1; y < by2; y++) FillBgraSpan(pOut + y * rowBytes, width, bb, bg, br);
+                    }
                     break;
                 }
                 case TransitionType.WipeBT:
@@ -917,30 +986,51 @@ namespace DecklinkSwitcher
                     int bottomBytes = totalBytes - topBytes;
                     if (topBytes > 0) Buffer.MemoryCopy(pFrom, pOut, topBytes, topBytes);
                     if (bottomBytes > 0) Buffer.MemoryCopy(pTo + topBytes, pOut + topBytes, bottomBytes, bottomBytes);
+                    if (bw > 0)
+                    {
+                        int by1 = Math.Max(0, splitY - bw / 2);
+                        int by2 = Math.Min(height, by1 + bw);
+                        for (int y = by1; y < by2; y++) FillBgraSpan(pOut + y * rowBytes, width, bb, bg, br);
+                    }
                     break;
                 }
                 case TransitionType.BoxOut:
                 {
                     int halfW = Math.Clamp((int)Math.Round((width / 2.0) * progress), 0, width / 2);
                     int halfH = Math.Clamp((int)Math.Round((height / 2.0) * progress), 0, height / 2);
-                    int x1Bytes = (width / 2 - halfW) * 4;
-                    int x2Bytes = (width / 2 + halfW) * 4;
+                    int x1 = width / 2 - halfW;
+                    int x2 = width / 2 + halfW;
+                    int x1Bytes = x1 * 4;
+                    int x2Bytes = x2 * 4;
                     int boxBytes = x2Bytes - x1Bytes;
                     int rightBytes = rowBytes - x2Bytes;
                     int y1 = height / 2 - halfH;
                     int y2 = height / 2 + halfH;
+                    int outerX1 = Math.Max(0, x1 - bw);
+                    int outerX2 = Math.Min(width, x2 + bw);
+                    int outerY1 = Math.Max(0, y1 - bw);
+                    int outerY2 = Math.Min(height, y2 + bw);
                     for (int y = 0; y < height; y++)
                     {
                         int rowOffset = y * rowBytes;
                         if (y < y1 || y >= y2)
                         {
                             Buffer.MemoryCopy(pFrom + rowOffset, pOut + rowOffset, rowBytes, rowBytes);
+                            if (bw > 0 && y >= outerY1 && y < outerY2 && outerX2 > outerX1)
+                            {
+                                FillBgraSpan(pOut + rowOffset + outerX1 * 4, outerX2 - outerX1, bb, bg, br);
+                            }
                         }
                         else
                         {
                             if (x1Bytes > 0) Buffer.MemoryCopy(pFrom + rowOffset, pOut + rowOffset, x1Bytes, x1Bytes);
                             if (boxBytes > 0) Buffer.MemoryCopy(pTo + rowOffset + x1Bytes, pOut + rowOffset + x1Bytes, boxBytes, boxBytes);
                             if (rightBytes > 0) Buffer.MemoryCopy(pFrom + rowOffset + x2Bytes, pOut + rowOffset + x2Bytes, rightBytes, rightBytes);
+                            if (bw > 0)
+                            {
+                                if (x1 > outerX1) FillBgraSpan(pOut + rowOffset + outerX1 * 4, x1 - outerX1, bb, bg, br);
+                                if (outerX2 > x2) FillBgraSpan(pOut + rowOffset + x2 * 4, outerX2 - x2, bb, bg, br);
+                            }
                         }
                     }
                     break;
@@ -1040,11 +1130,23 @@ namespace DecklinkSwitcher
             bmp.WritePixels(new Int32Rect(0, 0, 480, 270), toDraw, 480 * 4, 0);
         }
 
+        private static unsafe void FillUyvySpan(byte* dst, int evenPixelCount, uint uyvyPattern)
+        {
+            uint* p32 = (uint*)dst;
+            int pairs = evenPixelCount >> 1;
+            for (int i = 0; i < pairs; i++)
+            {
+                p32[i] = uyvyPattern;
+            }
+        }
+
         private static unsafe void ApplyUyvyTransition1080(byte* pFrom, byte* uyvyBuffer, double progress, TransitionType type)
         {
             const int width = 1920;
             const int height = 1080;
             const int rowBytes = width * 2;
+            int bw = WipeBorderWidth > 0 ? Math.Max(2, WipeBorderWidth & ~1) : 0;
+            uint borderUyvy = (uint)(WipeBorderU | (WipeBorderY << 8) | (WipeBorderV << 16) | (WipeBorderY << 24));
 
             switch (type)
             {
@@ -1053,28 +1155,34 @@ namespace DecklinkSwitcher
                     int splitX = Math.Clamp((int)Math.Round(width * progress), 0, width) & ~1;
                     int splitBytes = splitX * 2;
                     int copyBytes = rowBytes - splitBytes;
-                    if (copyBytes > 0)
+                    int bx1 = Math.Max(0, splitX - bw / 2) & ~1;
+                    int bx2 = Math.Min(width, bx1 + bw) & ~1;
+                    int bPixels = bx2 - bx1;
+                    Parallel.For(0, height, y =>
                     {
-                        Parallel.For(0, height, y =>
-                        {
-                            int rowOffset = y * rowBytes + splitBytes;
-                            Buffer.MemoryCopy(pFrom + rowOffset, uyvyBuffer + rowOffset, copyBytes, copyBytes);
-                        });
-                    }
+                        int rowBase = y * rowBytes;
+                        if (copyBytes > 0)
+                            Buffer.MemoryCopy(pFrom + rowBase + splitBytes, uyvyBuffer + rowBase + splitBytes, copyBytes, copyBytes);
+                        if (bw > 0 && bPixels > 0)
+                            FillUyvySpan(uyvyBuffer + rowBase + bx1 * 2, bPixels, borderUyvy);
+                    });
                     break;
                 }
                 case TransitionType.WipeRL:
                 {
                     int splitX = Math.Clamp((int)Math.Round(width * (1.0 - progress)), 0, width) & ~1;
                     int copyBytes = splitX * 2;
-                    if (copyBytes > 0)
+                    int bx1 = Math.Max(0, splitX - bw / 2) & ~1;
+                    int bx2 = Math.Min(width, bx1 + bw) & ~1;
+                    int bPixels = bx2 - bx1;
+                    Parallel.For(0, height, y =>
                     {
-                        Parallel.For(0, height, y =>
-                        {
-                            int rowOffset = y * rowBytes;
-                            Buffer.MemoryCopy(pFrom + rowOffset, uyvyBuffer + rowOffset, copyBytes, copyBytes);
-                        });
-                    }
+                        int rowBase = y * rowBytes;
+                        if (copyBytes > 0)
+                            Buffer.MemoryCopy(pFrom + rowBase, uyvyBuffer + rowBase, copyBytes, copyBytes);
+                        if (bw > 0 && bPixels > 0)
+                            FillUyvySpan(uyvyBuffer + rowBase + bx1 * 2, bPixels, borderUyvy);
+                    });
                     break;
                 }
                 case TransitionType.WipeTB:
@@ -1086,6 +1194,13 @@ namespace DecklinkSwitcher
                         int offset = splitY * rowBytes;
                         Buffer.MemoryCopy(pFrom + offset, uyvyBuffer + offset, copyBytes, copyBytes);
                     }
+                    if (bw > 0)
+                    {
+                        int by1 = Math.Max(0, splitY - bw / 2);
+                        int by2 = Math.Min(height, by1 + bw);
+                        for (int y = by1; y < by2; y++)
+                            FillUyvySpan(uyvyBuffer + y * rowBytes, width, borderUyvy);
+                    }
                     break;
                 }
                 case TransitionType.WipeBT:
@@ -1096,28 +1211,50 @@ namespace DecklinkSwitcher
                     {
                         Buffer.MemoryCopy(pFrom, uyvyBuffer, copyBytes, copyBytes);
                     }
+                    if (bw > 0)
+                    {
+                        int by1 = Math.Max(0, splitY - bw / 2);
+                        int by2 = Math.Min(height, by1 + bw);
+                        for (int y = by1; y < by2; y++)
+                            FillUyvySpan(uyvyBuffer + y * rowBytes, width, borderUyvy);
+                    }
                     break;
                 }
                 case TransitionType.BoxOut:
                 {
                     int halfW = Math.Clamp((int)Math.Round((width / 2.0) * progress), 0, width / 2) & ~1;
                     int halfH = Math.Clamp((int)Math.Round((height / 2.0) * progress), 0, height / 2);
-                    int x1Bytes = (width / 2 - halfW) * 2;
-                    int x2Bytes = (width / 2 + halfW) * 2;
+                    int x1 = width / 2 - halfW;
+                    int x2 = width / 2 + halfW;
+                    int x1Bytes = x1 * 2;
+                    int x2Bytes = x2 * 2;
                     int rightBytes = rowBytes - x2Bytes;
                     int y1 = height / 2 - halfH;
                     int y2 = height / 2 + halfH;
+                    int outerX1 = Math.Max(0, x1 - bw) & ~1;
+                    int outerX2 = Math.Min(width, x2 + bw) & ~1;
+                    int outerY1 = Math.Max(0, y1 - bw);
+                    int outerY2 = Math.Min(height, y2 + bw);
                     Parallel.For(0, height, y =>
                     {
                         int rowOffset = y * rowBytes;
                         if (y < y1 || y >= y2)
                         {
                             Buffer.MemoryCopy(pFrom + rowOffset, uyvyBuffer + rowOffset, rowBytes, rowBytes);
+                            if (bw > 0 && y >= outerY1 && y < outerY2 && outerX2 > outerX1)
+                            {
+                                FillUyvySpan(uyvyBuffer + rowOffset + outerX1 * 2, outerX2 - outerX1, borderUyvy);
+                            }
                         }
                         else
                         {
                             if (x1Bytes > 0) Buffer.MemoryCopy(pFrom + rowOffset, uyvyBuffer + rowOffset, x1Bytes, x1Bytes);
                             if (rightBytes > 0) Buffer.MemoryCopy(pFrom + rowOffset + x2Bytes, uyvyBuffer + rowOffset + x2Bytes, rightBytes, rightBytes);
+                            if (bw > 0)
+                            {
+                                if (x1 > outerX1) FillUyvySpan(uyvyBuffer + rowOffset + outerX1 * 2, x1 - outerX1, borderUyvy);
+                                if (outerX2 > x2) FillUyvySpan(uyvyBuffer + rowOffset + x2 * 2, outerX2 - x2, borderUyvy);
+                            }
                         }
                     });
                     break;

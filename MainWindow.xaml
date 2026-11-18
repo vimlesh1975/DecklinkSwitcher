@@ -366,6 +366,18 @@
                                             <ComboBoxItem Content="Stinger" Tag="Stinger"/>
                                         </ComboBox>
                                         <Button Name="BtnStingerFolder" Content="📁" Width="24" Height="24" Padding="0" Margin="0,0,6,0" FontSize="11" VerticalAlignment="Center" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnStingerFolder_Click" ToolTip="Select Stinger Image Sequence Folder" Visibility="Collapsed" Cursor="Hand"/>
+                                        <StackPanel Name="PnlWipeBorder" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0" Visibility="Collapsed">
+                                            <Button Name="BtnWipeBorderColor" Width="20" Height="22" Margin="0,0,3,0" Background="#FFFFFF" BorderBrush="#888888" BorderThickness="1" Click="BtnWipeBorderColor_Click" ToolTip="Wipe Border Color" Cursor="Hand"/>
+                                            <ComboBox Name="CmbWipeBorderWidth" Width="50" Height="24" FontSize="10" SelectedIndex="2" SelectionChanged="CmbWipeBorderWidth_SelectionChanged" ToolTip="Wipe Border Thickness (px)">
+                                                <ComboBoxItem Content="0px" Tag="0"/>
+                                                <ComboBoxItem Content="4px" Tag="4"/>
+                                                <ComboBoxItem Content="8px" Tag="8"/>
+                                                <ComboBoxItem Content="12px" Tag="12"/>
+                                                <ComboBoxItem Content="16px" Tag="16"/>
+                                                <ComboBoxItem Content="24px" Tag="24"/>
+                                                <ComboBoxItem Content="32px" Tag="32"/>
+                                            </ComboBox>
+                                        </StackPanel>
                                         <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Height="24" Margin="0,0,2,0" VerticalAlignment="Center" ToolTip="Mix transition duration in seconds (0.1 - 10.0)">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>

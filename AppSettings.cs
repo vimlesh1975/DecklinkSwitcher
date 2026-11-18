@@ -57,6 +57,8 @@ namespace DecklinkSwitcher
         public TransitionType SelectedTransitionType { get; set; } = TransitionType.Cut;
         public string StingerSequenceFolder { get; set; } = "";
         public double StingerCutPoint { get; set; } = 0.5;
+        public int WipeBorderWidth { get; set; } = 8;
+        public string WipeBorderColorHex { get; set; } = "#FFFFFF";
         public double MixDurationSeconds { get; set; } = 0.5;
         public string NdiSourceName { get; set; } = "";
         public double AudioLevelNdi { get; set; } = 1.0;

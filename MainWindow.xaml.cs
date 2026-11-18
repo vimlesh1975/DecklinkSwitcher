@@ -507,6 +507,8 @@ namespace DecklinkSwitcher
                     settings.MixTransitionEnabled = IsMixEnabled;
                     settings.StingerSequenceFolder = StingerFolderPath;
                     settings.StingerCutPoint = StingerCutPoint;
+                    settings.WipeBorderWidth = WipeBorderWidth;
+                    settings.WipeBorderColorHex = $"#{WipeBorderR:X2}{WipeBorderG:X2}{WipeBorderB:X2}";
                     settings.MixDurationSeconds = MixDurationSeconds;
                     settings.CompositeLayers = CompositeLayers;
                     settings.CompositeBackgroundHex = CompositeBackgroundHex;
@@ -842,6 +844,27 @@ namespace DecklinkSwitcher
                     loadedTransition = TransitionType.Mix;
                 ActiveTransitionType = loadedTransition;
                 IsMixEnabled = loadedTransition != TransitionType.Cut;
+                WipeBorderWidth = Math.Clamp(settings.WipeBorderWidth, 0, 64);
+                SetWipeBorderColorHex(string.IsNullOrWhiteSpace(settings.WipeBorderColorHex) ? "#FFFFFF" : settings.WipeBorderColorHex);
+                if (CmbWipeBorderWidth != null)
+                {
+                    string bwTag = WipeBorderWidth.ToString();
+                    foreach (ComboBoxItem item in CmbWipeBorderWidth.Items)
+                    {
+                        if (string.Equals(item.Tag?.ToString(), bwTag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            CmbWipeBorderWidth.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+                if (PnlWipeBorder != null)
+                {
+                    bool isWipe = loadedTransition == TransitionType.WipeLR || loadedTransition == TransitionType.WipeRL ||
+                                  loadedTransition == TransitionType.WipeTB || loadedTransition == TransitionType.WipeBT ||
+                                  loadedTransition == TransitionType.BoxOut;
+                    PnlWipeBorder.Visibility = isWipe ? Visibility.Visible : Visibility.Collapsed;
+                }
                 if (BtnStingerFolder != null)
                     BtnStingerFolder.Visibility = loadedTransition == TransitionType.Stinger ? Visibility.Visible : Visibility.Collapsed;
                 if (CmbTransitionType != null)
@@ -1406,6 +1429,14 @@ namespace DecklinkSwitcher
                     : Visibility.Collapsed;
             }
 
+            if (PnlWipeBorder != null)
+            {
+                bool isWipe = ActiveTransitionType == TransitionType.WipeLR || ActiveTransitionType == TransitionType.WipeRL ||
+                              ActiveTransitionType == TransitionType.WipeTB || ActiveTransitionType == TransitionType.WipeBT ||
+                              ActiveTransitionType == TransitionType.BoxOut;
+                PnlWipeBorder.Visibility = isWipe ? Visibility.Visible : Visibility.Collapsed;
+            }
+
             if (IsLoaded && !_isLoadingSettings)
             {
                 if (ActiveTransitionType == TransitionType.Stinger && (StingerFrames1080 == null || StingerFrames1080.Length == 0))
@@ -1413,6 +1444,30 @@ namespace DecklinkSwitcher
                     BtnStingerFolder_Click(sender, e);
                 }
                 SaveCurrentSettings();
+            }
+        }
+
+        private void BtnWipeBorderColor_Click(object sender, RoutedEventArgs e)
+        {
+            using var dlg = new System.Windows.Forms.ColorDialog
+            {
+                FullOpen = true,
+                Color = System.Drawing.Color.FromArgb(WipeBorderR, WipeBorderG, WipeBorderB)
+            };
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                SetWipeBorderColor(dlg.Color.R, dlg.Color.G, dlg.Color.B);
+                if (IsLoaded && !_isLoadingSettings) SaveCurrentSettings();
+            }
+        }
+
+        private void CmbWipeBorderWidth_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (CmbWipeBorderWidth?.SelectedItem is ComboBoxItem item &&
+                int.TryParse(item.Tag?.ToString(), out int px))
+            {
+                WipeBorderWidth = Math.Clamp(px, 0, 64);
+                if (IsLoaded && !_isLoadingSettings) SaveCurrentSettings();
             }
         }
 
