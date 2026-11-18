@@ -1127,34 +1127,12 @@ namespace DecklinkSwitcher
                 }
             }
 
-            double ftb = GetFtbLevel();
-            if (ftb > 0.001)
+            if (PgmFtbBlackOverlay != null)
             {
-                if (ftb >= 0.999)
+                double ftb = GetFtbLevel();
+                if (Math.Abs(PgmFtbBlackOverlay.Opacity - ftb) > 0.002)
                 {
-                    fixed (byte* pOut = _mixWorkPreview480)
-                    {
-                        uint* p32 = (uint*)pOut;
-                        int pixels = len >> 2;
-                        for (int i = 0; i < pixels; i++) p32[i] = 0xFF000000;
-                    }
-                    toDraw = _mixWorkPreview480;
-                }
-                else
-                {
-                    int keep = Math.Clamp((int)Math.Round((1.0 - ftb) * 256.0), 0, 256);
-                    fixed (byte* pSrc = toDraw)
-                    fixed (byte* pOut = _mixWorkPreview480)
-                    {
-                        for (int i = 0; i < len; i += 4)
-                        {
-                            pOut[i + 0] = (byte)((pSrc[i + 0] * keep) >> 8);
-                            pOut[i + 1] = (byte)((pSrc[i + 1] * keep) >> 8);
-                            pOut[i + 2] = (byte)((pSrc[i + 2] * keep) >> 8);
-                            pOut[i + 3] = 255;
-                        }
-                    }
-                    toDraw = _mixWorkPreview480;
+                    PgmFtbBlackOverlay.Opacity = ftb;
                 }
             }
 

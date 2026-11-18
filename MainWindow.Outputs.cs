@@ -86,6 +86,10 @@ namespace DecklinkSwitcher
 
         private void UpdateFtbButtonState(bool toggleBlink)
         {
+            if (PgmFtbBlackOverlay != null)
+            {
+                PgmFtbBlackOverlay.Opacity = GetFtbLevel();
+            }
             if (BtnFtb == null) return;
             if (IsFtbActive || _isFtbFading)
             {

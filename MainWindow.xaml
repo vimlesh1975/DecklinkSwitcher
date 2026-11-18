@@ -350,6 +350,7 @@
                                             <Canvas Width="480" Height="270" IsHitTestVisible="False" ClipToBounds="True">
                                                 <Image Name="PreviewLogoOverlay" Stretch="Fill" Visibility="Collapsed" IsHitTestVisible="False"/>
                                             </Canvas>
+                                            <Rectangle Name="PgmFtbBlackOverlay" Fill="Black" Opacity="0" IsHitTestVisible="False"/>
                                         </Grid>
                                     </Border>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
