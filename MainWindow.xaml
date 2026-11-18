@@ -363,7 +363,9 @@
                                             <ComboBoxItem Content="Wipe T→B" Tag="WipeTB"/>
                                             <ComboBoxItem Content="Wipe B→T" Tag="WipeBT"/>
                                             <ComboBoxItem Content="Box Out" Tag="BoxOut"/>
+                                            <ComboBoxItem Content="Stinger" Tag="Stinger"/>
                                         </ComboBox>
+                                        <Button Name="BtnStingerFolder" Content="📁" Width="24" Height="24" Padding="0" Margin="0,0,6,0" FontSize="11" VerticalAlignment="Center" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnStingerFolder_Click" ToolTip="Select Stinger Image Sequence Folder" Visibility="Collapsed" Cursor="Hand"/>
                                         <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Height="24" Margin="0,0,2,0" VerticalAlignment="Center" ToolTip="Mix transition duration in seconds (0.1 - 10.0)">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>

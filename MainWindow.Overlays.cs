@@ -751,6 +751,89 @@ namespace DecklinkSwitcher
         internal static int _prevAudioSourceType = 0;
         internal static string _prevAudioInputName = "";
 
+        internal static volatile PreparedLogoOverlay[]? StingerFrames1080 = null;
+        internal static volatile byte[][]? StingerPreviewFrames480 = null;
+        public static string StingerFolderPath = "";
+        public static double StingerCutPoint = 0.5;
+
+        private static unsafe byte[] BakePreviewBgra480(System.Drawing.Bitmap rawBmp)
+        {
+            const int w = 480;
+            const int h = 270;
+            byte[] bgra = new byte[w * h * 4];
+            using var scaled = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = System.Drawing.Graphics.FromImage(scaled))
+            {
+                g.Clear(System.Drawing.Color.Transparent);
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.DrawImage(rawBmp, 0, 0, w, h);
+            }
+            var rect = new System.Drawing.Rectangle(0, 0, w, h);
+            var data = scaled.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            try
+            {
+                byte* scan0 = (byte*)data.Scan0;
+                int stride = data.Stride;
+                for (int y = 0; y < h; y++)
+                {
+                    Marshal.Copy((IntPtr)(scan0 + y * stride), bgra, y * w * 4, w * 4);
+                }
+            }
+            finally
+            {
+                scaled.UnlockBits(data);
+            }
+            return bgra;
+        }
+
+        public bool LoadStingerSequenceFolder(string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+                return false;
+
+            var allowedExt = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".png", ".bmp", ".tif", ".tiff", ".jpg", ".jpeg"
+            };
+
+            var files = Directory.GetFiles(folderPath)
+                .Where(f => allowedExt.Contains(Path.GetExtension(f)))
+                .ToArray();
+            Array.Sort(files, CompareNaturalFileNames);
+
+            if (files.Length == 0)
+            {
+                Log($"Stinger folder has no image frames: {folderPath}");
+                return false;
+            }
+
+            const int maxFrames = 300;
+            if (files.Length > maxFrames)
+                files = files.Take(maxFrames).ToArray();
+
+            var frames1080 = new PreparedLogoOverlay[files.Length];
+            var frames480 = new byte[files.Length][];
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                using var bmp = new System.Drawing.Bitmap(files[i]);
+                frames1080[i] = BakePreparedLogoOverlay(bmp, 1920, 1080);
+                frames480[i] = BakePreviewBgra480(bmp);
+            }
+
+            StingerFrames1080 = frames1080;
+            StingerPreviewFrames480 = frames480;
+            StingerFolderPath = folderPath;
+
+            if (BtnStingerFolder != null)
+            {
+                BtnStingerFolder.ToolTip = $"Stinger Sequence: {folderPath} ({files.Length} frames)";
+            }
+
+            Log($"Loaded Stinger sequence ({files.Length} frames) from {folderPath}");
+            return true;
+        }
+
         public static void BeginMixIfEnabled()
         {
             if (!IsMixEnabled || ActiveTransitionType == TransitionType.Cut) return;
@@ -859,6 +942,44 @@ namespace DecklinkSwitcher
                             if (boxBytes > 0) Buffer.MemoryCopy(pTo + rowOffset + x1Bytes, pOut + rowOffset + x1Bytes, boxBytes, boxBytes);
                             if (rightBytes > 0) Buffer.MemoryCopy(pFrom + rowOffset + x2Bytes, pOut + rowOffset + x2Bytes, rightBytes, rightBytes);
                         }
+                    }
+                    break;
+                }
+                case TransitionType.Stinger:
+                {
+                    var frames = StingerPreviewFrames480;
+                    if (frames != null && frames.Length > 0)
+                    {
+                        byte* baseBg = (progress < StingerCutPoint) ? pFrom : pTo;
+                        Buffer.MemoryCopy(baseBg, pOut, totalBytes, totalBytes);
+
+                        int idx = Math.Clamp((int)(progress * frames.Length), 0, frames.Length - 1);
+                        byte[] ovBgra = frames[idx];
+                        fixed (byte* pOv = ovBgra)
+                        {
+                            for (int i = 0; i < totalBytes; i += 4)
+                            {
+                                int a = pOv[i + 3];
+                                if (a == 0) continue;
+                                if (a == 255)
+                                {
+                                    pOut[i] = pOv[i];
+                                    pOut[i + 1] = pOv[i + 1];
+                                    pOut[i + 2] = pOv[i + 2];
+                                }
+                                else
+                                {
+                                    int invA = 255 - a;
+                                    pOut[i]     = (byte)((pOut[i]     * invA + pOv[i]     * a + 128) >> 8);
+                                    pOut[i + 1] = (byte)((pOut[i + 1] * invA + pOv[i + 1] * a + 128) >> 8);
+                                    pOut[i + 2] = (byte)((pOut[i + 2] * invA + pOv[i + 2] * a + 128) >> 8);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        goto default;
                     }
                     break;
                 }
@@ -999,6 +1120,26 @@ namespace DecklinkSwitcher
                             if (rightBytes > 0) Buffer.MemoryCopy(pFrom + rowOffset + x2Bytes, uyvyBuffer + rowOffset + x2Bytes, rightBytes, rightBytes);
                         }
                     });
+                    break;
+                }
+                case TransitionType.Stinger:
+                {
+                    var frames = StingerFrames1080;
+                    if (frames != null && frames.Length > 0)
+                    {
+                        if (progress < StingerCutPoint)
+                        {
+                            Buffer.MemoryCopy(pFrom, uyvyBuffer, 1920 * 1080 * 2, 1920 * 1080 * 2);
+                        }
+
+                        int idx = Math.Clamp((int)(progress * frames.Length), 0, frames.Length - 1);
+                        var ov = frames[idx];
+                        BlendPreparedRegionUyvy(uyvyBuffer, 0, 0, ov.Width, ov.Height, ov.Y, ov.U, ov.V, ov.A, 100.0);
+                    }
+                    else
+                    {
+                        goto default;
+                    }
                     break;
                 }
                 default: // Mix

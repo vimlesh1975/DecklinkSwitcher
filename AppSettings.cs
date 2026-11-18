@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace DecklinkSwitcher
 {
     public enum AudioState { AFV, ON, OFF }
-    public enum TransitionType { Cut, Mix, WipeLR, WipeRL, WipeTB, WipeBT, BoxOut }
+    public enum TransitionType { Cut, Mix, WipeLR, WipeRL, WipeTB, WipeBT, BoxOut, Stinger }
 
     public class AppSettings
     {
@@ -55,6 +55,8 @@ namespace DecklinkSwitcher
         public bool InvertDeckLinkRightChannel { get; set; } = false;
         public bool MixTransitionEnabled { get; set; } = false;
         public TransitionType SelectedTransitionType { get; set; } = TransitionType.Cut;
+        public string StingerSequenceFolder { get; set; } = "";
+        public double StingerCutPoint { get; set; } = 0.5;
         public double MixDurationSeconds { get; set; } = 0.5;
         public string NdiSourceName { get; set; } = "";
         public double AudioLevelNdi { get; set; } = 1.0;

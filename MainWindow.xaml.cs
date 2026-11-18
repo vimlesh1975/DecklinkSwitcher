@@ -505,6 +505,8 @@ namespace DecklinkSwitcher
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
                     settings.SelectedTransitionType = ActiveTransitionType;
                     settings.MixTransitionEnabled = IsMixEnabled;
+                    settings.StingerSequenceFolder = StingerFolderPath;
+                    settings.StingerCutPoint = StingerCutPoint;
                     settings.MixDurationSeconds = MixDurationSeconds;
                     settings.CompositeLayers = CompositeLayers;
                     settings.CompositeBackgroundHex = CompositeBackgroundHex;
@@ -829,11 +831,19 @@ namespace DecklinkSwitcher
                 _pendingNdiSourceName = settings.NdiSourceName;
                 InvertDeckLinkRight = settings.InvertDeckLinkRightChannel;
                 if (ChkInvertDeckLinkR != null) ChkInvertDeckLinkR.IsChecked = settings.InvertDeckLinkRightChannel;
+                StingerCutPoint = Math.Clamp(settings.StingerCutPoint > 0 ? settings.StingerCutPoint : 0.5, 0.05, 0.95);
+                if (!string.IsNullOrWhiteSpace(settings.StingerSequenceFolder) && Directory.Exists(settings.StingerSequenceFolder))
+                {
+                    LoadStingerSequenceFolder(settings.StingerSequenceFolder);
+                }
+
                 var loadedTransition = settings.SelectedTransitionType;
                 if (loadedTransition == TransitionType.Cut && settings.MixTransitionEnabled)
                     loadedTransition = TransitionType.Mix;
                 ActiveTransitionType = loadedTransition;
                 IsMixEnabled = loadedTransition != TransitionType.Cut;
+                if (BtnStingerFolder != null)
+                    BtnStingerFolder.Visibility = loadedTransition == TransitionType.Stinger ? Visibility.Visible : Visibility.Collapsed;
                 if (CmbTransitionType != null)
                 {
                     string targetTag = loadedTransition.ToString();
@@ -1389,7 +1399,44 @@ namespace DecklinkSwitcher
                 IsMixEnabled = false;
             }
 
-            if (IsLoaded && !_isLoadingSettings) SaveCurrentSettings();
+            if (BtnStingerFolder != null)
+            {
+                BtnStingerFolder.Visibility = ActiveTransitionType == TransitionType.Stinger
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+
+            if (IsLoaded && !_isLoadingSettings)
+            {
+                if (ActiveTransitionType == TransitionType.Stinger && (StingerFrames1080 == null || StingerFrames1080.Length == 0))
+                {
+                    BtnStingerFolder_Click(sender, e);
+                }
+                SaveCurrentSettings();
+            }
+        }
+
+        private void BtnStingerFolder_Click(object sender, RoutedEventArgs e)
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Select folder containing Stinger PNG image sequence",
+                UseDescriptionForTitle = true,
+                SelectedPath = Directory.Exists(StingerFolderPath) ? StingerFolderPath : ""
+            };
+
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(dlg.SelectedPath))
+            {
+                if (LoadStingerSequenceFolder(dlg.SelectedPath))
+                {
+                    SaveCurrentSettings();
+                }
+                else
+                {
+                    MessageBox.Show("No valid image files (.png, .bmp, .tif, .jpg) were found in the selected folder.",
+                        "Stinger Sequence", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
         }
 
         private void StepMixDuration(double delta)
