@@ -350,6 +350,7 @@ namespace DecklinkSwitcher
 
             LogAudioDiagnostics();
 
+            float effectivePgmLevel = PgmAudioLevel * (1.0f - (float)GetFtbLevel());
             int maxL = 0, maxR = 0;
             IntPtr outBuffer = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(totalSamples * 2);
             unsafe
@@ -357,12 +358,12 @@ namespace DecklinkSwitcher
                 short* dstPtr = (short*)outBuffer.ToPointer();
                 for (int i = 0; i < totalSamples; i += 2)
                 {
-                    float finalL = mixed[i] * PgmAudioLevel;
+                    float finalL = mixed[i] * effectivePgmLevel;
                     if (finalL > 32767) finalL = 32767;
                     else if (finalL < -32768) finalL = -32768;
                     dstPtr[i] = (short)finalL;
                     
-                    float finalR = mixed[i+1] * PgmAudioLevel;
+                    float finalR = mixed[i+1] * effectivePgmLevel;
                     if (finalR > 32767) finalR = 32767;
                     else if (finalR < -32768) finalR = -32768;
                     dstPtr[i+1] = (short)finalR;

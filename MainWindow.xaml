@@ -413,6 +413,7 @@
                                         </Border>
                                         <TextBlock Text="s" FontSize="11" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                         <Button Name="BtnFullscreenPreview" Content="⛶ Fullscreen" Height="26" Padding="8,2" VerticalContentAlignment="Center" FontSize="11" FontWeight="SemiBold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnFullscreenPreview_Click" ToolTip="Toggle Fullscreen Preview (F11 / Double-click / Esc to close)" Cursor="Hand"/>
+                                        <Button Name="BtnFtb" Content="FTB" Height="26" Padding="10,2" Margin="6,0,0,0" VerticalContentAlignment="Center" FontSize="11" FontWeight="Bold" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Click="BtnFtb_Click" ToolTip="Fade to Black (Video + Master Audio)" Cursor="Hand"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <ProgressBar Name="AudioOutputR" Orientation="Vertical" Minimum="0" Maximum="100" Width="12" Height="270" Margin="10,0,0,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>

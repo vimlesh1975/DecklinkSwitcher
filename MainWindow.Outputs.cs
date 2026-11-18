@@ -12,6 +12,108 @@ namespace DecklinkSwitcher
 {
     public partial class MainWindow : Window
     {
+        private DateTime? _recordStartUtc;
+        private DateTime? _streamStartUtc;
+        private DateTime? _srtStartUtc;
+        private DateTime? _ndiStartUtc;
+        private System.Windows.Threading.DispatcherTimer? _telemetryTimer;
+        private bool _ftbBlinkPhase = false;
+
+        private void EnsureTelemetryTimer()
+        {
+            if (_telemetryTimer != null) return;
+            _telemetryTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _telemetryTimer.Tick += TelemetryTimer_Tick;
+            _telemetryTimer.Start();
+        }
+
+        private void TelemetryTimer_Tick(object? sender, EventArgs e)
+        {
+            if (LclRecorder.IsRecording)
+            {
+                _recordStartUtc ??= DateTime.UtcNow;
+                var elapsed = DateTime.UtcNow - _recordStartUtc.Value;
+                if (BtnRecord != null) BtnRecord.Content = $"■ STOP REC  {elapsed:hh\\:mm\\:ss}";
+            }
+            else if (_recordStartUtc.HasValue)
+            {
+                _recordStartUtc = null;
+                ApplyOutputButtonStyle(BtnRecord, false, "STOP RECORDING", "START RECORDING");
+                UpdateRecordingModeUiState();
+            }
+
+            if (YtStreamer.IsStreaming)
+            {
+                _streamStartUtc ??= DateTime.UtcNow;
+                var elapsed = DateTime.UtcNow - _streamStartUtc.Value;
+                if (BtnStream != null) BtnStream.Content = $"■ STOP STREAM  {elapsed:hh\\:mm\\:ss}";
+            }
+            else if (_streamStartUtc.HasValue)
+            {
+                _streamStartUtc = null;
+                ApplyOutputButtonStyle(BtnStream, false, "STOP STREAM", "START STREAM");
+            }
+
+            if (SrtOut.IsStreaming)
+            {
+                _srtStartUtc ??= DateTime.UtcNow;
+                var elapsed = DateTime.UtcNow - _srtStartUtc.Value;
+                if (BtnSrt != null) BtnSrt.Content = $"■ STOP SRT  {elapsed:hh\\:mm\\:ss}";
+            }
+            else if (_srtStartUtc.HasValue)
+            {
+                _srtStartUtc = null;
+                UpdateSrtUiState(false);
+            }
+
+            if (NdiOut.IsRunning)
+            {
+                _ndiStartUtc ??= DateTime.UtcNow;
+                var elapsed = DateTime.UtcNow - _ndiStartUtc.Value;
+                if (BtnNdi != null) BtnNdi.Content = $"■ STOP NDI  {elapsed:hh\\:mm\\:ss}";
+            }
+            else if (_ndiStartUtc.HasValue)
+            {
+                _ndiStartUtc = null;
+                ApplyOutputButtonStyle(BtnNdi, false, "STOP NDI", "START NDI");
+            }
+
+            UpdateFtbButtonState(toggleBlink: true);
+        }
+
+        private void UpdateFtbButtonState(bool toggleBlink)
+        {
+            if (BtnFtb == null) return;
+            if (IsFtbActive || _isFtbFading)
+            {
+                if (toggleBlink) _ftbBlinkPhase = !_ftbBlinkPhase;
+                BtnFtb.Content = IsFtbActive ? "FTB (ON)" : "FTB";
+                BtnFtb.Background = _ftbBlinkPhase
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(211, 47, 47))
+                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(127, 0, 0));
+                BtnFtb.Foreground = System.Windows.Media.Brushes.White;
+            }
+            else
+            {
+                _ftbBlinkPhase = false;
+                BtnFtb.Content = "FTB";
+                BtnFtb.Background = (System.Windows.Media.Brush)FindResource("ButtonAltBg");
+                BtnFtb.Foreground = (System.Windows.Media.Brush)FindResource("TextPrimary");
+            }
+        }
+
+        private void BtnFtb_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleFtb();
+            EnsureTelemetryTimer();
+            _ftbBlinkPhase = true;
+            UpdateFtbButtonState(toggleBlink: false);
+            Log(IsFtbActive ? "Fade to Black (FTB) ON" : "Fade to Black (FTB) OFF");
+        }
+
         private void BtnBrowseRecordingDir_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog();
@@ -58,6 +160,7 @@ namespace DecklinkSwitcher
             if (LclRecorder.IsRecording)
             {
                 LclRecorder.Stop();
+                _recordStartUtc = null;
                 ApplyOutputButtonStyle(BtnRecord, false, "STOP RECORDING", "START RECORDING");
                 UpdateRecordingModeUiState();
                 TxtStatus.Text = "Recording stopped.";
@@ -88,7 +191,9 @@ namespace DecklinkSwitcher
                     SaveCurrentSettings();
                     UpdatePgmPreviewSynthetic();
                     LclRecorder.Start(profile, dir, 1920, 1080, 25, intervalMode, intervalSec);
-                    ApplyOutputButtonStyle(BtnRecord, true, "STOP RECORDING", "START RECORDING");
+                    _recordStartUtc = DateTime.UtcNow;
+                    EnsureTelemetryTimer();
+                    ApplyOutputButtonStyle(BtnRecord, true, "■ STOP REC  00:00:00", "START RECORDING");
                     UpdateRecordingModeUiState();
                     TxtStatus.Text = intervalMode ? $"Interval recording started ({intervalSec}s clips)..." : "Infinite recording started...";
                 }
@@ -99,8 +204,8 @@ namespace DecklinkSwitcher
         {
             if (YtStreamer.IsStreaming)
             {
-                
                 YtStreamer.Stop();
+                _streamStartUtc = null;
                 ApplyOutputButtonStyle(BtnStream, false, "STOP STREAM", "START STREAM");
                 TxtStatus.Text = "Streaming stopped.";
             }
@@ -117,7 +222,9 @@ namespace DecklinkSwitcher
                 settings.YouTubeStreamKey = TxtStreamKey.Text;
                 settings.Save();
                 
-                ApplyOutputButtonStyle(BtnStream, true, "STOP STREAM", "START STREAM");
+                _streamStartUtc = DateTime.UtcNow;
+                EnsureTelemetryTimer();
+                ApplyOutputButtonStyle(BtnStream, true, "■ STOP STREAM  00:00:00", "START STREAM");
                 TxtStatus.Text = "Streaming started...";
                 // Seed the latest PGM frame immediately (synchronous) so stream loop has data right away
                 UpdatePgmPreviewSynthetic();
@@ -131,6 +238,7 @@ namespace DecklinkSwitcher
             if (NdiOut.IsRunning)
             {
                 NdiOut.Stop();
+                _ndiStartUtc = null;
                 ApplyOutputButtonStyle(BtnNdi, false, "STOP NDI", "START NDI");
                 TxtStatus.Text = "NDI output stopped.";
             }
@@ -151,7 +259,9 @@ namespace DecklinkSwitcher
                 bool started = NdiOut.Start(streamName, 1920, 1080, 25);
                 if (started)
                 {
-                    ApplyOutputButtonStyle(BtnNdi, true, "STOP NDI", "START NDI");
+                    _ndiStartUtc = DateTime.UtcNow;
+                    EnsureTelemetryTimer();
+                    ApplyOutputButtonStyle(BtnNdi, true, "■ STOP NDI  00:00:00", "START NDI");
                     TxtStatus.Text = $"NDI output started: {streamName}";
                 }
                 else
@@ -256,6 +366,7 @@ namespace DecklinkSwitcher
             if (SrtOut.IsStreaming)
             {
                 SrtOut.Stop();
+                _srtStartUtc = null;
                 UpdateSrtUiState(false);
                 TxtStatus.Text = "SRT streaming stopped.";
             }
@@ -280,6 +391,8 @@ namespace DecklinkSwitcher
                 SrtOut.Start(srtUrl, 1920, 1080, 25);
                 if (SrtOut.IsStreaming)
                 {
+                    _srtStartUtc = DateTime.UtcNow;
+                    EnsureTelemetryTimer();
                     UpdateSrtUiState(true);
                     TxtStatus.Text = $"SRT streaming started: {srtUrl}";
                 }

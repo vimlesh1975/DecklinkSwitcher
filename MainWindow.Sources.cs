@@ -3357,7 +3357,7 @@ namespace DecklinkSwitcher
             IntPtr modifiedAudioBuffer = MixAudio(audioSampleCount, ActiveSourceType, ActiveInputName, "software-decklink-output");
 
             byte[]? uyvyBytes = null;
-            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled)
+            if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled || IsFtbActive)
             {
                 lock (_softwareDeckLinkLock)
                 {

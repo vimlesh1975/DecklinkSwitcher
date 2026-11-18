@@ -1127,6 +1127,37 @@ namespace DecklinkSwitcher
                 }
             }
 
+            double ftb = GetFtbLevel();
+            if (ftb > 0.001)
+            {
+                if (ftb >= 0.999)
+                {
+                    fixed (byte* pOut = _mixWorkPreview480)
+                    {
+                        uint* p32 = (uint*)pOut;
+                        int pixels = len >> 2;
+                        for (int i = 0; i < pixels; i++) p32[i] = 0xFF000000;
+                    }
+                    toDraw = _mixWorkPreview480;
+                }
+                else
+                {
+                    int keep = Math.Clamp((int)Math.Round((1.0 - ftb) * 256.0), 0, 256);
+                    fixed (byte* pSrc = toDraw)
+                    fixed (byte* pOut = _mixWorkPreview480)
+                    {
+                        for (int i = 0; i < len; i += 4)
+                        {
+                            pOut[i + 0] = (byte)((pSrc[i + 0] * keep) >> 8);
+                            pOut[i + 1] = (byte)((pSrc[i + 1] * keep) >> 8);
+                            pOut[i + 2] = (byte)((pSrc[i + 2] * keep) >> 8);
+                            pOut[i + 3] = 255;
+                        }
+                    }
+                    toDraw = _mixWorkPreview480;
+                }
+            }
+
             bmp.WritePixels(new Int32Rect(0, 0, 480, 270), toDraw, 480 * 4, 0);
         }
 
@@ -1334,6 +1365,69 @@ namespace DecklinkSwitcher
             }
         }
 
+        public static volatile bool IsFtbActive = false;
+        private static volatile bool _isFtbFading = false;
+        private static long _ftbStartTicks = 0;
+        private static double _ftbStartLevel = 0.0;
+
+        public static void ToggleFtb()
+        {
+            double current = GetFtbLevel();
+            _ftbStartLevel = current;
+            _ftbStartTicks = Stopwatch.GetTimestamp();
+            IsFtbActive = !IsFtbActive;
+            _isFtbFading = true;
+        }
+
+        public static double GetFtbLevel()
+        {
+            double target = IsFtbActive ? 1.0 : 0.0;
+            if (!_isFtbFading) return target;
+
+            double elapsed = (Stopwatch.GetTimestamp() - _ftbStartTicks) / (double)Stopwatch.Frequency;
+            double dur = Math.Clamp(MixDurationSeconds, 0.1, 10.0);
+            double t = Math.Clamp(elapsed / dur, 0.0, 1.0);
+            if (t >= 1.0)
+            {
+                _isFtbFading = false;
+                return target;
+            }
+            return _ftbStartLevel + (target - _ftbStartLevel) * t;
+        }
+
+        private static unsafe void ApplyFtbUyvy(byte* uyvyBuffer)
+        {
+            double ftb = GetFtbLevel();
+            if (ftb <= 0.001) return;
+
+            const int width = 1920;
+            const int height = 1080;
+            const int rowBytes = width * 2;
+
+            if (ftb >= 0.999)
+            {
+                const uint blackUyvy = 0x80108010; // U=128, Y=16, V=128, Y=16
+                Parallel.For(0, height, y =>
+                {
+                    FillUyvySpan(uyvyBuffer + y * rowBytes, width, blackUyvy);
+                });
+                return;
+            }
+
+            int keep = Math.Clamp((int)Math.Round((1.0 - ftb) * 256.0), 0, 256);
+            Parallel.For(0, height, y =>
+            {
+                byte* row = uyvyBuffer + y * rowBytes;
+                for (int x = 0; x < rowBytes; x += 4)
+                {
+                    row[x + 0] = (byte)(128 + (((row[x + 0] - 128) * keep) >> 8));
+                    row[x + 1] = (byte)(16  + (((row[x + 1] - 16)  * keep) >> 8));
+                    row[x + 2] = (byte)(128 + (((row[x + 2] - 128) * keep) >> 8));
+                    row[x + 3] = (byte)(16  + (((row[x + 3] - 16)  * keep) >> 8));
+                }
+            });
+        }
+
         public static unsafe void ApplyLogoOverlayUyvy(byte* uyvyBuffer)
         {
             if (uyvyBuffer == null) return;
@@ -1368,11 +1462,13 @@ namespace DecklinkSwitcher
                     BlendPreparedRegionUyvy(uyvyBuffer, startX, startY, ov.Width, ov.Height, ov.Y, ov.U, ov.V, ov.A, LogoOpacityPercent);
                 }
             }
+
+            ApplyFtbUyvy(uyvyBuffer);
         }
 
         public static unsafe void ApplyLogoOverlayUyvy(byte[]? uyvyBytes)
         {
-            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled && !IsNdiOverlayEnabled && !IsMixEnabled && !_isMixActive) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
+            if ((!IsLogoOverlayEnabled && !IsHtmlOverlayEnabled && !IsNdiOverlayEnabled && !IsMixEnabled && !_isMixActive && !IsFtbActive && !_isFtbFading) || uyvyBytes == null || uyvyBytes.Length < 1920 * 1080 * 2) return;
             fixed (byte* ptr = uyvyBytes)
             {
                 ApplyLogoOverlayUyvy(ptr);
