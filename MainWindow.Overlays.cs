@@ -967,16 +967,6 @@ namespace DecklinkSwitcher
             SaveCurrentSettings();
         }
 
-        private void CmbHtmlOverlayFps_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_htmlOverlaySource != null && CmbHtmlOverlayFps.SelectedItem is ComboBoxItem item &&
-                int.TryParse(item.Tag?.ToString(), out int fps))
-            {
-                _htmlOverlaySource.TargetFps = fps;
-                Log($"[HtmlOverlay] TargetFps set to {fps}");
-            }
-        }
-
         private async void BtnToggleHtmlOverlay_Click(object sender, RoutedEventArgs e)
         {
             if (!IsHtmlOverlayEnabled && (_htmlOverlaySource == null || !_htmlOverlaySource.IsRunning))
