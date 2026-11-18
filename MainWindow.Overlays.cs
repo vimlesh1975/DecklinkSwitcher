@@ -1406,7 +1406,7 @@ namespace DecklinkSwitcher
 
             if (ftb >= 0.999)
             {
-                const uint blackUyvy = 0x80108010; // U=128, Y=16, V=128, Y=16
+                const uint blackUyvy = 0x10801080; // Little-endian: U=0x80(128), Y0=0x10(16), V=0x80(128), Y1=0x10(16)
                 Parallel.For(0, height, y =>
                 {
                     FillUyvySpan(uyvyBuffer + y * rowBytes, width, blackUyvy);
