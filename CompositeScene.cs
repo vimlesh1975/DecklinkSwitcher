@@ -186,10 +186,11 @@ namespace DecklinkSwitcher
         {
             public int Width;
             public int Height;
-            public byte[] Y = Array.Empty<byte>();
-            public byte[] U = Array.Empty<byte>();
-            public byte[] V = Array.Empty<byte>();
-            public byte[] A = Array.Empty<byte>();
+            public byte[] BgY = Array.Empty<byte>();
+            public byte[] BgU = Array.Empty<byte>();
+            public byte[] BgV = Array.Empty<byte>();
+            public byte[] BgA = Array.Empty<byte>();
+            public byte[] TextA = Array.Empty<byte>();
         }
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CachedLabel> _labelCache = new();
@@ -208,65 +209,81 @@ namespace DecklinkSwitcher
                 int padL = 16, padR = 14, padY = 6;
                 int w = (Math.Clamp((int)Math.Ceiling(sz.Width) + padL + padR, 60, cappedMaxW) + 1) & ~1;
                 int h = Math.Clamp((int)Math.Ceiling(sz.Height) + padY * 2, 28, 56);
-
-                using var bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                using (var g = System.Drawing.Graphics.FromImage(bmp))
-                {
-                    g.Clear(System.Drawing.Color.Transparent);
-                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-
-                    using var bgBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(215, 16, 22, 34));
-                    g.FillRectangle(bgBrush, 0, 0, w, h);
-
-                    using var accentBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(255, 56, 189, 248));
-                    g.FillRectangle(accentBrush, 0, 0, 5, h);
-
-                    using var sf = new System.Drawing.StringFormat { Trimming = System.Drawing.StringTrimming.EllipsisCharacter, FormatFlags = System.Drawing.StringFormatFlags.NoWrap };
-                    var textRect = new System.Drawing.RectangleF(12, padY - 1, w - 20, h - padY * 2 + 4);
-                    g.DrawString(text, font, System.Drawing.Brushes.White, textRect, sf);
-                }
-
                 int total = w * h;
-                var yArr = new byte[total];
-                var uArr = new byte[total];
-                var vArr = new byte[total];
-                var aArr = new byte[total];
 
-                var data = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                try
+                var bgY = new byte[total];
+                var bgU = new byte[total];
+                var bgV = new byte[total];
+                var bgA = new byte[total];
+                var textA = new byte[total];
+
+                // 1. Render background pill + cyan accent bar (stays visible)
+                using (var bgBmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
                 {
-                    unsafe
+                    using (var g = System.Drawing.Graphics.FromImage(bgBmp))
                     {
-                        byte* p = (byte*)data.Scan0;
-                        for (int py = 0; py < h; py++)
+                        g.Clear(System.Drawing.Color.Transparent);
+                        using var bgBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(215, 16, 22, 34));
+                        g.FillRectangle(bgBrush, 0, 0, w, h);
+                        using var accentBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(255, 56, 189, 248));
+                        g.FillRectangle(accentBrush, 0, 0, 5, h);
+                    }
+                    var data = bgBmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    try
+                    {
+                        unsafe
                         {
-                            byte* row = p + py * data.Stride;
-                            for (int px = 0; px < w; px++)
+                            byte* p = (byte*)data.Scan0;
+                            for (int py = 0; py < h; py++)
                             {
-                                byte b = row[px * 4 + 0];
-                                byte g = row[px * 4 + 1];
-                                byte r = row[px * 4 + 2];
-                                byte a = row[px * 4 + 3];
-                                int idx = py * w + px;
-                                aArr[idx] = a;
-                                int yy = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
-                                int uu = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
-                                int vv = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
-                                yArr[idx] = (byte)Math.Clamp(yy, 16, 235);
-                                uArr[idx] = (byte)Math.Clamp(uu, 16, 240);
-                                vArr[idx] = (byte)Math.Clamp(vv, 16, 240);
+                                byte* row = p + py * data.Stride;
+                                for (int px = 0; px < w; px++)
+                                {
+                                    byte b = row[px * 4 + 0], gr = row[px * 4 + 1], r = row[px * 4 + 2], a = row[px * 4 + 3];
+                                    int idx = py * w + px;
+                                    bgA[idx] = a;
+                                    bgY[idx] = (byte)Math.Clamp(((66 * r + 129 * gr + 25 * b + 128) >> 8) + 16, 16, 235);
+                                    bgU[idx] = (byte)Math.Clamp(((-38 * r - 74 * gr + 112 * b + 128) >> 8) + 128, 16, 240);
+                                    bgV[idx] = (byte)Math.Clamp(((112 * r - 94 * gr - 18 * b + 128) >> 8) + 128, 16, 240);
+                                }
                             }
                         }
                     }
+                    finally { bgBmp.UnlockBits(data); }
                 }
-                finally
+
+                // 2. Render text-only alpha mask (wipes in/out independently)
+                using (var txtBmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
                 {
-                    bmp.UnlockBits(data);
+                    using (var g = System.Drawing.Graphics.FromImage(txtBmp))
+                    {
+                        g.Clear(System.Drawing.Color.Transparent);
+                        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                        using var sf = new System.Drawing.StringFormat { Trimming = System.Drawing.StringTrimming.EllipsisCharacter, FormatFlags = System.Drawing.StringFormatFlags.NoWrap };
+                        var textRect = new System.Drawing.RectangleF(12, padY - 1, w - 20, h - padY * 2 + 4);
+                        g.DrawString(text, font, System.Drawing.Brushes.White, textRect, sf);
+                    }
+                    var data = txtBmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    try
+                    {
+                        unsafe
+                        {
+                            byte* p = (byte*)data.Scan0;
+                            for (int py = 0; py < h; py++)
+                            {
+                                byte* row = p + py * data.Stride;
+                                for (int px = 0; px < w; px++)
+                                {
+                                    textA[py * w + px] = row[px * 4 + 3];
+                                }
+                            }
+                        }
+                    }
+                    finally { txtBmp.UnlockBits(data); }
                 }
 
                 if (_labelCache.Count > 64) _labelCache.Clear();
-                return new CachedLabel { Width = w, Height = h, Y = yArr, U = uArr, V = vArr, A = aArr };
+                return new CachedLabel { Width = w, Height = h, BgY = bgY, BgU = bgU, BgV = bgV, BgA = bgA, TextA = textA };
             });
         }
 
@@ -276,10 +293,18 @@ namespace DecklinkSwitcher
             int availH = visH - border * 2 - 16;
             if (availW < 60 || availH < 28) return;
 
-            var lbl = GetOrBuildLabel(label, availW);
+            // Support multiple captions separated by "$$", cycling one by one every 5 seconds
+            string[] parts = label.Split(new[] { "$$" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length == 0) return;
 
-            // 5-second animation loop: 0.55s left-to-right wipe reveal, 3.90s hold, 0.55s right-to-left wipe hide
-            double t = ((double)System.Diagnostics.Stopwatch.GetTimestamp() / System.Diagnostics.Stopwatch.Frequency) % 5.0;
+            double totalSec = (double)System.Diagnostics.Stopwatch.GetTimestamp() / System.Diagnostics.Stopwatch.Frequency;
+            int slotIndex = (int)(totalSec / 5.0) % parts.Length;
+            double t = totalSec % 5.0;
+            string activeText = parts[slotIndex];
+
+            var lbl = GetOrBuildLabel(activeText, availW);
+
+            // Background pill stays fixed; only text wipes in (0.00-0.55s) and wipes out (4.45-5.00s)
             double revealFrac;
             if (t < 0.55)
             {
@@ -302,15 +327,11 @@ namespace DecklinkSwitcher
             int maxRx = (visX + visW - border - 2) & ~1;
             if (ly < 0 || ly + lbl.Height > Height) return;
 
-            int revealW = ((int)Math.Round(lbl.Width * revealFrac)) & ~1;
             int startPx = lx < minLx ? (minLx - lx) : 0;
-            int endPx = Math.Min(revealW, maxRx - lx);
+            int endPx = Math.Min(lbl.Width, maxRx - lx);
             if (endPx <= startPx + 1) return;
 
-            // Subtle sheen highlight sweeping across the pill between 1.5s and 2.5s
-            int sheenCenter = (t >= 1.5 && t <= 2.5)
-                ? (int)(((t - 1.5) / 1.0) * (lbl.Width + 60)) - 30
-                : -999;
+            int textRevealEnd = Math.Min(endPx, ((int)Math.Round(lbl.Width * revealFrac)) & ~1);
 
             for (int py = 0; py < lbl.Height; py++)
             {
@@ -320,47 +341,54 @@ namespace DecklinkSwitcher
                 {
                     int i0 = sOff + px;
                     int i1 = i0 + 1;
-                    int edgeFade = (revealFrac < 0.999 && endPx - px <= 8)
-                        ? Math.Max(32, ((endPx - px) * 256) / 8)
-                        : 256;
-                    int a0 = (lbl.A[i0] * edgeFade) >> 8;
-                    int a1 = (lbl.A[i1] * edgeFade) >> 8;
-                    if ((a0 | a1) == 0) continue;
 
-                    int y0 = lbl.Y[i0];
-                    int y1 = lbl.Y[i1];
-                    if (sheenCenter > -30)
+                    // 1. Always composite the background pill + cyan accent bar
+                    int ba0 = lbl.BgA[i0];
+                    int ba1 = lbl.BgA[i1];
+                    int by0 = lbl.BgY[i0];
+                    int by1 = lbl.BgY[i1];
+                    int bu = (lbl.BgU[i0] + lbl.BgU[i1]) >> 1;
+                    int bv = (lbl.BgV[i0] + lbl.BgV[i1]) >> 1;
+
+                    int dOff = px * 2;
+                    int curU = dRow[dOff + 0];
+                    int curY0 = dRow[dOff + 1];
+                    int curV = dRow[dOff + 2];
+                    int curY1 = dRow[dOff + 3];
+
+                    if ((ba0 | ba1) != 0)
                     {
-                        int dist = Math.Abs(px - sheenCenter);
-                        if (dist < 22)
+                        int baAvg = (ba0 + ba1) >> 1;
+                        int invAvg = 255 - baAvg;
+                        curU = (curU * invAvg + bu * baAvg) / 255;
+                        curV = (curV * invAvg + bv * baAvg) / 255;
+                        curY0 = (curY0 * (255 - ba0) + by0 * ba0) / 255;
+                        curY1 = (curY1 * (255 - ba1) + by1 * ba1) / 255;
+                    }
+
+                    // 2. Wipe-reveal white text (Y=235, U=128, V=128) only up to textRevealEnd
+                    if (px < textRevealEnd)
+                    {
+                        int edgeFade = (revealFrac < 0.999 && textRevealEnd - px <= 8)
+                            ? Math.Max(32, ((textRevealEnd - px) * 256) / 8)
+                            : 256;
+                        int ta0 = (lbl.TextA[i0] * edgeFade) >> 8;
+                        int ta1 = (lbl.TextA[i1] * edgeFade) >> 8;
+                        if ((ta0 | ta1) != 0)
                         {
-                            int boost = ((22 - dist) * 28) / 22;
-                            y0 = Math.Min(235, y0 + boost);
-                            y1 = Math.Min(235, y1 + boost);
+                            int taAvg = (ta0 + ta1) >> 1;
+                            int invTa = 255 - taAvg;
+                            curU = (curU * invTa + 128 * taAvg) / 255;
+                            curV = (curV * invTa + 128 * taAvg) / 255;
+                            curY0 = (curY0 * (255 - ta0) + 235 * ta0) / 255;
+                            curY1 = (curY1 * (255 - ta1) + 235 * ta1) / 255;
                         }
                     }
 
-                    int dOff = px * 2;
-                    if (a0 == 255 && a1 == 255)
-                    {
-                        dRow[dOff + 0] = (byte)((lbl.U[i0] + lbl.U[i1]) >> 1);
-                        dRow[dOff + 1] = (byte)y0;
-                        dRow[dOff + 2] = (byte)((lbl.V[i0] + lbl.V[i1]) >> 1);
-                        dRow[dOff + 3] = (byte)y1;
-                    }
-                    else
-                    {
-                        int inv0 = 255 - a0;
-                        int inv1 = 255 - a1;
-                        int aAvg = (a0 + a1) >> 1;
-                        int invAvg = 255 - aAvg;
-                        int uAvg = (lbl.U[i0] + lbl.U[i1]) >> 1;
-                        int vAvg = (lbl.V[i0] + lbl.V[i1]) >> 1;
-                        dRow[dOff + 0] = (byte)((dRow[dOff + 0] * invAvg + uAvg * aAvg) / 255);
-                        dRow[dOff + 1] = (byte)((dRow[dOff + 1] * inv0 + y0 * a0) / 255);
-                        dRow[dOff + 2] = (byte)((dRow[dOff + 2] * invAvg + vAvg * aAvg) / 255);
-                        dRow[dOff + 3] = (byte)((dRow[dOff + 3] * inv1 + y1 * a1) / 255);
-                    }
+                    dRow[dOff + 0] = (byte)curU;
+                    dRow[dOff + 1] = (byte)curY0;
+                    dRow[dOff + 2] = (byte)curV;
+                    dRow[dOff + 3] = (byte)curY1;
                 }
             }
         }

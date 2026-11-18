@@ -748,7 +748,7 @@ namespace DecklinkSwitcher
                 Kind = "Html",
                 Name = NextExtraSourceName("HTML"),
                 Url = "https://www.google.com",
-                Fps = 30,
+                Fps = 60,
                 AudioState = "AFV"
             };
             AddDynamicExtraSource(cfg);
@@ -764,8 +764,7 @@ namespace DecklinkSwitcher
                 Name = NextExtraSourceName("YouTube"),
                 Url = "",
                 AudioLevel = 1.0,
-                AudioState = "AFV",
-                AudioDelayMs = 200
+                AudioState = "AFV"
             };
             AddDynamicExtraSource(cfg);
             SaveCurrentSettings();
@@ -1138,7 +1137,7 @@ namespace DecklinkSwitcher
             }
             else if (cfg.Kind == "Html")
             {
-                var htmlSrc = new HtmlBrowserSource(false, cfg.Id) { TargetFps = cfg.Fps > 0 ? cfg.Fps : 30 };
+                var htmlSrc = new HtmlBrowserSource(false, cfg.Id) { TargetFps = 60 };
                 extra.HtmlSource = htmlSrc;
 
                 htmlSrc.OnPreviewBufferUpdated += bgra480 =>
@@ -1183,7 +1182,6 @@ namespace DecklinkSwitcher
                 var ctrlRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
                 ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-                ctrlRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
 
                 var btnStart = new System.Windows.Controls.Button
                 {
@@ -1200,32 +1198,9 @@ namespace DecklinkSwitcher
                 };
                 extra.StartStopButton = btnStart;
 
-                var cmbFps = new System.Windows.Controls.ComboBox
-                {
-                    Width = 54,
-                    Height = 24,
-                    FontSize = 10,
-                    Margin = new Thickness(0, 0, 4, 0),
-                    ToolTip = "HTML Render FPS"
-                };
-                int[] fpsChoices = { 25, 30, 50, 60 };
-                foreach (int fpsVal in fpsChoices) cmbFps.Items.Add($"{fpsVal}p");
-                int fpsIdx = Array.IndexOf(fpsChoices, cfg.Fps > 0 ? cfg.Fps : 30);
-                cmbFps.SelectedIndex = fpsIdx >= 0 ? fpsIdx : 1;
-                cmbFps.SelectionChanged += (_, __) =>
-                {
-                    if (cmbFps.SelectedIndex >= 0 && cmbFps.SelectedIndex < fpsChoices.Length)
-                    {
-                        int fpsVal = fpsChoices[cmbFps.SelectedIndex];
-                        cfg.Fps = fpsVal;
-                        htmlSrc.TargetFps = fpsVal;
-                        SaveCurrentSettings();
-                    }
-                };
-
                 var cmbMute = new System.Windows.Controls.ComboBox
                 {
-                    Width = 54,
+                    Width = 58,
                     Height = 24,
                     FontSize = 10
                 };
@@ -1265,10 +1240,8 @@ namespace DecklinkSwitcher
                 };
 
                 System.Windows.Controls.Grid.SetColumn(btnStart, 0);
-                System.Windows.Controls.Grid.SetColumn(cmbFps, 1);
-                System.Windows.Controls.Grid.SetColumn(cmbMute, 2);
+                System.Windows.Controls.Grid.SetColumn(cmbMute, 1);
                 ctrlRow.Children.Add(btnStart);
-                ctrlRow.Children.Add(cmbFps);
                 ctrlRow.Children.Add(cmbMute);
                 stack.Children.Add(ctrlRow);
 
@@ -1288,8 +1261,7 @@ namespace DecklinkSwitcher
             {
                 var ytSrc = new YouTubeSource
                 {
-                    AudioChannelName = cfg.Id,
-                    AudioDelayMs = cfg.AudioDelayMs
+                    AudioChannelName = cfg.Id
                 };
                 extra.YtSource = ytSrc;
 
@@ -1468,54 +1440,6 @@ namespace DecklinkSwitcher
                 ctrlRow.Children.Add(btnConnect);
                 ctrlRow.Children.Add(btnStop);
                 stack.Children.Add(ctrlRow);
-
-                // Sync (Audio Delay) row
-                var syncRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
-                syncRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-                syncRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                syncRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(42) });
-
-                var lblSync = new System.Windows.Controls.TextBlock
-                {
-                    Text = "Sync:",
-                    FontSize = 10,
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 4, 0)
-                };
-                var txtDelay = new System.Windows.Controls.TextBlock
-                {
-                    Text = $"{cfg.AudioDelayMs}ms",
-                    FontSize = 10,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                var sldDelay = new System.Windows.Controls.Slider
-                {
-                    Minimum = 0,
-                    Maximum = 60000,
-                    Value = Math.Clamp(cfg.AudioDelayMs, 0, 60000),
-                    SmallChange = 50,
-                    LargeChange = 500,
-                    TickFrequency = 1000,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                sldDelay.ValueChanged += (_, __) =>
-                {
-                    int ms = (int)Math.Round(sldDelay.Value);
-                    cfg.AudioDelayMs = ms;
-                    ytSrc.AudioDelayMs = ms;
-                    txtDelay.Text = $"{ms}ms";
-                    SaveCurrentSettings();
-                };
-                System.Windows.Controls.Grid.SetColumn(lblSync, 0);
-                System.Windows.Controls.Grid.SetColumn(sldDelay, 1);
-                System.Windows.Controls.Grid.SetColumn(txtDelay, 2);
-                syncRow.Children.Add(lblSync);
-                syncRow.Children.Add(sldDelay);
-                syncRow.Children.Add(txtDelay);
-                stack.Children.Add(syncRow);
 
                 var cmbAudio = new System.Windows.Controls.ComboBox
                 {
@@ -2367,16 +2291,6 @@ namespace DecklinkSwitcher
         {
             if (_youtubeSource != null) _youtubeSource.AudioLevel = (float)e.NewValue;
             YouTubeAudioLevel = (float)e.NewValue;
-        }
-
-        private static string FormatDelayText(int ms) => ms >= 1000 ? $"{ms / 1000.0:0.0}s" : $"{ms}ms";
-
-        private void SldYouTubeAudioDelay_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            int ms = (int)e.NewValue;
-            if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = FormatDelayText(ms);
-            if (_youtubeSource != null) _youtubeSource.AudioDelayMs = ms;
-            SaveCurrentSettings();
         }
 
         private void BtnHtmlSource_Click(object sender, RoutedEventArgs e)

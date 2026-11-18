@@ -26,14 +26,34 @@ namespace DecklinkSwitcher
         public Action<string, bool, bool>? OnStatusChanged; // (statusText, isLive, isError)
 
         public float AudioLevel { get; set; } = 1.0f;
-        public int AudioDelayMs { get; set; } = 200;
         public bool IsConnecting { get; private set; } = false;
         public bool IsStreaming { get; private set; } = false;
         public string CurrentUrl { get; private set; } = "";
 
-        private readonly System.Collections.Generic.Queue<short[]> _delayQueue = new();
+        private readonly struct TimedAudioPacket
+        {
+            public readonly long PtsUs;
+            public readonly short[] Samples;
+            public TimedAudioPacket(long ptsUs, short[] samples)
+            {
+                PtsUs = ptsUs;
+                Samples = samples;
+            }
+        }
+
+        private readonly System.Collections.Generic.Queue<TimedAudioPacket> _ptsQueue = new();
         private readonly object _delayLock = new();
-        private int _delayBufferedSamples = 0;
+        private System.Threading.CancellationTokenSource? _audioPacerCts;
+        private volatile bool _isAudioPaused = false;
+
+        [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)]
+        private static extern long libvlc_clock();
+
+        private static long GetLibVlcClockUs()
+        {
+            try { return libvlc_clock(); }
+            catch { return System.Diagnostics.Stopwatch.GetTimestamp() * 1_000_000L / System.Diagnostics.Stopwatch.Frequency; }
+        }
 
         private MediaPlayer.LibVLCVideoLockCb _lockVideoCb;
         private MediaPlayer.LibVLCVideoUnlockCb _unlockVideoCb;
@@ -171,6 +191,8 @@ namespace DecklinkSwitcher
                 _mediaPlayer.Play(media);
                 IsStreaming = true;
                 IsConnecting = false;
+                _isAudioPaused = false;
+                StartAudioPacer();
                 OnStatusChanged?.Invoke("LIVE", true, false);
             }
             catch (Exception ex)
@@ -183,6 +205,7 @@ namespace DecklinkSwitcher
 
         public void Stop()
         {
+            StopAudioPacer();
             try
             {
                 if (_mediaPlayer.IsPlaying)
@@ -194,8 +217,7 @@ namespace DecklinkSwitcher
 
             lock (_delayLock)
             {
-                _delayQueue.Clear();
-                _delayBufferedSamples = 0;
+                _ptsQueue.Clear();
             }
 
             IsStreaming = false;
@@ -281,6 +303,54 @@ namespace DecklinkSwitcher
             return copy;
         }
 
+        private void StartAudioPacer()
+        {
+            StopAudioPacer();
+            var cts = new System.Threading.CancellationTokenSource();
+            _audioPacerCts = cts;
+            var token = cts.Token;
+            Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        if (!_isAudioPaused)
+                        {
+                            long nowUs = GetLibVlcClockUs();
+                            // Release packets whose presentation timestamp is due within 15ms
+                            long releaseHorizonUs = nowUs + 15_000L;
+
+                            while (true)
+                            {
+                                short[]? emit = null;
+                                lock (_delayLock)
+                                {
+                                    if (_ptsQueue.Count > 0 && _ptsQueue.Peek().PtsUs <= releaseHorizonUs)
+                                    {
+                                        emit = _ptsQueue.Dequeue().Samples;
+                                    }
+                                }
+                                if (emit == null) break;
+                                DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, emit);
+                                UpdateAudioMeter(emit);
+                            }
+                        }
+                        await Task.Delay(10, token);
+                    }
+                    catch (OperationCanceledException) { break; }
+                    catch { }
+                }
+            }, token);
+        }
+
+        private void StopAudioPacer()
+        {
+            try { _audioPacerCts?.Cancel(); } catch { }
+            try { _audioPacerCts?.Dispose(); } catch { }
+            _audioPacerCts = null;
+        }
+
         private void PlayAudio(IntPtr data, IntPtr samples, uint count, long pts)
         {
             if (count == 0 || samples == IntPtr.Zero) return;
@@ -289,35 +359,20 @@ namespace DecklinkSwitcher
             short[] packet = new short[totalShorts];
             Marshal.Copy(samples, packet, 0, totalShorts);
 
-            int delayMs = AudioDelayMs;
-            if (delayMs <= 0)
+            long nowUs = GetLibVlcClockUs();
+            // If pts is already due or clock is unavailable, fall back cleanly
+            if (pts <= 0 || pts < nowUs - 5_000_000L)
             {
-                lock (_delayLock)
-                {
-                    while (_delayQueue.Count > 0)
-                    {
-                        var flushed = _delayQueue.Dequeue();
-                        DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, flushed);
-                    }
-                    _delayBufferedSamples = 0;
-                }
-                DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, packet);
-                UpdateAudioMeter(packet);
-                return;
+                pts = nowUs;
             }
 
-            long targetDelayShorts = ((long)delayMs * 48000L / 1000L) * 2L;
             lock (_delayLock)
             {
-                _delayQueue.Enqueue(packet);
-                _delayBufferedSamples += packet.Length;
-
-                while (_delayBufferedSamples > targetDelayShorts && _delayQueue.Count > 0)
+                _ptsQueue.Enqueue(new TimedAudioPacket(pts, packet));
+                // Cap queue to prevent unbounded memory growth if paused/stalled (>10s)
+                while (_ptsQueue.Count > 500)
                 {
-                    short[] emitPacket = _delayQueue.Dequeue();
-                    _delayBufferedSamples -= emitPacket.Length;
-                    DecklinkSwitcher.MainWindow.PushAudioPacket(AudioChannelName, emitPacket);
-                    UpdateAudioMeter(emitPacket);
+                    _ptsQueue.Dequeue();
                 }
             }
         }
@@ -338,9 +393,12 @@ namespace DecklinkSwitcher
             OnAudioLevelArrived?.Invoke(volL, volR);
         }
 
-        private void PauseAudio(IntPtr data, long pts) { }
-        private void ResumeAudio(IntPtr data, long pts) { }
-        private void FlushAudio(IntPtr data, long pts) { }
+        private void PauseAudio(IntPtr data, long pts) { _isAudioPaused = true; }
+        private void ResumeAudio(IntPtr data, long pts) { _isAudioPaused = false; }
+        private void FlushAudio(IntPtr data, long pts)
+        {
+            lock (_delayLock) { _ptsQueue.Clear(); }
+        }
         private void DrainAudio(IntPtr data) { }
 
         public void Dispose()

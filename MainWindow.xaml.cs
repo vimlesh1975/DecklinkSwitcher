@@ -502,7 +502,6 @@ namespace DecklinkSwitcher
                     if (CmbAudioStateNdi != null && CmbAudioStateNdi.SelectedIndex >= 0)
                         settings.AudioStateNdi = (AudioState)CmbAudioStateNdi.SelectedIndex;
                     settings.NdiSourceName = (CmbNdiSources?.SelectedItem as NdiSourceInfo)?.Name ?? _pendingNdiSourceName ?? settings.NdiSourceName;
-                    if (SldYouTubeAudioDelay != null) settings.YouTubeAudioDelayMs = (int)SldYouTubeAudioDelay.Value;
                     if (ChkInvertDeckLinkR != null) settings.InvertDeckLinkRightChannel = ChkInvertDeckLinkR.IsChecked == true;
                     if (ChkMixTransition != null) settings.MixTransitionEnabled = ChkMixTransition.IsChecked == true;
                     settings.MixDurationSeconds = MixDurationSeconds;
@@ -827,12 +826,6 @@ namespace DecklinkSwitcher
                 CmbAudioStateNdi.SelectedIndex = (int)settings.AudioStateNdi;
                 StateNdi = settings.AudioStateNdi;
                 _pendingNdiSourceName = settings.NdiSourceName;
-                if (SldYouTubeAudioDelay != null)
-                {
-                    SldYouTubeAudioDelay.Value = settings.YouTubeAudioDelayMs;
-                    if (TxtYouTubeAudioDelay != null) TxtYouTubeAudioDelay.Text = FormatDelayText(settings.YouTubeAudioDelayMs);
-                }
-                if (_youtubeSource != null) _youtubeSource.AudioDelayMs = settings.YouTubeAudioDelayMs;
                 InvertDeckLinkRight = settings.InvertDeckLinkRightChannel;
                 if (ChkInvertDeckLinkR != null) ChkInvertDeckLinkR.IsChecked = settings.InvertDeckLinkRightChannel;
                 IsMixEnabled = settings.MixTransitionEnabled;

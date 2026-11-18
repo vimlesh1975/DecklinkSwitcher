@@ -59,14 +59,6 @@ namespace DecklinkSwitcher
             public CheckBox ChkEnabled = null!;
             public ComboBox CmbSource = null!;
             public TextBox TxtLabel = null!;
-            public TextBox TxtX = null!;
-            public TextBox TxtY = null!;
-            public TextBox TxtW = null!;
-            public TextBox TxtH = null!;
-            public TextBox TxtCropL = null!;
-            public TextBox TxtCropT = null!;
-            public TextBox TxtCropR = null!;
-            public TextBox TxtCropB = null!;
             public TextBox TxtBorder = null!;
         }
 
@@ -373,11 +365,16 @@ namespace DecklinkSwitcher
             _layerTableGrid.ColumnDefinitions.Clear();
             _rows.Clear();
 
-            double[] widths = { 28, 44, 46, 114, 102, 46, 46, 46, 46, 46, 46, 46, 46, 44, 48, 28 };
-            foreach (double w in widths)
-                _layerTableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+            double[] widths = { 28, 44, 48, 170, 0, 52, 54, 28 };
+            for (int ci = 0; ci < widths.Length; ci++)
+            {
+                _layerTableGrid.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = ci == 4 ? new GridLength(1, GridUnitType.Star) : new GridLength(widths[ci])
+                });
+            }
 
-            string[] headers = { "On", "Z", "Layer", "Source", "Title / Name", "X %", "Y %", "W %", "H %", "Crop L%", "Crop T%", "Crop R%", "Crop B%", "Border", "Crop", "" };
+            string[] headers = { "On", "Z", "Layer", "Source", "Title / Name (use $$ for loop)", "Border", "Crop", "" };
             _layerTableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             for (int c = 0; c < headers.Length; c++)
             {
@@ -454,22 +451,14 @@ namespace DecklinkSwitcher
                     Background = new SolidColorBrush(Color.FromRgb(0x22, 0x24, 0x30)),
                     Foreground = Brushes.White,
                     BorderBrush = new SolidColorBrush(Color.FromRgb(0x45, 0x45, 0x55)),
-                    ToolTip = "Participant name / title overlay (bottom-left of box)"
+                    ToolTip = "Participant name / title (separate multiple captions with $$ to cycle in a loop)"
                 };
                 row.TxtLabel.TextChanged += (_, _) => SyncFromUi();
                 Grid.SetRow(row.TxtLabel, rowIdx);
                 Grid.SetColumn(row.TxtLabel, 4);
                 _layerTableGrid.Children.Add(row.TxtLabel);
 
-                row.TxtX = MakeNumBox(_layerTableGrid, rowIdx, 5);
-                row.TxtY = MakeNumBox(_layerTableGrid, rowIdx, 6);
-                row.TxtW = MakeNumBox(_layerTableGrid, rowIdx, 7);
-                row.TxtH = MakeNumBox(_layerTableGrid, rowIdx, 8);
-                row.TxtCropL = MakeNumBox(_layerTableGrid, rowIdx, 9);
-                row.TxtCropT = MakeNumBox(_layerTableGrid, rowIdx, 10);
-                row.TxtCropR = MakeNumBox(_layerTableGrid, rowIdx, 11);
-                row.TxtCropB = MakeNumBox(_layerTableGrid, rowIdx, 12);
-                row.TxtBorder = MakeNumBox(_layerTableGrid, rowIdx, 13);
+                row.TxtBorder = MakeNumBox(_layerTableGrid, rowIdx, 5);
 
                 var btnResetCrop = new Button
                 {
@@ -495,7 +484,7 @@ namespace DecklinkSwitcher
                     }
                 };
                 Grid.SetRow(btnResetCrop, rowIdx);
-                Grid.SetColumn(btnResetCrop, 14);
+                Grid.SetColumn(btnResetCrop, 6);
                 _layerTableGrid.Children.Add(btnResetCrop);
 
                 var btnRemove = new Button
@@ -512,7 +501,7 @@ namespace DecklinkSwitcher
                 };
                 btnRemove.Click += (_, _) => RemoveBox(idx);
                 Grid.SetRow(btnRemove, rowIdx);
-                Grid.SetColumn(btnRemove, 15);
+                Grid.SetColumn(btnRemove, 7);
                 _layerTableGrid.Children.Add(btnRemove);
 
                 _rows.Add(row);
@@ -804,14 +793,6 @@ namespace DecklinkSwitcher
                         r.CmbSource.Items.Add(l.SourceKey);
                     r.CmbSource.SelectedItem = l.SourceKey ?? "";
                     r.TxtLabel.Text = l.Label ?? "";
-                    r.TxtX.Text = l.DestXPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtY.Text = l.DestYPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtW.Text = l.DestWPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtH.Text = l.DestHPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtCropL.Text = l.CropLeftPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtCropT.Text = l.CropTopPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtCropR.Text = l.CropRightPct.ToString("0.#", CultureInfo.InvariantCulture);
-                    r.TxtCropB.Text = l.CropBottomPct.ToString("0.#", CultureInfo.InvariantCulture);
                     r.TxtBorder.Text = l.BorderPx.ToString(CultureInfo.InvariantCulture);
                 }
             }
@@ -838,14 +819,6 @@ namespace DecklinkSwitcher
                 l.Enabled = r.ChkEnabled.IsChecked == true;
                 l.SourceKey = r.CmbSource.SelectedItem?.ToString() ?? "";
                 l.Label = r.TxtLabel.Text ?? "";
-                l.DestXPct = ParseDouble(r.TxtX.Text, l.DestXPct, -95, 100);
-                l.DestYPct = ParseDouble(r.TxtY.Text, l.DestYPct, -95, 100);
-                l.DestWPct = ParseDouble(r.TxtW.Text, l.DestWPct, 1, 200);
-                l.DestHPct = ParseDouble(r.TxtH.Text, l.DestHPct, 1, 200);
-                l.CropLeftPct = ParseDouble(r.TxtCropL.Text, l.CropLeftPct, 0, 98);
-                l.CropTopPct = ParseDouble(r.TxtCropT.Text, l.CropTopPct, 0, 98);
-                l.CropRightPct = ParseDouble(r.TxtCropR.Text, l.CropRightPct, 0, Math.Max(0, 98 - l.CropLeftPct));
-                l.CropBottomPct = ParseDouble(r.TxtCropB.Text, l.CropBottomPct, 0, Math.Max(0, 98 - l.CropTopPct));
                 l.BorderPx = (int)ParseDouble(r.TxtBorder.Text, l.BorderPx, 0, 12);
             }
             UpdateVisualCanvas();
