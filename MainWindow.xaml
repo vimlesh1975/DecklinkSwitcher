@@ -866,7 +866,10 @@
 
                     <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
-                            <TextBlock Text="YOUTUBE STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="YOUTUBE STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="Black" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtStreamStatus" Text="● OFFLINE" FontSize="10.5" FontWeight="Bold" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -886,12 +889,16 @@
                                 <TextBox Name="TxtStreamKey" Grid.Column="2" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
                             <Button Name="BtnStream" Content="START STREAM" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnStream_Click" FontWeight="Black" Cursor="Hand"/>
+                            <TextBlock Name="TxtStreamTelemetry" Text="-- fps  •  -- kbps" FontSize="10.5" Foreground="{DynamicResource TextDim}" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
-                            <TextBlock Text="YOUTUBE STREAMING 2" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="YOUTUBE STREAMING 2" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="Black" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtStream2Status" Text="● OFFLINE" FontSize="10.5" FontWeight="Bold" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -911,12 +918,16 @@
                                 <TextBox Name="TxtStreamKey2" Grid.Column="2" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
                             <Button Name="BtnStream2" Content="START STREAM 2" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnStream2_Click" FontWeight="Black" Cursor="Hand"/>
+                            <TextBlock Name="TxtStream2Telemetry" Text="-- fps  •  -- kbps" FontSize="10.5" Foreground="{DynamicResource TextDim}" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
-                            <TextBlock Text="FACEBOOK STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="FACEBOOK STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="Black" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtFbStreamStatus" Text="● OFFLINE" FontSize="10.5" FontWeight="Bold" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
                             <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -936,6 +947,7 @@
                                 <TextBox Name="TxtFbStreamKey" Grid.Column="2" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
                             </Grid>
                             <Button Name="BtnFbStream" Content="START FB STREAM" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnFbStream_Click" FontWeight="Black" Cursor="Hand"/>
+                            <TextBlock Name="TxtFbStreamTelemetry" Text="-- fps  •  -- kbps" FontSize="10.5" Foreground="{DynamicResource TextDim}" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Border>
 

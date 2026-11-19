@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,6 +25,17 @@ namespace DecklinkSwitcher
         private Task? _feedTask;
         
         public bool IsStreaming { get; private set; }
+        public string ConnectionState { get; private set; } = "OFFLINE";
+        public double CurrentFps { get; private set; }
+        public double CurrentBitrateKbps { get; private set; }
+        public double CurrentSpeed { get; private set; }
+        public string LastError { get; private set; } = "";
+
+        private volatile bool _manualStop = false;
+
+        private static readonly Regex FpsRegex = new(@"fps=\s*([0-9]+(?:\.[0-9]+)?)", RegexOptions.Compiled);
+        private static readonly Regex BitrateRegex = new(@"bitrate=\s*([0-9]+(?:\.[0-9]+)?)kbits/s", RegexOptions.Compiled);
+        private static readonly Regex SpeedRegex = new(@"speed=\s*([0-9]+(?:\.[0-9]+)?)x", RegexOptions.Compiled);
         
         public Action<string>? OnLog;
         
@@ -42,6 +55,12 @@ namespace DecklinkSwitcher
             Framerate = (int)Math.Round(fps);
             if (Framerate <= 0) Framerate = 30;
             _latestVideoFrame = null;
+            _manualStop = false;
+            ConnectionState = "CONNECTING";
+            CurrentFps = 0;
+            CurrentBitrateKbps = 0;
+            CurrentSpeed = 0;
+            LastError = "";
             
             _cts = new CancellationTokenSource();
             
@@ -91,7 +110,9 @@ namespace DecklinkSwitcher
             currentProcess.StartInfo.RedirectStandardInput = true;
             
             currentProcess.ErrorDataReceived += (s, e) => {
-                if (e.Data != null) OnLog?.Invoke("FFmpeg: " + e.Data);
+                if (e.Data == null) return;
+                ParseFfmpegTelemetry(e.Data);
+                OnLog?.Invoke("FFmpeg: " + e.Data);
             };
             
             currentProcess.EnableRaisingEvents = true;
@@ -101,10 +122,18 @@ namespace DecklinkSwitcher
                 OnLog?.Invoke($"FFmpeg process exited with code {code}");
                 if (_ffmpegProcess == currentProcess) {
                     IsStreaming = false;
+                    ConnectionState = (_manualStop || code == 0) ? "OFFLINE" : "ERROR";
+                    if (ConnectionState == "ERROR" && string.IsNullOrEmpty(LastError))
+                    {
+                        LastError = $"Exited (code {code})";
+                    }
+                    CurrentFps = 0;
+                    CurrentBitrateKbps = 0;
+                    CurrentSpeed = 0;
                 }
             };
 
-            try { currentProcess.Start(); currentProcess.BeginErrorReadLine(); } catch (Exception ex) { OnLog?.Invoke("Failed to start FFmpeg: " + ex.Message); IsStreaming = false; return; }
+            try { currentProcess.Start(); currentProcess.BeginErrorReadLine(); } catch (Exception ex) { OnLog?.Invoke("Failed to start FFmpeg: " + ex.Message); IsStreaming = false; ConnectionState = "ERROR"; LastError = ex.Message; return; }
             
             IsStreaming = true;
             
@@ -118,6 +147,7 @@ namespace DecklinkSwitcher
         public void Stop()
         {
             if (!IsStreaming) return;
+            _manualStop = true;
             
             try 
             { 
@@ -131,6 +161,10 @@ namespace DecklinkSwitcher
             catch { }
 
             IsStreaming = false;
+            ConnectionState = "OFFLINE";
+            CurrentFps = 0;
+            CurrentBitrateKbps = 0;
+            CurrentSpeed = 0;
             _cts?.Cancel();
             
             try { _videoPipe?.Dispose(); } catch { }
@@ -139,6 +173,49 @@ namespace DecklinkSwitcher
             _audioPipe = null;
             
             OnLog?.Invoke("Streaming stopped.");
+        }
+
+        private void ParseFfmpegTelemetry(string line)
+        {
+            if (line.Contains("frame=") && line.Contains("fps="))
+            {
+                var fpsMatch = FpsRegex.Match(line);
+                if (fpsMatch.Success && double.TryParse(fpsMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedFps))
+                {
+                    CurrentFps = parsedFps;
+                }
+
+                var brMatch = BitrateRegex.Match(line);
+                if (brMatch.Success && double.TryParse(brMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedBr))
+                {
+                    CurrentBitrateKbps = parsedBr;
+                }
+
+                var spdMatch = SpeedRegex.Match(line);
+                if (spdMatch.Success && double.TryParse(spdMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedSpd))
+                {
+                    CurrentSpeed = parsedSpd;
+                }
+
+                if (IsStreaming && !_manualStop)
+                {
+                    ConnectionState = "LIVE";
+                }
+                return;
+            }
+
+            if (line.Contains("Error opening output", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Connection refused", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Connection timed out", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Input/output error", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("I/O error", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Broken pipe", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Conversion failed", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Could not write header", StringComparison.OrdinalIgnoreCase))
+            {
+                ConnectionState = "ERROR";
+                LastError = line.Trim();
+            }
         }
 
         public void UpdateDimensions(int width, int height)

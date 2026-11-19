@@ -14,6 +14,8 @@ namespace DecklinkSwitcher
     {
         private DateTime? _recordStartUtc;
         private DateTime? _streamStartUtc;
+        private DateTime? _stream2StartUtc;
+        private DateTime? _fbStartUtc;
         private DateTime? _srtStartUtc;
         private DateTime? _ndiStartUtc;
         private System.Windows.Threading.DispatcherTimer? _telemetryTimer;
@@ -56,6 +58,33 @@ namespace DecklinkSwitcher
                 _streamStartUtc = null;
                 ApplyOutputButtonStyle(BtnStream, false, "STOP STREAM", "START STREAM");
             }
+            UpdateStreamCardTelemetry(YtStreamer, TxtStreamStatus, TxtStreamTelemetry);
+
+            if (YtStreamer2.IsStreaming)
+            {
+                _stream2StartUtc ??= DateTime.UtcNow;
+                var elapsed = DateTime.UtcNow - _stream2StartUtc.Value;
+                if (BtnStream2 != null) BtnStream2.Content = $"■ STOP STREAM 2  {elapsed:hh\\:mm\\:ss}";
+            }
+            else if (_stream2StartUtc.HasValue)
+            {
+                _stream2StartUtc = null;
+                ApplyOutputButtonStyle(BtnStream2, false, "STOP STREAM 2", "START STREAM 2");
+            }
+            UpdateStreamCardTelemetry(YtStreamer2, TxtStream2Status, TxtStream2Telemetry);
+
+            if (FbStreamer.IsStreaming)
+            {
+                _fbStartUtc ??= DateTime.UtcNow;
+                var elapsed = DateTime.UtcNow - _fbStartUtc.Value;
+                if (BtnFbStream != null) BtnFbStream.Content = $"■ STOP FB STREAM  {elapsed:hh\\:mm\\:ss}";
+            }
+            else if (_fbStartUtc.HasValue)
+            {
+                _fbStartUtc = null;
+                ApplyOutputButtonStyle(BtnFbStream, false, "STOP FB STREAM", "START FB STREAM");
+            }
+            UpdateStreamCardTelemetry(FbStreamer, TxtFbStreamStatus, TxtFbStreamTelemetry);
 
             if (SrtOut.IsStreaming)
             {
@@ -82,6 +111,57 @@ namespace DecklinkSwitcher
             }
 
             UpdateFtbButtonState(toggleBlink: true);
+        }
+
+        private void UpdateStreamCardTelemetry(YouTubeStreamer streamer, System.Windows.Controls.TextBlock? statusBadge, System.Windows.Controls.TextBlock? telemetryText)
+        {
+            string state = streamer.ConnectionState;
+            if (statusBadge != null)
+            {
+                statusBadge.Text = state switch
+                {
+                    "LIVE" => "● LIVE",
+                    "CONNECTING" => "● CONNECTING",
+                    "ERROR" => "● ERROR",
+                    _ => "● OFFLINE"
+                };
+                var color = state switch
+                {
+                    "LIVE" => System.Windows.Media.Color.FromRgb(34, 197, 94),
+                    "CONNECTING" => System.Windows.Media.Color.FromRgb(245, 158, 11),
+                    "ERROR" => System.Windows.Media.Color.FromRgb(239, 68, 68),
+                    _ => System.Windows.Media.Color.FromRgb(156, 163, 175)
+                };
+                statusBadge.Foreground = new System.Windows.Media.SolidColorBrush(color);
+            }
+
+            if (telemetryText != null)
+            {
+                if (state == "LIVE")
+                {
+                    string fpsStr = streamer.CurrentFps > 0 ? $"{streamer.CurrentFps:0.0} fps" : "-- fps";
+                    string brStr = streamer.CurrentBitrateKbps > 0 ? $"{streamer.CurrentBitrateKbps:0} kbps" : "-- kbps";
+                    string spdStr = streamer.CurrentSpeed > 0 ? $"  •  {streamer.CurrentSpeed:0.00}x" : "";
+                    telemetryText.Text = $"{fpsStr}  •  {brStr}{spdStr}";
+                    telemetryText.ToolTip = null;
+                }
+                else if (state == "CONNECTING")
+                {
+                    telemetryText.Text = "Connecting to RTMP ingest...";
+                    telemetryText.ToolTip = null;
+                }
+                else if (state == "ERROR")
+                {
+                    string err = string.IsNullOrWhiteSpace(streamer.LastError) ? "Stream error" : streamer.LastError;
+                    telemetryText.Text = err;
+                    telemetryText.ToolTip = err;
+                }
+                else
+                {
+                    telemetryText.Text = "-- fps  •  -- kbps";
+                    telemetryText.ToolTip = null;
+                }
+            }
         }
 
         private void UpdateFtbButtonState(bool toggleBlink)
@@ -211,6 +291,7 @@ namespace DecklinkSwitcher
                 YtStreamer.Stop();
                 _streamStartUtc = null;
                 ApplyOutputButtonStyle(BtnStream, false, "STOP STREAM", "START STREAM");
+                UpdateStreamCardTelemetry(YtStreamer, TxtStreamStatus, TxtStreamTelemetry);
                 TxtStatus.Text = "Streaming stopped.";
             }
             else
@@ -239,6 +320,7 @@ namespace DecklinkSwitcher
                 // Seed the latest PGM frame immediately (synchronous) so stream loop has data right away
                 UpdatePgmPreviewSynthetic();
                 YtStreamer.Start(TxtStreamKey.Text, 1920, 1080, 25, ytServer);
+                UpdateStreamCardTelemetry(YtStreamer, TxtStreamStatus, TxtStreamTelemetry);
                 
             }
         }
@@ -248,7 +330,9 @@ namespace DecklinkSwitcher
             if (YtStreamer2.IsStreaming)
             {
                 YtStreamer2.Stop();
+                _stream2StartUtc = null;
                 ApplyOutputButtonStyle(BtnStream2, false, "STOP STREAM 2", "START STREAM 2");
+                UpdateStreamCardTelemetry(YtStreamer2, TxtStream2Status, TxtStream2Telemetry);
                 TxtStatus.Text = "YouTube Stream 2 stopped.";
             }
             else
@@ -269,10 +353,13 @@ namespace DecklinkSwitcher
                 settings.YouTubeStreamKey2 = TxtStreamKey2.Text.Trim();
                 settings.Save();
 
-                ApplyOutputButtonStyle(BtnStream2, true, "■ STOP STREAM 2", "START STREAM 2");
+                _stream2StartUtc = DateTime.UtcNow;
+                EnsureTelemetryTimer();
+                ApplyOutputButtonStyle(BtnStream2, true, "■ STOP STREAM 2  00:00:00", "START STREAM 2");
                 TxtStatus.Text = "YouTube Stream 2 started...";
                 UpdatePgmPreviewSynthetic();
                 YtStreamer2.Start(TxtStreamKey2.Text.Trim(), 1920, 1080, 25, ytServer2);
+                UpdateStreamCardTelemetry(YtStreamer2, TxtStream2Status, TxtStream2Telemetry);
             }
         }
 
@@ -281,7 +368,9 @@ namespace DecklinkSwitcher
             if (FbStreamer.IsStreaming)
             {
                 FbStreamer.Stop();
+                _fbStartUtc = null;
                 ApplyOutputButtonStyle(BtnFbStream, false, "STOP FB STREAM", "START FB STREAM");
+                UpdateStreamCardTelemetry(FbStreamer, TxtFbStreamStatus, TxtFbStreamTelemetry);
                 TxtStatus.Text = "Facebook streaming stopped.";
             }
             else
@@ -302,10 +391,13 @@ namespace DecklinkSwitcher
                 settings.FacebookStreamKey = TxtFbStreamKey.Text.Trim();
                 settings.Save();
 
-                ApplyOutputButtonStyle(BtnFbStream, true, "■ STOP FB STREAM", "START FB STREAM");
+                _fbStartUtc = DateTime.UtcNow;
+                EnsureTelemetryTimer();
+                ApplyOutputButtonStyle(BtnFbStream, true, "■ STOP FB STREAM  00:00:00", "START FB STREAM");
                 TxtStatus.Text = "Facebook streaming started...";
                 UpdatePgmPreviewSynthetic();
                 FbStreamer.Start(TxtFbStreamKey.Text.Trim(), 1920, 1080, 25, fbServer);
+                UpdateStreamCardTelemetry(FbStreamer, TxtFbStreamStatus, TxtFbStreamTelemetry);
             }
         }
 
