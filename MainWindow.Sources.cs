@@ -951,8 +951,9 @@ namespace DecklinkSwitcher
             var dlg = new Window
             {
                 Title = title,
-                Width = 340,
-                Height = 145,
+                Width = 350,
+                SizeToContent = SizeToContent.Height,
+                MinHeight = 155,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize,
@@ -982,16 +983,28 @@ namespace DecklinkSwitcher
             sp.Children.Add(tb);
 
             var btnPanel = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnCancel = new System.Windows.Controls.Button { Content = "Cancel", Width = 72, Height = 26, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+            var btnCancel = new System.Windows.Controls.Button
+            {
+                Content = "Cancel",
+                Width = 76,
+                Height = 28,
+                Margin = new Thickness(0, 0, 8, 0),
+                IsCancel = true,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(55, 65, 81)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
             var btnOk = new System.Windows.Controls.Button
             {
                 Content = "Save",
-                Width = 72,
-                Height = 26,
+                Width = 76,
+                Height = 28,
                 IsDefault = true,
                 Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50)),
                 Foreground = System.Windows.Media.Brushes.White,
-                BorderThickness = new Thickness(0)
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
             };
             btnOk.Click += (_, __) => dlg.DialogResult = true;
             btnPanel.Children.Add(btnCancel);
