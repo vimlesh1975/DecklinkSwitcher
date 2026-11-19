@@ -51,6 +51,7 @@ namespace DecklinkSwitcher
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMatte;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpMedia;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpYouTube;
+        private System.Windows.Media.Imaging.WriteableBitmap _bmpSrt;
         private System.Windows.Media.Imaging.WriteableBitmap _bmpNdi;
         private NdiSource _ndiSource = new NdiSource();
         public static float NdiAudioLevel = 1.0f;
@@ -77,10 +78,13 @@ namespace DecklinkSwitcher
         
         private VlcMediaSource _mediaSource;
         private YouTubeSource _youtubeSource;
+        private SrtSource _srtSource;
         private HtmlBrowserSource _htmlSource;
         private HtmlBrowserSource _htmlOverlaySource;
         public static float YouTubeAudioLevel = 1.0f;
+        public static float SrtAudioLevel = 1.0f;
         public static AudioState StateYouTube = AudioState.AFV;
+        public static AudioState StateSrt = AudioState.AFV;
         public static AudioState StateHtml = AudioState.AFV;
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
         private CancellationTokenSource? _syntheticCts;
@@ -94,6 +98,7 @@ namespace DecklinkSwitcher
         // Latest PGM frame (BGRA 1920x1080 or 480x270) — updated by all PGM sources, read by streaming loop
         internal static byte[]? _latestPgmFrame = null;
         internal static byte[]? LatestYouTubeUyvy = new byte[1920 * 1080 * 2];
+        internal static byte[]? LatestSrtUyvy = new byte[1920 * 1080 * 2];
         internal static byte[]? LatestHtmlSourceUyvy = new byte[1920 * 1080 * 2];
         internal static readonly object _pgmLock = new object();
         private static CancellationTokenSource? _streamLoopCts;
@@ -182,6 +187,7 @@ namespace DecklinkSwitcher
             _bmpMatte = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpMedia = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpYouTube = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
+            _bmpSrt = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpHtmlSource = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpHtmlOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             _bmpNdiOverlay = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
@@ -190,6 +196,7 @@ namespace DecklinkSwitcher
             PreviewMatte.Source = _bmpMatte;
             PreviewMedia.Source = _bmpMedia;
             PreviewYouTube.Source = _bmpYouTube;
+            PreviewSrt.Source = _bmpSrt;
             if (PreviewComposite != null) PreviewComposite.Source = _bmpComposite;
             _bmpNdi = new System.Windows.Media.Imaging.WriteableBitmap(480, 270, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null);
             PreviewNdi.Source = _bmpNdi;
@@ -362,6 +369,70 @@ namespace DecklinkSwitcher
 
             try
             {
+                _srtSource = new SrtSource();
+                _srtSource.OnPreviewBufferUpdated = (buf) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        _bmpSrt.WritePixels(new System.Windows.Int32Rect(0, 0, 480, 270), buf, 480 * 4, 0);
+                        if (_activeSourceType == 11)
+                        {
+                            WritePgmPreviewFrame(buf);
+                        }
+                    });
+                };
+                _srtSource.OnUyvy1080Frame = (ptr, len) => {
+                    lock (_pgmLock)
+                    {
+                        if (LatestSrtUyvy == null || LatestSrtUyvy.Length != 1920 * 1080 * 2)
+                            LatestSrtUyvy = new byte[1920 * 1080 * 2];
+                        System.Runtime.InteropServices.Marshal.Copy(ptr, LatestSrtUyvy, 0, Math.Min(len, LatestSrtUyvy.Length));
+                    }
+                };
+                _srtSource.OnAudioLevelArrived = (l, r) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        double srtL = l * _srtSource.AudioLevel;
+                        double srtR = r * _srtSource.AudioLevel;
+                        AudioBarSrtL.Value = srtL; AudioBarSrtR.Value = srtR;
+                        if (_activeSourceType == 11)
+                        {
+                            AudioOutputL.Value = srtL * PgmAudioLevel;
+                            AudioOutputR.Value = srtR * PgmAudioLevel;
+                        }
+                    });
+                };
+                _srtSource.OnStatusChanged = (status, isLive, isError) => {
+                    Application.Current.Dispatcher.BeginInvoke(() => {
+                        TxtSrtStatus.Text = status;
+                        if (isError)
+                        {
+                            TxtSrtStatus.Foreground = System.Windows.Media.Brushes.IndianRed;
+                            TxtSrtStatusIcon.Foreground = System.Windows.Media.Brushes.IndianRed;
+                            PnlSrtStatusOverlay.Visibility = Visibility.Visible;
+                            BtnConnectSrt.IsEnabled = true;
+                            BtnDisconnectSrt.IsEnabled = false;
+                        }
+                        else if (isLive)
+                        {
+                            TxtSrtStatus.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                            TxtSrtStatusIcon.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                            PnlSrtStatusOverlay.Visibility = Visibility.Collapsed;
+                            BtnConnectSrt.IsEnabled = false;
+                            BtnDisconnectSrt.IsEnabled = true;
+                        }
+                        else
+                        {
+                            TxtSrtStatus.Foreground = (System.Windows.Media.Brush)FindResource("TextDim");
+                            TxtSrtStatusIcon.Foreground = System.Windows.Media.Color.FromRgb(56, 189, 248) is var c ? new System.Windows.Media.SolidColorBrush(c) : System.Windows.Media.Brushes.DeepSkyBlue;
+                            PnlSrtStatusOverlay.Visibility = Visibility.Visible;
+                            BtnConnectSrt.IsEnabled = true;
+                            BtnDisconnectSrt.IsEnabled = false;
+                        }
+                    });
+                };
+            }
+            catch { }
+
+            try
+            {
                 _htmlSource = new HtmlBrowserSource(false, "Source");
                 _htmlSource.OnPreviewBufferUpdated = (buf) => {
                     Application.Current.Dispatcher.BeginInvoke(() => {
@@ -502,6 +573,9 @@ namespace DecklinkSwitcher
                     if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
                         settings.AudioStateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
                     if (SldYouTubeAudio != null) settings.AudioLevelYouTube = SldYouTubeAudio.Value;
+                    if (CmbAudioStateSrt != null && CmbAudioStateSrt.SelectedIndex >= 0)
+                        settings.AudioStateSrt = (AudioState)CmbAudioStateSrt.SelectedIndex;
+                    if (SldSrtAudio != null) settings.AudioLevelSrt = SldSrtAudio.Value;
                     if (SldNdiAudio != null) settings.AudioLevelNdi = SldNdiAudio.Value;
                     if (CmbAudioStateNdi != null && CmbAudioStateNdi.SelectedIndex >= 0)
                         settings.AudioStateNdi = (AudioState)CmbAudioStateNdi.SelectedIndex;
@@ -523,6 +597,7 @@ namespace DecklinkSwitcher
                     foreach (var extra in GetExtraSourcesSnapshot())
                         settings.ExtraSources.Add(extra.Config);
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
+                    if (TxtSrtSourceUrl != null) settings.SrtSourceUrl = TxtSrtSourceUrl.Text.Trim();
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
                         settings.AudioStateSystemAudio = (AudioState)CmbAudioStateSystemAudio.SelectedIndex;
@@ -645,6 +720,7 @@ namespace DecklinkSwitcher
                 if (_activeOutput != null) _activeOutput.StopPlayback();
                 if (_mediaSource != null) _mediaSource.Dispose();
                 if (_youtubeSource != null) _youtubeSource.Dispose();
+                if (_srtSource != null) _srtSource.Dispose();
                 try { _ndiSource?.Dispose(); } catch { }
                 try { _ndiOverlaySource?.Dispose(); } catch { }
                 if (_htmlSource != null) _htmlSource.Dispose();
@@ -837,6 +913,12 @@ namespace DecklinkSwitcher
                 YouTubeAudioLevel = (float)settings.AudioLevelYouTube;
                 CmbAudioStateYouTube.SelectedIndex = (int)settings.AudioStateYouTube;
                 StateYouTube = settings.AudioStateYouTube;
+                if (!string.IsNullOrEmpty(settings.SrtSourceUrl))
+                    TxtSrtSourceUrl.Text = settings.SrtSourceUrl;
+                SldSrtAudio.Value = settings.AudioLevelSrt;
+                SrtAudioLevel = (float)settings.AudioLevelSrt;
+                CmbAudioStateSrt.SelectedIndex = (int)settings.AudioStateSrt;
+                StateSrt = settings.AudioStateSrt;
                 SldNdiAudio.Value = settings.AudioLevelNdi;
                 NdiAudioLevel = (float)settings.AudioLevelNdi;
                 CmbAudioStateNdi.SelectedIndex = (int)settings.AudioStateNdi;

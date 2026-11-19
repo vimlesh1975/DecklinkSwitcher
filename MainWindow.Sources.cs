@@ -47,6 +47,7 @@ namespace DecklinkSwitcher
             public AudioState AudioState { get; set; } = AudioState.AFV;
             public HtmlBrowserSource? HtmlSource { get; set; }
             public YouTubeSource? YtSource { get; set; }
+            public SrtSource? SrtSrc { get; set; }
             public NdiSource? NdiSrc { get; set; }
             public VlcMediaSource? MediaSrc { get; set; }
             public System.Windows.Threading.DispatcherTimer? MediaSeekTimer { get; set; }
@@ -187,6 +188,7 @@ namespace DecklinkSwitcher
             applySourceButtonStyle(BtnMatte, _activeSourceType == 2);
             applySourceButtonStyle(BtnMedia, _activeSourceType == 3);
             applySourceButtonStyle(BtnYouTube, _activeSourceType == 6);
+            applySourceButtonStyle(BtnSrtSource, _activeSourceType == 11);
             applySourceButtonStyle(BtnNdiSource, _activeSourceType == 8);
             applySourceButtonStyle(BtnHtmlSource, _activeSourceType == 7);
             applySourceButtonStyle(BtnComposite, _activeSourceType == 9 && _activeCompositeSceneId == null);
@@ -277,6 +279,8 @@ namespace DecklinkSwitcher
 
             if (string.Equals(sourceKey, "YouTube", StringComparison.OrdinalIgnoreCase))
                 return LatestYouTubeUyvy;
+            if (string.Equals(sourceKey, "SRT", StringComparison.OrdinalIgnoreCase))
+                return LatestSrtUyvy;
             if (string.Equals(sourceKey, "NDI", StringComparison.OrdinalIgnoreCase))
                 return LatestNdiUyvy;
             if (string.Equals(sourceKey, "HTML", StringComparison.OrdinalIgnoreCase))
@@ -448,6 +452,7 @@ namespace DecklinkSwitcher
             foreach (var cam in DynamicWebcams) sources.Add(cam.DisplayName);
             sources.Add("Media");
             sources.Add("YouTube");
+            sources.Add("SRT");
             sources.Add("HTML");
             sources.Add("NDI");
             sources.Add("Color Bars");
@@ -764,6 +769,21 @@ namespace DecklinkSwitcher
                 Id = "extra_yt_" + Guid.NewGuid().ToString("N").Substring(0, 8),
                 Kind = "YouTube",
                 Name = NextExtraSourceName("YouTube"),
+                Url = "",
+                AudioLevel = 1.0,
+                AudioState = "AFV"
+            };
+            AddDynamicExtraSource(cfg);
+            SaveCurrentSettings();
+        }
+
+        private void MenuAddSrt_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = new ExtraSourceConfig
+            {
+                Id = "extra_srt_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                Kind = "SRT",
+                Name = NextExtraSourceName("SRT"),
                 Url = "",
                 AudioLevel = 1.0,
                 AudioState = "AFV"
@@ -1259,13 +1279,13 @@ namespace DecklinkSwitcher
                 htmlSrc.OnStatusChanged += (st, _, __) => Dispatcher.BeginInvoke(() => statusTxt.Text = st);
                 stack.Children.Add(statusTxt);
             }
-            else if (cfg.Kind == "YouTube")
+            else if (cfg.Kind == "YouTube" || cfg.Kind == "SRT")
             {
-                var ytSrc = new YouTubeSource
-                {
-                    AudioChannelName = cfg.Id
-                };
+                bool isSrt = cfg.Kind == "SRT";
+                YouTubeSource? ytSrc = isSrt ? null : new YouTubeSource { AudioChannelName = cfg.Id };
+                SrtSource? srtSrc = isSrt ? new SrtSource { AudioChannelName = cfg.Id } : null;
                 extra.YtSource = ytSrc;
+                extra.SrtSrc = srtSrc;
 
                 var barL = new System.Windows.Controls.ProgressBar
                 {
@@ -1329,10 +1349,12 @@ namespace DecklinkSwitcher
 
                 var overlayIcon = new System.Windows.Controls.TextBlock
                 {
-                    Text = "▶",
+                    Text = isSrt ? "📶" : "▶",
                     FontSize = 18,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 51, 51)),
+                    Foreground = new System.Windows.Media.SolidColorBrush(isSrt
+                        ? System.Windows.Media.Color.FromRgb(56, 189, 248)
+                        : System.Windows.Media.Color.FromRgb(255, 51, 51)),
                     Margin = new Thickness(0, 0, 0, 2)
                 };
                 var overlayStatus = new System.Windows.Controls.TextBlock
@@ -1374,7 +1396,7 @@ namespace DecklinkSwitcher
                 meterRow.Children.Add(volStack);
                 stack.Children.Add(meterRow);
 
-                ytSrc.OnAudioLevelArrived += (vl, vr) =>
+                Action<double, double> onAudio = (vl, vr) =>
                 {
                     Dispatcher.BeginInvoke(() =>
                     {
@@ -1382,8 +1404,7 @@ namespace DecklinkSwitcher
                         barR.Value = Math.Min(100, vr * extra.AudioLevel);
                     });
                 };
-
-                ytSrc.OnPreviewBufferUpdated += bgra480 =>
+                Action<byte[]> onPreview = bgra480 =>
                 {
                     Buffer.BlockCopy(bgra480, 0, extra.Preview480, 0, Math.Min(bgra480.Length, extra.Preview480.Length));
                     Dispatcher.BeginInvoke(() =>
@@ -1394,7 +1415,7 @@ namespace DecklinkSwitcher
                             WritePgmPreviewFrame(bgra480);
                     });
                 };
-                ytSrc.OnUyvy1080Frame += (ptr, len) =>
+                Action<IntPtr, int> onUyvy = (ptr, len) =>
                 {
                     int copyLen = Math.Min(len, extra.Uyvy1080.Length);
                     System.Runtime.InteropServices.Marshal.Copy(ptr, extra.Uyvy1080, 0, copyLen);
@@ -1409,6 +1430,18 @@ namespace DecklinkSwitcher
                         }
                     }
                 };
+                if (ytSrc != null)
+                {
+                    ytSrc.OnAudioLevelArrived += onAudio;
+                    ytSrc.OnPreviewBufferUpdated += onPreview;
+                    ytSrc.OnUyvy1080Frame += onUyvy;
+                }
+                if (srtSrc != null)
+                {
+                    srtSrc.OnAudioLevelArrived += onAudio;
+                    srtSrc.OnPreviewBufferUpdated += onPreview;
+                    srtSrc.OnUyvy1080Frame += onUyvy;
+                }
 
                 var urlBox = new System.Windows.Controls.TextBox
                 {
@@ -1420,7 +1453,9 @@ namespace DecklinkSwitcher
                     FontSize = 10.5,
                     Padding = new Thickness(4, 2, 4, 2),
                     Margin = new Thickness(0, 0, 0, 4),
-                    ToolTip = "YouTube Live URL (e.g. https://www.youtube.com/watch?v=...)"
+                    ToolTip = isSrt
+                        ? "SRT URL (e.g. srt://0.0.0.0:9000?mode=listener or srt://192.168.1.50:9000)"
+                        : "YouTube Live URL (e.g. https://www.youtube.com/watch?v=...)"
                 };
                 urlBox.LostFocus += (_, __) => { cfg.Url = urlBox.Text.Trim(); SaveCurrentSettings(); };
                 stack.Children.Add(urlBox);
@@ -1492,7 +1527,7 @@ namespace DecklinkSwitcher
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
                 extra.StatusText = statusTxt;
-                ytSrc.OnStatusChanged += (st, isLive, isErr) => Dispatcher.BeginInvoke(() =>
+                Action<string, bool, bool> onStreamStatus = (st, isLive, isErr) => Dispatcher.BeginInvoke(() =>
                 {
                     statusTxt.Text = st;
                     overlayStatus.Text = st;
@@ -1516,9 +1551,11 @@ namespace DecklinkSwitcher
                         btnStop.IsEnabled = false;
                     }
                 });
+                if (ytSrc != null) ytSrc.OnStatusChanged += onStreamStatus;
+                if (srtSrc != null) srtSrc.OnStatusChanged += onStreamStatus;
                 stack.Children.Add(statusTxt);
 
-                async Task ConnectYouTubeAsync()
+                async Task ConnectStreamAsync()
                 {
                     cfg.Url = urlBox.Text.Trim();
                     if (string.IsNullOrWhiteSpace(cfg.Url)) return;
@@ -1528,10 +1565,11 @@ namespace DecklinkSwitcher
                     overlayStatus.Text = "Connecting...";
                     statusTxt.Text = "Connecting...";
                     SaveCurrentSettings();
-                    await ytSrc.StartAsync(cfg.Url);
+                    if (ytSrc != null) await ytSrc.StartAsync(cfg.Url);
+                    else if (srtSrc != null) await srtSrc.StartAsync(cfg.Url);
                 }
 
-                btnConnect.Click += async (_, __) => await ConnectYouTubeAsync();
+                btnConnect.Click += async (_, __) => await ConnectStreamAsync();
                 btnStop.Click += (_, __) =>
                 {
                     extra.IsRunning = false;
@@ -1541,13 +1579,14 @@ namespace DecklinkSwitcher
                     barR.Value = 0;
                     statusOverlay.Visibility = Visibility.Visible;
                     overlayStatus.Text = "OFFLINE";
-                    ytSrc.Stop();
+                    ytSrc?.Stop();
+                    srtSrc?.Stop();
                 };
 
                 // Auto-connect on startup if a URL was saved
                 if (!string.IsNullOrWhiteSpace(cfg.Url))
                 {
-                    Dispatcher.BeginInvoke(async () => await ConnectYouTubeAsync());
+                    Dispatcher.BeginInvoke(async () => await ConnectStreamAsync());
                 }
             }
             else if (cfg.Kind == "Ndi")
@@ -2120,6 +2159,7 @@ namespace DecklinkSwitcher
             try { extra.MediaSeekTimer?.Stop(); } catch { }
             try { extra.HtmlSource?.Dispose(); } catch { }
             try { extra.YtSource?.Dispose(); } catch { }
+            try { extra.SrtSrc?.Dispose(); } catch { }
             try { extra.NdiSrc?.Dispose(); } catch { }
             try { extra.MediaSrc?.Dispose(); } catch { }
             SyncCompositeSourceFlags();
@@ -2133,6 +2173,7 @@ namespace DecklinkSwitcher
                 try { extra.MediaSeekTimer?.Stop(); } catch { }
                 try { extra.HtmlSource?.Dispose(); } catch { }
                 try { extra.YtSource?.Dispose(); } catch { }
+            try { extra.SrtSrc?.Dispose(); } catch { }
                 try { extra.NdiSrc?.Dispose(); } catch { }
                 try { extra.MediaSrc?.Dispose(); } catch { }
             }
@@ -2174,6 +2215,34 @@ namespace DecklinkSwitcher
             }
         }
         private void PreviewYouTube_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnYouTube_Click(null, null);
+
+        private void BtnSrtSource_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeSourceType != 11) BeginMixIfEnabled();
+            _activeSourceType = 11; ActiveSourceType = 11; ActiveInputName = "SRT"; Log("Switched to SRT Input");
+            _activeScreen = null; _activeWebcam = null; _activeInput = null;
+            UpdateProgramSourceFlags();
+
+            if (_srtSource != null)
+            {
+                var preview = _srtSource.GetLatestPreviewPixels();
+                if (preview != null && _bmpOutput != null)
+                {
+                    WritePgmPreviewFrame(preview);
+                }
+                var pgm = _srtSource.GetLatestPgmPixels();
+                if (pgm != null)
+                {
+                    lock (_pgmLock)
+                    {
+                        if (_latestPgmFrame == null || _latestPgmFrame.Length != 1920 * 1080 * 4)
+                            _latestPgmFrame = new byte[1920 * 1080 * 4];
+                        Array.Copy(pgm, _latestPgmFrame, _latestPgmFrame.Length);
+                    }
+                }
+            }
+        }
+        private void PreviewSrt_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) => BtnSrtSource_Click(null, null);
 
         // ---------------- NDI Source ----------------
         private void SetupNdiSource()
@@ -2336,6 +2405,28 @@ namespace DecklinkSwitcher
         {
             if (_youtubeSource != null) _youtubeSource.AudioLevel = (float)e.NewValue;
             YouTubeAudioLevel = (float)e.NewValue;
+        }
+
+        private async void BtnConnectSrt_Click(object sender, RoutedEventArgs e)
+        {
+            string url = TxtSrtSourceUrl.Text.Trim();
+            SaveCurrentSettings();
+            BtnConnectSrt.IsEnabled = false;
+            BtnDisconnectSrt.IsEnabled = true;
+            await _srtSource.StartAsync(url);
+        }
+
+        private void BtnDisconnectSrt_Click(object sender, RoutedEventArgs e)
+        {
+            _srtSource.Stop();
+            BtnConnectSrt.IsEnabled = true;
+            BtnDisconnectSrt.IsEnabled = false;
+        }
+
+        private void SldSrtAudio_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_srtSource != null) _srtSource.AudioLevel = (float)e.NewValue;
+            SrtAudioLevel = (float)e.NewValue;
         }
 
         private void BtnHtmlSource_Click(object sender, RoutedEventArgs e)
@@ -3090,7 +3181,7 @@ namespace DecklinkSwitcher
                     pixels[i+3] = 255; // A
                 }
             }
-            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 10) // Media, Desktop, Webcam, YouTube, HTML, NDI, or Extra Source
+            else if (_activeSourceType == 3 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 10 || _activeSourceType == 11) // Media, Desktop, Webcam, YouTube, HTML, NDI, Extra Source, or SRT
             {
                 // Handled continuously by streaming/capture callbacks
                 return;
@@ -3604,7 +3695,7 @@ namespace DecklinkSwitcher
                 {
                     try
                     {
-                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 9 || _activeSourceType == 10)
+                        if (_activeSourceType == 1 || _activeSourceType == 2 || _activeSourceType == 4 || _activeSourceType == 5 || _activeSourceType == 6 || _activeSourceType == 7 || _activeSourceType == 8 || _activeSourceType == 9 || _activeSourceType == 10 || _activeSourceType == 11)
                         {
                             if (_activeSourceType == 9)
                             {
@@ -3632,6 +3723,13 @@ namespace DecklinkSwitcher
                                         lock (MainWindow._pgmLock)
                                         {
                                             uyvyBytes = (byte[])LatestYouTubeUyvy.Clone();
+                                        }
+                                    }
+                                    else if (_activeSourceType == 11 && LatestSrtUyvy != null)
+                                    {
+                                        lock (MainWindow._pgmLock)
+                                        {
+                                            uyvyBytes = (byte[])LatestSrtUyvy.Clone();
                                         }
                                     }
                                     else if (_activeSourceType == 8 && LatestNdiUyvy != null)

@@ -162,6 +162,8 @@ namespace DecklinkSwitcher
             StateColorBars = (AudioState)CmbAudioStateColorBars.SelectedIndex;
             if (CmbAudioStateYouTube != null && CmbAudioStateYouTube.SelectedIndex >= 0)
                 StateYouTube = (AudioState)CmbAudioStateYouTube.SelectedIndex;
+            if (CmbAudioStateSrt != null && CmbAudioStateSrt.SelectedIndex >= 0)
+                StateSrt = (AudioState)CmbAudioStateSrt.SelectedIndex;
             if (CmbAudioStateNdi != null && CmbAudioStateNdi.SelectedIndex >= 0)
                 StateNdi = (AudioState)CmbAudioStateNdi.SelectedIndex;
             if (CmbAudioStateHtml != null && CmbAudioStateHtml.SelectedIndex >= 0)
@@ -333,6 +335,7 @@ namespace DecklinkSwitcher
             }
             mixSource("Media", MediaAudioLevel, StateMedia, activeSourceType == 3, audioMixRunning && prevType == 3);
             mixSource("YouTube", YouTubeAudioLevel, StateYouTube, activeSourceType == 6, audioMixRunning && prevType == 6);
+            mixSource("SRT", SrtAudioLevel, StateSrt, activeSourceType == 11, audioMixRunning && prevType == 11);
             mixSource("NDI", NdiAudioLevel, StateNdi, activeSourceType == 8, audioMixRunning && prevType == 8);
             mixSource("Color Bars", ColorBarsAudioLevel, StateColorBars, activeSourceType == 1, audioMixRunning && prevType == 1);
             foreach (var cam in DynamicWebcams)

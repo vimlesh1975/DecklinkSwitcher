@@ -522,6 +522,16 @@ namespace DecklinkSwitcher
                             }
                         }
                     }
+                    else if (sourceType == 11) // SRT direct 1080p UYVY
+                    {
+                        lock (MainWindow._pgmLock)
+                        {
+                            if (MainWindow.LatestSrtUyvy != null)
+                            {
+                                System.Runtime.InteropServices.Marshal.Copy(MainWindow.LatestSrtUyvy, 0, outputBuffer, MainWindow.LatestSrtUyvy.Length);
+                            }
+                        }
+                    }
                     else if (sourceType == 8) // NDI source direct 1080p UYVY
                     {
                         lock (MainWindow._pgmLock)

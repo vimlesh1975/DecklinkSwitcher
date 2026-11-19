@@ -56,6 +56,9 @@ namespace DecklinkSwitcher
         public string YouTubeSourceUrl { get; set; } = "";
         public double AudioLevelYouTube { get; set; } = 1.0;
         public AudioState AudioStateYouTube { get; set; } = AudioState.AFV;
+        public string SrtSourceUrl { get; set; } = "";
+        public double AudioLevelSrt { get; set; } = 1.0;
+        public AudioState AudioStateSrt { get; set; } = AudioState.AFV;
         public int YouTubeAudioDelayMs { get; set; } = 200;
         public bool InvertDeckLinkRightChannel { get; set; } = false;
         public bool MixTransitionEnabled { get; set; } = false;

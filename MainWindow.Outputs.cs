@@ -658,6 +658,7 @@ namespace DecklinkSwitcher
             else if (_activeSourceType == 8) seedUyvy = LatestNdiUyvy;
             else if (_activeSourceType == 7) seedUyvy = LatestHtmlSourceUyvy;
             else if (_activeSourceType == 6) seedUyvy = LatestYouTubeUyvy;
+            else if (_activeSourceType == 11) seedUyvy = LatestSrtUyvy;
             else if (_activeSourceType == 1 || _activeSourceType == 2) seedUyvy = BuildSyntheticUyvy1080(_activeSourceType);
 
             if (seedUyvy != null && seedUyvy.Length == 1920 * 1080 * 2)

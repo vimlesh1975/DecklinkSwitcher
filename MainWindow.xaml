@@ -545,6 +545,7 @@
                                     <MenuItem Header="🌐  HTML / Web Page" Click="MenuAddHtml_Click"/>
                                     <MenuItem Header="▶  YouTube Live / Video" Click="MenuAddYouTube_Click"/>
                                     <MenuItem Header="📡  NDI Source" Click="MenuAddNdi_Click"/>
+                                    <MenuItem Header="📶  SRT Stream" Click="MenuAddSrt_Click"/>
                                     <MenuItem Header="🎬  Media / Video File" Click="MenuAddMedia_Click"/>
                                     <Separator/>
                                     <MenuItem Header="▦  Multi-Box Scene" Click="BtnAddCompositeScene_Click"/>
@@ -630,6 +631,45 @@
                             </StackPanel>
                         </Expander>
                         <ComboBox Name="CmbAudioStateYouTube" FontSize="12" Height="26" SelectionChanged="CmbAudioState_SelectionChanged">
+                            <ComboBoxItem Content="AFV"/>
+                            <ComboBoxItem Content="ON"/>
+                            <ComboBoxItem Content="OFF"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
+                <Border Name="TileSrt" Style="{StaticResource MixerPanel}">
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <ProgressBar Name="AudioBarSrtL" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="0,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource ImageBg}">
+                                <Grid Width="158" Height="100">
+                                    <Image Name="PreviewSrt" Stretch="Uniform" MouseDown="PreviewSrt_MouseDown" Cursor="Hand"/>
+                                    <StackPanel Name="PnlSrtStatusOverlay" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Name="TxtSrtStatusIcon" Text="📶" FontSize="20" HorizontalAlignment="Center" Foreground="#38bdf8" Margin="0,0,0,2"/>
+                                        <TextBlock Name="TxtSrtStatus" Text="OFFLINE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <ProgressBar Name="AudioBarSrtR" Orientation="Vertical" Minimum="0" Maximum="100" Width="6" Height="100" Margin="8,0,8,0" Foreground="#00e676" Background="{DynamicResource PanelBg}"/>
+                            <StackPanel Orientation="Vertical" VerticalAlignment="Center" Width="32">
+                                <Slider Name="SldSrtAudio" Orientation="Vertical" Height="84" HorizontalAlignment="Center" Minimum="0" Maximum="1.5" Value="1" SmallChange="0.05" LargeChange="0.1" ValueChanged="SldSrtAudio_ValueChanged"/>
+                                <TextBlock Text="{Binding Value, ElementName=SldSrtAudio, StringFormat={}{0:P0}}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextDim}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <Button Name="BtnSrtSource" Content="SRT Input" FontSize="14" FontWeight="SemiBold" Height="36" Click="BtnSrtSource_Click" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Margin="0,0,0,8" Cursor="Hand"/>
+                        <Expander Name="ExpanderSrtUrl" Header="SRT URL (Caller/Listener)" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,8" IsExpanded="True" MaxWidth="200">
+                            <StackPanel Orientation="Vertical" Margin="0,4,0,0">
+                                <TextBox Name="TxtSrtSourceUrl" Height="24" FontSize="11" Margin="0,0,0,6"
+                                         Background="{DynamicResource InputBg}" Foreground="{DynamicResource TextPrimary}"
+                                         BorderBrush="{DynamicResource ControlBorder}" ToolTip="e.g. srt://0.0.0.0:9000?mode=listener or srt://192.168.1.50:9000"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Button Name="BtnConnectSrt" Content="Connect" FontSize="11" FontWeight="Bold" Height="26" Width="80" Click="BtnConnectSrt_Click" Background="#2e7d32" Foreground="White" Margin="0,0,6,0" Cursor="Hand"/>
+                                    <Button Name="BtnDisconnectSrt" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="65" Click="BtnDisconnectSrt_Click" Background="#c62828" Foreground="White" IsEnabled="False" Cursor="Hand"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+                        <ComboBox Name="CmbAudioStateSrt" FontSize="12" Height="26" SelectionChanged="CmbAudioState_SelectionChanged">
                             <ComboBoxItem Content="AFV"/>
                             <ComboBoxItem Content="ON"/>
                             <ComboBoxItem Content="OFF"/>
