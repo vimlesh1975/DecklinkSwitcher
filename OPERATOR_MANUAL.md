@@ -33,10 +33,11 @@
 | **DeckLink Inputs** | Auto-detected SDI/HDMI inputs with live preview, L/R audio meters, gain slider, and `AFV / ON / OFF`. |
 | **Screen Capture** | Captures connected monitors at 25 fps. Works both on PGM and inside Multi-Box scenes. |
 | **Webcam** | USB / UVC cameras with live preview and audio routing. |
-| **Local Video (Media)** | `Select File` (video or image), `Cue`, `Pause`, `Resume`, `Stop`, `Loop`, seek slider, L/R meters, gain slider, `AFV / ON / OFF`. |
-| **YouTube Live / Video** | Paste YouTube URL, click `Connect` / `Stop`, `AFV / ON / OFF`. Automatic PTS-based A/V lip-sync (`libvlc_clock`), and auto-connects on startup if a URL is saved. |
+| **Local Video (Media)** | `Select File` (video or image), `Cue`, unified `Pause / Resume` toggle, `Stop`, `Loop`, seek slider, L/R meters, gain slider + `%` label, `AFV / ON / OFF`. |
+| **YouTube Live / Video** | Paste YouTube URL, click `Connect` / `Stop`, gain slider + `%` label, `AFV / ON / OFF`. Automatic PTS-based A/V lip-sync (`libvlc_clock`), and auto-connects on startup if a URL is saved. |
+| **SRT Input** | Full **SRT Settings** (**Mode** `Caller`/`Listener`, **Port**, **Host / IP**, **Latency (ms)**, **Stream ID**, **Passphrase**, auto-built **SRT URL**), `Connect` / `Stop`, L/R meters, gain slider + `%` label, `AFV / ON / OFF`. |
 | **HTML / Web Source** | Enter URL or local `.html` file (runs at 60 fps by default), `Load` / `Stop`, `AFV / ON / OFF` mute control. |
-| **NDI Source** | Scan network NDI sources, select & `Connect` / `Stop`, `AFV / ON / OFF`. |
+| **NDI Source** | Scan network NDI sources (including local **NDI Out**), select & `Connect` / `Stop`, gain slider + `%` label, `AFV / ON / OFF`. |
 | **Color Bars & Matte** | Built-in `1080p` SMPTE Color Bars (with `-20 dBFS` 1 kHz tone when audio is active) and **Matte Color** with a 2×5 **Color Swatch Grid** (9 presets + **`...`** custom RGB color picker). |
 
 ---
@@ -46,8 +47,9 @@ Click **`+ Add Source ▾`** at the top-right of the Source Panel to add extra i
 - **`🎨 Matte Color`**: Pick any custom solid color via the color swatch or **Pick Color** button.
 - **`🌐 HTML / Web Page`**: Independent offscreen browser source (60 fps) with URL bar, `Load / Stop`, and `AFV / ON / OFF` audio control.
 - **`▶ YouTube Live / Video`**: Independent YouTube player with L/R meters, gain slider, `Connect / Stop`, automatic PTS-based A/V sync, `AFV / ON / OFF`, and automatic startup reconnect when a URL is saved.
-- **`📡 NDI Source`**: Independent NDI receiver with `🔍` network scan, `Connect / Stop`, and `AFV / ON / OFF`.
-- **`🎬 Media / Video File`**: Independent VLC media player with `Select File`, `Cue`, `Pause`, `Resume`, `Stop`, `Loop`, seek slider, L/R meters, gain slider, and `AFV / ON / OFF`.
+- **`📡 NDI Source`**: Independent NDI receiver with `🔍` network scan, `Connect / Stop`, gain slider + `%` label, and `AFV / ON / OFF`.
+- **`📶 SRT Stream`**: Independent SRT receiver with full **SRT Settings** (Caller/Listener, Port, Host/IP, Latency, Stream ID, Passphrase, auto-built URL), `Connect / Stop`, L/R meters, gain slider + `%` label, `AFV / ON / OFF`, and auto-connect on startup.
+- **`🎬 Media / Video File`**: Independent VLC media player with `Select File`, `Cue`, unified `Pause / Resume` toggle, `Stop`, `Loop`, seek slider, L/R meters, gain slider + `%` label, and `AFV / ON / OFF`.
 - **`▦ Multi-Box Scene`**: Creates an additional Multi-Box scene tile with its own independent layout and **Edit Layout...** window.
 
 ### Managing Dynamic Tiles
@@ -87,8 +89,8 @@ Click **Edit Layout...** on any Multi-Box tile to open the visual layout editor.
 ## 7. Overlays (Downstream Keyers)
 All active overlays composite onto PGM, Fullscreen Preview, DeckLink SDI, Stream, Record, NDI, and SRT:
 - **Logo Overlay**: Supports static images (`.png`, `.jpg`, etc.) and looping video files, with X/Y position, scale, and opacity controls.
-- **HTML Overlay**: Transparent browser layer (`CefSharp` OSR) for scoreboards, tickers, or alerts (e.g., StreamElements/OBS browser URLs) with opacity control.
-- **NDI Overlay**: Alpha-keyed NDI source overlay with opacity control.
+- **HTML Overlay**: Transparent browser layer (`CefSharp` OSR, `60 fps` by default) for scoreboards, tickers, or alerts (e.g., StreamElements/OBS browser URLs) with opacity control.
+- **NDI Overlay**: Alpha-keyed NDI source overlay (also discovers local **NDI Out**) with opacity control.
 
 ---
 
@@ -104,9 +106,10 @@ Use each channel's vertical gain slider (`0.0` – `1.5`) and the **Master PGM**
 
 ## 9. Outputs (Stream, Record, NDI, SRT)
 - **Local Recording (`START RECORDING`)**: Records the 1080p composited PGM video + mixed audio to disk (supports MP4, TS, ProRes, XDCAM HD422, and **XDCAM Sony Compatible** `.mxf` with 2 discrete 24-bit 48 kHz mono `pcm_s24le` audio tracks, in Infinite or Interval mode).
-- **Live Streaming (`START STREAM`)**: Streams PGM to your configured RTMP / YouTube Live ingest URL & stream key.
+- **YouTube Streaming 1 & 2 (`START STREAM` / `START STREAM 2`)**: Two independent RTMP stream outputs, each with its own **Server URL** (default `rtmp://a.rtmp.youtube.com/live2/`), **Stream Key**, elapsed timer, status badge (`● OFFLINE` / `● CONNECTING` / `● LIVE` / `● ERROR`), and live FFmpeg telemetry (`fps • kbps • speed`). Uses `Stopwatch`-paced CFR delivery (`4500k` / `9000k` VBV) for smooth, buffer-free YouTube ingest.
+- **Facebook Streaming (`START FB STREAM`)**: Dedicated Facebook Live RTMPS output (**Server URL** default `rtmps://live-api-s.facebook.com:443/rtmp/`, **Stream Key**), with the same live status badge, elapsed timer, and FFmpeg `fps • kbps • speed` telemetry.
 - **NDI Output (`START NDI`)**: Publishes the composited PGM feed as an NDI source on your local network.
-- **SRT Output (`START SRT`)**: Streams PGM over SRT to the configured target address/port.
+- **SRT Output (`START SRT`)**: Streams PGM over SRT (Caller/Listener, Port, Host/IP, Latency, Stream ID, Passphrase).
 
 ---
 
