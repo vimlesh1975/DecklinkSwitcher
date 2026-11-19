@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,6 +25,18 @@ namespace DecklinkSwitcher
         private Task? _feedTask;
         
         public bool IsRecording { get; private set; }
+        public string ConnectionState { get; private set; } = "OFFLINE";
+        public double CurrentFps { get; private set; }
+        public double CurrentBitrateKbps { get; private set; }
+        public double CurrentSpeed { get; private set; }
+        public string CurrentSizeText { get; private set; } = "";
+        public string LastError { get; private set; } = "";
+
+        private volatile bool _manualStop = false;
+        private static readonly Regex FpsRegex = new(@"fps=\s*([0-9]+(?:\.[0-9]+)?)", RegexOptions.Compiled);
+        private static readonly Regex BitrateRegex = new(@"bitrate=\s*([0-9]+(?:\.[0-9]+)?)kbits/s", RegexOptions.Compiled);
+        private static readonly Regex SpeedRegex = new(@"speed=\s*([0-9]+(?:\.[0-9]+)?)x", RegexOptions.Compiled);
+        private static readonly Regex SizeRegex = new(@"(?:L?size)=\s*([0-9]+(?:\.[0-9]+)?\s*[KMG]i?B)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         
         public Action<string>? OnLog;
         
@@ -30,9 +44,8 @@ namespace DecklinkSwitcher
         public int Height = 1080;
         public int Framerate = 30; 
         
-        // Set to true once real frames are being pushed
-        private volatile bool _hasRealFrames = false;
-        private long _lastVideoPushTick = 0;
+        // Latest valid video frame (atomically swapped on PushFrame) for steady CFR pacing
+        private volatile byte[]? _latestVideoFrame;
         
         private static string GetSegmentFormat(string containerExtension)
         {
@@ -53,9 +66,15 @@ namespace DecklinkSwitcher
             Width = width;
             Height = height;
             Framerate = (int)Math.Round(fps);
-            if (Framerate <= 0) Framerate = 30; 
-            _hasRealFrames = false;
-            _lastVideoPushTick = 0;
+            if (Framerate <= 0) Framerate = 30;
+            _latestVideoFrame = null;
+            _manualStop = false;
+            ConnectionState = "STARTING";
+            CurrentFps = 0;
+            CurrentBitrateKbps = 0;
+            CurrentSpeed = 0;
+            CurrentSizeText = "";
+            LastError = "";
             
             _cts = new CancellationTokenSource();
             
@@ -128,7 +147,9 @@ namespace DecklinkSwitcher
             currentProcess.StartInfo.RedirectStandardInput = true;
             
             currentProcess.ErrorDataReceived += (s, e) => {
-                if (e.Data != null) OnLog?.Invoke("FFmpeg: " + e.Data);
+                if (e.Data == null) return;
+                ParseFfmpegTelemetry(e.Data);
+                OnLog?.Invoke("FFmpeg: " + e.Data);
             };
             
             currentProcess.EnableRaisingEvents = true;
@@ -138,16 +159,23 @@ namespace DecklinkSwitcher
                 OnLog?.Invoke($"FFmpeg process exited with code {code}");
                 if (_ffmpegProcess == currentProcess) {
                     IsRecording = false;
+                    ConnectionState = (_manualStop || code == 0) ? "OFFLINE" : "ERROR";
+                    if (ConnectionState == "ERROR" && string.IsNullOrEmpty(LastError))
+                        LastError = $"Exited (code {code})";
+                    CurrentFps = 0;
+                    CurrentBitrateKbps = 0;
+                    CurrentSpeed = 0;
+                    CurrentSizeText = "";
                 }
             };
 
-            try { currentProcess.Start(); currentProcess.BeginErrorReadLine(); } catch (Exception ex) { OnLog?.Invoke("Failed to start FFmpeg: " + ex.Message); IsRecording = false; return; }
+            try { currentProcess.Start(); currentProcess.BeginErrorReadLine(); } catch (Exception ex) { OnLog?.Invoke("Failed to start FFmpeg: " + ex.Message); IsRecording = false; ConnectionState = "ERROR"; LastError = ex.Message; return; }
             
             IsRecording = true;
             
             _videoTask = Task.Run(() => VideoPipeWorker(_cts.Token)); _audioTask = Task.Run(() => AudioPipeWorker(_cts.Token));
-            // Fallback frame feeder - keeps FFmpeg alive even when no DeckLink frames arrive
-            _feedTask = Task.Run(() => FallbackFeeder(_cts.Token));
+            // Exact CFR frame pacer - guarantees steady video/audio delivery to FFmpeg
+            _feedTask = Task.Run(() => PacerWorker(_cts.Token));
             
             OnLog?.Invoke($"Recording started ({(intervalMode ? $"Interval {Math.Max(1, intervalSeconds)}s" : "Infinite")}). Resolution: {Width}x{Height} @ {Framerate}fps -> {logTarget}");
         }
@@ -155,7 +183,13 @@ namespace DecklinkSwitcher
         public void Stop()
         {
             if (!IsRecording) return;
+            _manualStop = true;
             IsRecording = false;
+            ConnectionState = "OFFLINE";
+            CurrentFps = 0;
+            CurrentBitrateKbps = 0;
+            CurrentSpeed = 0;
+            CurrentSizeText = "";
             
             _cts?.Cancel();
             
@@ -197,6 +231,42 @@ namespace DecklinkSwitcher
             OnLog?.Invoke("Recording stopped.");
         }
 
+        private void ParseFfmpegTelemetry(string line)
+        {
+            if (line.Contains("frame=") && line.Contains("fps="))
+            {
+                var fpsMatch = FpsRegex.Match(line);
+                if (fpsMatch.Success && double.TryParse(fpsMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedFps))
+                    CurrentFps = parsedFps;
+
+                var brMatch = BitrateRegex.Match(line);
+                if (brMatch.Success && double.TryParse(brMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedBr))
+                    CurrentBitrateKbps = parsedBr;
+
+                var spdMatch = SpeedRegex.Match(line);
+                if (spdMatch.Success && double.TryParse(spdMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedSpd))
+                    CurrentSpeed = parsedSpd;
+
+                var szMatch = SizeRegex.Match(line);
+                if (szMatch.Success)
+                    CurrentSizeText = szMatch.Groups[1].Value.Replace(" ", "");
+
+                if (IsRecording && !_manualStop)
+                    ConnectionState = "RECORDING";
+                return;
+            }
+
+            if (line.Contains("Error opening output", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Permission denied", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("No space left", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Conversion failed", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("Could not write header", StringComparison.OrdinalIgnoreCase))
+            {
+                ConnectionState = "ERROR";
+                LastError = line.Trim();
+            }
+        }
+
         public void UpdateDimensions(int width, int height)
         {
             if (Width != width || Height != height)
@@ -210,37 +280,23 @@ namespace DecklinkSwitcher
         public void PushFrame(byte[] audio, byte[] video)
         {
             if (!IsRecording) return;
-            
-            if (video != null)
-            {
-                _hasRealFrames = true;
-                Interlocked.Exchange(ref _lastVideoPushTick, Environment.TickCount64);
-            }
-            
-            // Drop BOTH if EITHER queue is getting full, to preserve exact A/V sync!
-            if ((video != null && _videoQueue.Count >= _videoQueue.BoundedCapacity - 2) || 
-                (audio != null && _audioQueue.Count >= _audioQueue.BoundedCapacity - 2))
-            {
-                // We are congested. Drop this entire chunk (audio + video)
-                return; 
-            }
 
             if (video != null)
             {
-                try { _videoQueue.TryAdd(video, 0); } catch { }
+                _latestVideoFrame = video;
             }
-            if (audio != null)
+
+            if (audio != null && _audioQueue.Count < _audioQueue.BoundedCapacity - 4)
             {
                 try { _audioQueue.TryAdd(audio, 0); } catch { }
             }
         }
 
-        // Generates UYVY black frames (1920x1080) when no real frames arrive,
-        // so FFmpeg stays alive and keeps the RTMP connection open.
-        private void FallbackFeeder(CancellationToken token)
+        // Generates steady CFR video (repeating the latest valid frame or black) and fills
+        // audio gaps with silence so FFmpeg always receives exact real-time framerate.
+        private void PacerWorker(CancellationToken token)
         {
-            int frameMs = 1000 / Framerate;
-            int audioSamplesPerFrame = 48000 / Framerate;
+            int audioSamplesPerFrame = 48000 / Math.Max(1, Framerate);
             int frameSize = Width * Height * 2; // UYVY is 2 bytes per pixel
             
             // Black UYVY frame: U=128, Y=16, V=128, Y=16
@@ -256,27 +312,43 @@ namespace DecklinkSwitcher
             // Silent audio
             byte[] silentAudio = new byte[audioSamplesPerFrame * 4]; // 2ch, 16-bit
             
-            OnLog?.Invoke("Fallback feeder started. Will send black frames if no DeckLink signal.");
+            OnLog?.Invoke($"Recording CFR pacer started ({Framerate} fps).");
+
+            double ticksPerFrame = (double)Stopwatch.Frequency / Math.Max(1, Framerate);
+            double nextTick = Stopwatch.GetTimestamp();
 
             while (!token.IsCancellationRequested && IsRecording)
             {
-                long now = Environment.TickCount64;
-                bool realFrameRecent = _hasRealFrames && (now - Interlocked.Read(ref _lastVideoPushTick)) < 500;
-                
-                if (!realFrameRecent)
+                long now = Stopwatch.GetTimestamp();
+                if (now - nextTick > Stopwatch.Frequency * 0.5)
                 {
-                    // No real frame in 500ms, push black fallback
-                    if (_videoQueue.Count < 5)
-                    {
-                        try { _videoQueue.TryAdd((byte[])blackFrame.Clone(), 0); } catch { }
-                    }
-                    if (_audioQueue.Count < 20)
-                    {
-                        try { _audioQueue.TryAdd((byte[])silentAudio.Clone(), 0); } catch { }
-                    }
+                    nextTick = now;
                 }
-                
-                Thread.Sleep(frameMs);
+
+                byte[] vFrame = _latestVideoFrame ?? blackFrame;
+                if (_videoQueue.Count < 15)
+                {
+                    try { _videoQueue.TryAdd(vFrame, 0); } catch { }
+                }
+
+                if (_audioQueue.Count == 0)
+                {
+                    try { _audioQueue.TryAdd(silentAudio, 0); } catch { }
+                }
+
+                nextTick += ticksPerFrame;
+                while (!token.IsCancellationRequested && IsRecording)
+                {
+                    long remaining = (long)nextTick - Stopwatch.GetTimestamp();
+                    if (remaining <= 0) break;
+                    double remainingMs = remaining * 1000.0 / Stopwatch.Frequency;
+                    if (remainingMs > 16.5)
+                        Thread.Sleep(1);
+                    else if (remainingMs > 0.5)
+                        Thread.Yield();
+                    else
+                        Thread.SpinWait(50);
+                }
             }
         }
 

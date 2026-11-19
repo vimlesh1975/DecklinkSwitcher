@@ -46,6 +46,7 @@ namespace DecklinkSwitcher
                 ApplyOutputButtonStyle(BtnRecord, false, "STOP RECORDING", "START RECORDING");
                 UpdateRecordingModeUiState();
             }
+            UpdateRecordCardTelemetry();
 
             if (YtStreamer.IsStreaming)
             {
@@ -97,6 +98,7 @@ namespace DecklinkSwitcher
                 _srtStartUtc = null;
                 UpdateSrtUiState(false);
             }
+            UpdateSrtOutCardTelemetry();
 
             if (NdiOut.IsRunning)
             {
@@ -115,44 +117,83 @@ namespace DecklinkSwitcher
 
         private void UpdateStreamCardTelemetry(YouTubeStreamer streamer, System.Windows.Controls.TextBlock? statusBadge, System.Windows.Controls.TextBlock? telemetryText)
         {
-            string state = streamer.ConnectionState;
+            UpdateFfmpegCardTelemetry(
+                streamer.ConnectionState, streamer.CurrentFps, streamer.CurrentBitrateKbps, streamer.CurrentSpeed,
+                null, streamer.LastError,
+                activeState: "LIVE", activeBadgeText: "● LIVE", connectingState: "CONNECTING",
+                connectingBadgeText: "● CONNECTING", connectingText: "Connecting to RTMP ingest...",
+                statusBadge, telemetryText);
+        }
+
+        private void UpdateSrtOutCardTelemetry()
+        {
+            UpdateFfmpegCardTelemetry(
+                SrtOut.ConnectionState, SrtOut.CurrentFps, SrtOut.CurrentBitrateKbps, SrtOut.CurrentSpeed,
+                null, SrtOut.LastError,
+                activeState: "LIVE", activeBadgeText: "● LIVE", connectingState: "CONNECTING",
+                connectingBadgeText: "● CONNECTING", connectingText: "Connecting SRT...",
+                TxtSrtOutStatus, TxtSrtOutTelemetry);
+        }
+
+        private void UpdateRecordCardTelemetry()
+        {
+            UpdateFfmpegCardTelemetry(
+                LclRecorder.ConnectionState, LclRecorder.CurrentFps, LclRecorder.CurrentBitrateKbps, LclRecorder.CurrentSpeed,
+                LclRecorder.CurrentSizeText, LclRecorder.LastError,
+                activeState: "RECORDING", activeBadgeText: "● REC", connectingState: "STARTING",
+                connectingBadgeText: "● STARTING", connectingText: "Starting recorder...",
+                TxtRecordStatus, TxtRecordTelemetry);
+        }
+
+        private static void UpdateFfmpegCardTelemetry(
+            string state,
+            double fps,
+            double bitrateKbps,
+            double speed,
+            string? sizeText,
+            string? lastError,
+            string activeState,
+            string activeBadgeText,
+            string connectingState,
+            string connectingBadgeText,
+            string connectingText,
+            System.Windows.Controls.TextBlock? statusBadge,
+            System.Windows.Controls.TextBlock? telemetryText)
+        {
             if (statusBadge != null)
             {
-                statusBadge.Text = state switch
-                {
-                    "LIVE" => "● LIVE",
-                    "CONNECTING" => "● CONNECTING",
-                    "ERROR" => "● ERROR",
-                    _ => "● OFFLINE"
-                };
-                var color = state switch
-                {
-                    "LIVE" => System.Windows.Media.Color.FromRgb(34, 197, 94),
-                    "CONNECTING" => System.Windows.Media.Color.FromRgb(245, 158, 11),
-                    "ERROR" => System.Windows.Media.Color.FromRgb(239, 68, 68),
-                    _ => System.Windows.Media.Color.FromRgb(156, 163, 175)
-                };
+                statusBadge.Text = state == activeState ? activeBadgeText
+                    : state == connectingState ? connectingBadgeText
+                    : state == "ERROR" ? "● ERROR"
+                    : "● OFFLINE";
+
+                var color = state == activeState ? System.Windows.Media.Color.FromRgb(34, 197, 94)
+                    : state == connectingState ? System.Windows.Media.Color.FromRgb(245, 158, 11)
+                    : state == "ERROR" ? System.Windows.Media.Color.FromRgb(239, 68, 68)
+                    : System.Windows.Media.Color.FromRgb(156, 163, 175);
+
                 statusBadge.Foreground = new System.Windows.Media.SolidColorBrush(color);
             }
 
             if (telemetryText != null)
             {
-                if (state == "LIVE")
+                if (state == activeState)
                 {
-                    string fpsStr = streamer.CurrentFps > 0 ? $"{streamer.CurrentFps:0.0} fps" : "-- fps";
-                    string brStr = streamer.CurrentBitrateKbps > 0 ? $"{streamer.CurrentBitrateKbps:0} kbps" : "-- kbps";
-                    string spdStr = streamer.CurrentSpeed > 0 ? $"  •  {streamer.CurrentSpeed:0.00}x" : "";
-                    telemetryText.Text = $"{fpsStr}  •  {brStr}{spdStr}";
+                    string fpsStr = fps > 0 ? $"{fps:0.0} fps" : "-- fps";
+                    string brStr = bitrateKbps > 0 ? $"{bitrateKbps:0} kbps" : "-- kbps";
+                    string spdStr = speed > 0 ? $"  •  {speed:0.00}x" : "";
+                    string szStr = !string.IsNullOrWhiteSpace(sizeText) ? $"  •  {sizeText}" : "";
+                    telemetryText.Text = $"{fpsStr}  •  {brStr}{spdStr}{szStr}";
                     telemetryText.ToolTip = null;
                 }
-                else if (state == "CONNECTING")
+                else if (state == connectingState)
                 {
-                    telemetryText.Text = "Connecting to RTMP ingest...";
+                    telemetryText.Text = connectingText;
                     telemetryText.ToolTip = null;
                 }
                 else if (state == "ERROR")
                 {
-                    string err = string.IsNullOrWhiteSpace(streamer.LastError) ? "Stream error" : streamer.LastError;
+                    string err = string.IsNullOrWhiteSpace(lastError) ? "FFmpeg error" : lastError;
                     telemetryText.Text = err;
                     telemetryText.ToolTip = err;
                 }
