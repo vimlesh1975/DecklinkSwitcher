@@ -1862,13 +1862,11 @@ namespace DecklinkSwitcher
                 row1.Children.Add(btnStop);
                 stack.Children.Add(row1);
 
-                // Row 2: Cue + Pause + Resume
+                // Row 2: Cue + Pause/Resume toggle
                 var row2 = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
                 row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
-                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
-                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star) });
 
                 var btnCue = new System.Windows.Controls.Button
                 {
@@ -1882,7 +1880,8 @@ namespace DecklinkSwitcher
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Focusable = false
                 };
-                var btnPause = new System.Windows.Controls.Button
+                bool isMediaPaused = false;
+                var btnPauseResume = new System.Windows.Controls.Button
                 {
                     Content = "Pause",
                     Height = 24,
@@ -1891,27 +1890,21 @@ namespace DecklinkSwitcher
                     BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112)),
                     BorderThickness = new Thickness(1),
                     FontSize = 11,
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Focusable = false
-                };
-                var btnResume = new System.Windows.Controls.Button
-                {
-                    Content = "Resume",
-                    Height = 24,
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50)),
-                    Foreground = System.Windows.Media.Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    FontSize = 11,
                     FontWeight = FontWeights.SemiBold,
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Focusable = false
                 };
+                Action updatePauseResumeBtn = () =>
+                {
+                    btnPauseResume.Content = isMediaPaused ? "Resume" : "Pause";
+                    btnPauseResume.Background = isMediaPaused
+                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50))
+                        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 46, 66));
+                };
                 System.Windows.Controls.Grid.SetColumn(btnCue, 0);
-                System.Windows.Controls.Grid.SetColumn(btnPause, 2);
-                System.Windows.Controls.Grid.SetColumn(btnResume, 4);
+                System.Windows.Controls.Grid.SetColumn(btnPauseResume, 2);
                 row2.Children.Add(btnCue);
-                row2.Children.Add(btnPause);
-                row2.Children.Add(btnResume);
+                row2.Children.Add(btnPauseResume);
                 stack.Children.Add(row2);
 
                 // Row 3: Loop + Seek Slider
@@ -1994,6 +1987,8 @@ namespace DecklinkSwitcher
                     {
                         cfg.Url = ofd.FileName;
                         extra.IsRunning = true;
+                        isMediaPaused = false;
+                        updatePauseResumeBtn();
                         statusTxt.Text = "Playing: " + System.IO.Path.GetFileName(cfg.Url);
                         SaveCurrentSettings();
                         mediaSrc.Play(cfg.Url, chkLoop.IsChecked == true);
@@ -2007,30 +2002,40 @@ namespace DecklinkSwitcher
                         return;
                     }
                     extra.IsRunning = true;
+                    isMediaPaused = true;
+                    updatePauseResumeBtn();
                     statusTxt.Text = "Cued: " + System.IO.Path.GetFileName(cfg.Url);
                     mediaSrc.Cue(cfg.Url, chkLoop.IsChecked == true);
                 };
-                btnPause.Click += (_, __) =>
+                btnPauseResume.Click += (_, __) =>
                 {
-                    mediaSrc.Pause();
-                    statusTxt.Text = "Paused";
-                };
-                btnResume.Click += (_, __) =>
-                {
-                    if (!extra.IsRunning && !string.IsNullOrWhiteSpace(cfg.Url) && System.IO.File.Exists(cfg.Url))
+                    if (!isMediaPaused)
                     {
-                        extra.IsRunning = true;
-                        mediaSrc.Play(cfg.Url, chkLoop.IsChecked == true);
+                        mediaSrc.Pause();
+                        isMediaPaused = true;
+                        statusTxt.Text = "Paused";
                     }
                     else
                     {
-                        mediaSrc.Resume();
+                        if (!extra.IsRunning && !string.IsNullOrWhiteSpace(cfg.Url) && System.IO.File.Exists(cfg.Url))
+                        {
+                            extra.IsRunning = true;
+                            mediaSrc.Play(cfg.Url, chkLoop.IsChecked == true);
+                        }
+                        else
+                        {
+                            mediaSrc.Resume();
+                        }
+                        isMediaPaused = false;
+                        statusTxt.Text = string.IsNullOrWhiteSpace(cfg.Url) ? "Playing" : "Playing: " + System.IO.Path.GetFileName(cfg.Url);
                     }
-                    statusTxt.Text = string.IsNullOrWhiteSpace(cfg.Url) ? "Playing" : "Playing: " + System.IO.Path.GetFileName(cfg.Url);
+                    updatePauseResumeBtn();
                 };
                 btnStop.Click += (_, __) =>
                 {
                     extra.IsRunning = false;
+                    isMediaPaused = false;
+                    updatePauseResumeBtn();
                     mediaSrc.Stop();
                     barL.Value = 0;
                     barR.Value = 0;
@@ -2473,6 +2478,24 @@ namespace DecklinkSwitcher
 
         private string _lastMediaFile = "";
 
+        private bool _isMediaPaused = false;
+
+        private void UpdateMediaPauseButton()
+        {
+            if (BtnPauseMedia == null) return;
+            BtnPauseMedia.Content = _isMediaPaused ? "Resume" : "Pause";
+            if (_isMediaPaused)
+            {
+                BtnPauseMedia.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50));
+                BtnPauseMedia.Foreground = System.Windows.Media.Brushes.White;
+            }
+            else
+            {
+                BtnPauseMedia.SetResourceReference(Button.BackgroundProperty, "ButtonAltBg");
+                BtnPauseMedia.SetResourceReference(Button.ForegroundProperty, "TextPrimary");
+            }
+        }
+
         private void BtnSelectMedia_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
@@ -2482,6 +2505,8 @@ namespace DecklinkSwitcher
                 if (_mediaSource != null)
                 {
                     _lastMediaFile = dlg.FileName;
+                    _isMediaPaused = false;
+                    UpdateMediaPauseButton();
                     _mediaSource.Play(dlg.FileName, ChkLoopMedia.IsChecked == true);
                     SaveCurrentSettings();
                 }
@@ -2496,6 +2521,8 @@ namespace DecklinkSwitcher
         {
             if (_mediaSource != null && !string.IsNullOrEmpty(_lastMediaFile))
             {
+                _isMediaPaused = true;
+                UpdateMediaPauseButton();
                 _mediaSource.Cue(_lastMediaFile, ChkLoopMedia.IsChecked == true);
             }
             else
@@ -2506,16 +2533,23 @@ namespace DecklinkSwitcher
 
         private void BtnPauseMedia_Click(object sender, RoutedEventArgs e)
         {
-            _mediaSource?.Pause();
-        }
-
-        private void BtnResumeMedia_Click(object sender, RoutedEventArgs e)
-        {
-            _mediaSource?.Resume();
+            if (!_isMediaPaused)
+            {
+                _mediaSource?.Pause();
+                _isMediaPaused = true;
+            }
+            else
+            {
+                _mediaSource?.Resume();
+                _isMediaPaused = false;
+            }
+            UpdateMediaPauseButton();
         }
 
         private void BtnStopMedia_Click(object sender, RoutedEventArgs e)
         {
+            _isMediaPaused = false;
+            UpdateMediaPauseButton();
             _mediaSource?.Stop();
         }
 

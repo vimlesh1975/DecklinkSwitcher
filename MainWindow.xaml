@@ -572,9 +572,8 @@
                             <Button Name="BtnStopMedia" Grid.Column="2" Content="Stop" FontSize="11" FontWeight="Bold" Height="26" Width="60" Click="BtnStopMedia_Click" Background="#c62828" Foreground="White" Cursor="Hand"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="26" Width="48" Padding="4,2" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
-                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" Height="26" Width="56" Padding="4,2" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,4,0" Cursor="Hand"/>
-                            <Button Name="BtnResumeMedia" Content="Resume" FontSize="11" FontWeight="SemiBold" Height="26" Width="66" Padding="4,2" Click="BtnResumeMedia_Click" Background="#2e7d32" Foreground="White" Cursor="Hand"/>
+                            <Button Name="BtnCueMedia" Content="Cue" FontSize="11" Height="26" Width="64" Padding="4,2" Click="BtnCueMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,6,0" Cursor="Hand"/>
+                            <Button Name="BtnPauseMedia" Content="Pause" FontSize="11" FontWeight="SemiBold" Height="26" Width="114" Padding="4,2" Click="BtnPauseMedia_Click" Background="{DynamicResource ButtonAltBg}" Foreground="{DynamicResource TextPrimary}" Cursor="Hand"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                             <CheckBox Name="ChkLoopMedia" Content="Loop" VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" Margin="0,0,10,0"/>
