@@ -2450,9 +2450,6 @@ namespace DecklinkSwitcher
             try
             {
                 var sources = await Task.Run(() => NdiSource.FindSources(2000, Log));
-                // Don't list our own NDI program output (would create a feedback loop)
-                if (NdiOut.IsRunning)
-                    sources.RemoveAll(s => s.Name.Contains(NdiOut.StreamName, StringComparison.OrdinalIgnoreCase));
 
                 CmbNdiSources.ItemsSource = sources;
                 CmbNdiSources.DisplayMemberPath = "Name";
