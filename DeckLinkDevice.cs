@@ -311,7 +311,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.FbStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int outRowBytes = _reusableOutputFrame.GetRowBytes();
@@ -398,7 +398,7 @@ namespace DecklinkSwitcher
                 try 
                 {
                     byte[] uyvyBytes = null;
-                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
+                    if (MainWindow.YtStreamer.IsStreaming || MainWindow.FbStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
                     {
                         int h = _reusableOutputFrame.GetHeight();
                         int rowBytes = _reusableOutputFrame.GetRowBytes();
@@ -593,7 +593,7 @@ namespace DecklinkSwitcher
             try 
             {
                 byte[] uyvyBytes = null;
-                if (MainWindow.YtStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
+                if (MainWindow.YtStreamer.IsStreaming || MainWindow.FbStreamer.IsStreaming || MainWindow.LclRecorder.IsRecording || MainWindow.NdiOut.IsRunning || MainWindow.SrtOut.IsStreaming || MainWindow.IsFullscreenPreviewActive)
                 {
                     int h = _reusableOutputFrame.GetHeight();
                     int rowBytes = _reusableOutputFrame.GetRowBytes();

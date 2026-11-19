@@ -237,6 +237,39 @@ namespace DecklinkSwitcher
             }
         }
 
+        private void BtnFbStream_Click(object sender, RoutedEventArgs e)
+        {
+            if (FbStreamer.IsStreaming)
+            {
+                FbStreamer.Stop();
+                ApplyOutputButtonStyle(BtnFbStream, false, "STOP FB STREAM", "START FB STREAM");
+                TxtStatus.Text = "Facebook streaming stopped.";
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(TxtFbStreamKey.Text))
+                {
+                    System.Windows.MessageBox.Show("Please enter a Facebook Stream Key.");
+                    return;
+                }
+
+                string fbServer = string.IsNullOrWhiteSpace(TxtFbServerUrl?.Text)
+                    ? "rtmps://live-api-s.facebook.com:443/rtmp/"
+                    : TxtFbServerUrl.Text.Trim();
+                if (!fbServer.EndsWith("/")) fbServer += "/";
+
+                var settings = AppSettings.Load();
+                settings.FacebookServerUrl = fbServer;
+                settings.FacebookStreamKey = TxtFbStreamKey.Text.Trim();
+                settings.Save();
+
+                ApplyOutputButtonStyle(BtnFbStream, true, "■ STOP FB STREAM", "START FB STREAM");
+                TxtStatus.Text = "Facebook streaming started...";
+                UpdatePgmPreviewSynthetic();
+                FbStreamer.Start(TxtFbStreamKey.Text.Trim(), 1920, 1080, 25, fbServer);
+            }
+        }
+
         private void BtnNdi_Click(object sender, RoutedEventArgs e)
         {
             if (NdiOut.IsRunning)
@@ -575,11 +608,12 @@ namespace DecklinkSwitcher
             if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
             {
             if (writeSystemAudio) SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                if (YtStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
+                if (YtStreamer.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
+                    if (FbStreamer.IsStreaming) FbStreamer.PushFrame(audBytes, uyvyBytes);
                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
                     if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
                     if (SrtOut.IsStreaming) SrtOut.PushFrame(audBytes, uyvyBytes);

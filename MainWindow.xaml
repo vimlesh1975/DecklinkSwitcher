@@ -880,6 +880,31 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="FACEBOOK STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Server URL:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Name="TxtFbServerUrl" Grid.Column="2" Text="rtmps://live-api-s.facebook.com:443/rtmp/" Height="26" FontSize="10.5" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Stream Key:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Name="TxtFbStreamKey" Grid.Column="2" Height="28" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
+                            </Grid>
+                            <Button Name="BtnFbStream" Content="START FB STREAM" Height="34" FontSize="12" Background="{DynamicResource SourceButtonBg}" Foreground="{DynamicResource SourceButtonText}" Click="BtnFbStream_Click" FontWeight="Black" Cursor="Hand"/>
+                        </StackPanel>
+                    </Border>
+
                     <Border Background="{DynamicResource OutputCardRecordBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="RECORDING PROFILES" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>

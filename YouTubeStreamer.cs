@@ -34,7 +34,7 @@ namespace DecklinkSwitcher
         private volatile bool _hasRealFrames = false;
         private long _lastVideoPushTick = 0;
         
-        public void Start(string streamKey, int width, int height, double fps)
+        public void Start(string streamKey, int width, int height, double fps, string baseRtmpUrl = "rtmp://a.rtmp.youtube.com/live2/")
         {
             if (IsStreaming) return;
             
@@ -63,7 +63,11 @@ namespace DecklinkSwitcher
             
             string ffmpegPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");
 
-            string rtmpUrl = "rtmp://a.rtmp.youtube.com/live2/" + streamKey;
+            string trimmedKey = (streamKey ?? "").Trim();
+            string rtmpUrl = (trimmedKey.StartsWith("rtmp://", StringComparison.OrdinalIgnoreCase) ||
+                              trimmedKey.StartsWith("rtmps://", StringComparison.OrdinalIgnoreCase))
+                ? trimmedKey
+                : baseRtmpUrl + trimmedKey;
             string videoPipePath = $"\\\\.\\pipe\\{videoPipeName}";
             string audioPipePath = $"\\\\.\\pipe\\{audioPipeName}";
             

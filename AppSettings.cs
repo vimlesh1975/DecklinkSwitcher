@@ -20,6 +20,8 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.Dictionary<string, string> InputVideoFormats { get; set; } = new();
         public System.Collections.Generic.Dictionary<string, double> InputAudioLevels { get; set; } = new();
         public string YouTubeStreamKey { get; set; } = "";
+        public string FacebookServerUrl { get; set; } = "rtmps://live-api-s.facebook.com:443/rtmp/";
+        public string FacebookStreamKey { get; set; } = "";
         public string NdiStreamName { get; set; } = "DeckLink Switcher - Program";
         public string SrtMode { get; set; } = "Caller";
         public string SrtHost { get; set; } = "127.0.0.1";
