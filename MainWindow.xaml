@@ -432,7 +432,8 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
-<Border Background="{DynamicResource OverlayCardLogoBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="12,0,0,0" VerticalAlignment="Top">
+<StackPanel Orientation="Vertical" Margin="12,0,0,0" VerticalAlignment="Top">
+<Border Background="{DynamicResource OverlayCardLogoBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="8" VerticalAlignment="Top">
 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Width="235" MaxHeight="290" VerticalAlignment="Top" Focusable="False"><StackPanel Margin="0,0,6,0">
                     <TextBlock Text="LOGO OVERLAY" FontSize="14" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12" FontWeight="Black"/>
                     <Grid Margin="0,0,0,6">
@@ -526,6 +527,13 @@
                     
 </StackPanel></ScrollViewer>
 </Border>
+<Border Background="{DynamicResource PanelBg}" BorderBrush="#d32f2f" BorderThickness="1.5" CornerRadius="8" Padding="10,7" Margin="0,8,0,0">
+    <StackPanel>
+        <TextBlock Text="● ON AIR (PGM)" FontSize="10" FontWeight="Black" Foreground="#ef4444" Margin="0,0,0,2"/>
+        <TextBlock Name="TxtPgmActiveSource" Text="Color Bars" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+    </StackPanel>
+</Border>
+</StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>

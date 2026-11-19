@@ -202,6 +202,8 @@ namespace DecklinkSwitcher
             }
             SyncCompositeSourceFlags();
 
+            UpdatePgmActiveSourceLabel();
+
             bool isSysAudioActive = (StateSystemAudio == AudioState.ON) || (StateSystemAudio == AudioState.AFV && _activeSourceType == 4);
             applySourceButtonStyle(BtnSystemAudio, isSysAudioActive);
 
@@ -213,6 +215,30 @@ namespace DecklinkSwitcher
             ApplyOutputButtonStyle(BtnSrt, SrtOut?.IsStreaming == true, "STOP SRT", "START SRT");
 
             UpdateHtmlSourceMuteState();
+        }
+
+        private void UpdatePgmActiveSourceLabel()
+        {
+            if (TxtPgmActiveSource == null) return;
+            string pgmName = _activeSourceType switch
+            {
+                0 => DynamicInputs.FirstOrDefault(i => i.Device == _activeInput)?.DisplayName ?? ActiveInputName,
+                1 => "Color Bars",
+                2 => "Matte Color",
+                3 => "Local Media",
+                4 => _activeScreen?.DisplayName ?? "Screen",
+                5 => _activeWebcam?.DisplayName ?? "Webcam",
+                6 => "YouTube Live",
+                7 => "HTML / Web",
+                8 => "NDI Source",
+                9 => _activeCompositeSceneId == null
+                    ? "Multi-Box"
+                    : (_extraCompositeScenes.FirstOrDefault(s => s.Config.Id == _activeCompositeSceneId)?.Config.Name ?? "Multi-Box"),
+                10 => _activeExtraSource?.Config.Name ?? "Extra Source",
+                11 => "SRT Input",
+                _ => ActiveInputName
+            };
+            TxtPgmActiveSource.Text = string.IsNullOrWhiteSpace(pgmName) ? "Unknown" : pgmName;
         }
 
         private void UpdateHtmlSourceMuteState()
@@ -480,6 +506,8 @@ namespace DecklinkSwitcher
                 () =>
                 {
                     SyncCompositeSourceFlags();
+
+            UpdatePgmActiveSourceLabel();
                     if (sceneId == _activeCompositeSceneId)
                         RefreshCompositeFrame(_activeSourceType == 9);
                     else
@@ -526,6 +554,8 @@ namespace DecklinkSwitcher
             };
             var scene = AddDynamicCompositeScene(cfg);
             SyncCompositeSourceFlags();
+
+            UpdatePgmActiveSourceLabel();
             RefreshCompositeFrame(false);
             SaveCurrentSettings();
             OpenCompositeEditor(
@@ -713,6 +743,8 @@ namespace DecklinkSwitcher
             _extraCompositeScenes.Remove(scene);
             SwitcherPanel.Children.Remove(scene.TileBorder);
             SyncCompositeSourceFlags();
+
+            UpdatePgmActiveSourceLabel();
             SaveCurrentSettings();
         }
 
@@ -1025,6 +1057,8 @@ namespace DecklinkSwitcher
                     extra.CutButton.Content = newName.ToUpperInvariant();
                     RenameCompositeSourceKey(oldName, newName);
                     SyncCompositeSourceFlags();
+
+            UpdatePgmActiveSourceLabel();
                     SaveCurrentSettings();
                 }
             };
@@ -2278,6 +2312,8 @@ namespace DecklinkSwitcher
             try { extra.NdiSrc?.Dispose(); } catch { }
             try { extra.MediaSrc?.Dispose(); } catch { }
             SyncCompositeSourceFlags();
+
+            UpdatePgmActiveSourceLabel();
             SaveCurrentSettings();
         }
 
