@@ -221,8 +221,14 @@ namespace DecklinkSwitcher
                     return;
                 }
                 
+                string ytServer = string.IsNullOrWhiteSpace(TxtStreamServerUrl?.Text)
+                    ? "rtmp://a.rtmp.youtube.com/live2/"
+                    : TxtStreamServerUrl.Text.Trim();
+                if (!ytServer.EndsWith("/")) ytServer += "/";
+
                 // Save it immediately so it is persistent
                 var settings = AppSettings.Load();
+                settings.YouTubeServerUrl = ytServer;
                 settings.YouTubeStreamKey = TxtStreamKey.Text;
                 settings.Save();
                 
@@ -232,7 +238,7 @@ namespace DecklinkSwitcher
                 TxtStatus.Text = "Streaming started...";
                 // Seed the latest PGM frame immediately (synchronous) so stream loop has data right away
                 UpdatePgmPreviewSynthetic();
-                YtStreamer.Start(TxtStreamKey.Text, 1920, 1080, 25);
+                YtStreamer.Start(TxtStreamKey.Text, 1920, 1080, 25, ytServer);
                 
             }
         }
@@ -253,14 +259,20 @@ namespace DecklinkSwitcher
                     return;
                 }
 
+                string ytServer2 = string.IsNullOrWhiteSpace(TxtStreamServerUrl2?.Text)
+                    ? "rtmp://a.rtmp.youtube.com/live2/"
+                    : TxtStreamServerUrl2.Text.Trim();
+                if (!ytServer2.EndsWith("/")) ytServer2 += "/";
+
                 var settings = AppSettings.Load();
+                settings.YouTubeServerUrl2 = ytServer2;
                 settings.YouTubeStreamKey2 = TxtStreamKey2.Text.Trim();
                 settings.Save();
 
                 ApplyOutputButtonStyle(BtnStream2, true, "■ STOP STREAM 2", "START STREAM 2");
                 TxtStatus.Text = "YouTube Stream 2 started...";
                 UpdatePgmPreviewSynthetic();
-                YtStreamer2.Start(TxtStreamKey2.Text.Trim(), 1920, 1080, 25);
+                YtStreamer2.Start(TxtStreamKey2.Text.Trim(), 1920, 1080, 25, ytServer2);
             }
         }
 

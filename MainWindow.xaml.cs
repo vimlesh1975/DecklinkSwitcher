@@ -548,7 +548,9 @@ namespace DecklinkSwitcher
                     settings.MicStates.Clear();
                     foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
                     
+                    if (TxtStreamServerUrl != null) settings.YouTubeServerUrl = TxtStreamServerUrl.Text.Trim();
                     settings.YouTubeStreamKey = TxtStreamKey.Text;
+                    if (TxtStreamServerUrl2 != null) settings.YouTubeServerUrl2 = TxtStreamServerUrl2.Text.Trim();
                     if (TxtStreamKey2 != null) settings.YouTubeStreamKey2 = TxtStreamKey2.Text.Trim();
                     if (TxtFbServerUrl != null) settings.FacebookServerUrl = TxtFbServerUrl.Text.Trim();
                     if (TxtFbStreamKey != null) settings.FacebookStreamKey = TxtFbStreamKey.Text.Trim();
@@ -1054,8 +1056,10 @@ namespace DecklinkSwitcher
                     _activeMics.Add(input);
                 }
                 
+                if (TxtStreamServerUrl != null) TxtStreamServerUrl.Text = string.IsNullOrWhiteSpace(settings.YouTubeServerUrl) ? "rtmp://a.rtmp.youtube.com/live2/" : settings.YouTubeServerUrl;
                 TxtStreamKey.Text = settings.YouTubeStreamKey;
                 YtStreamer.OnLog = Log;
+                if (TxtStreamServerUrl2 != null) TxtStreamServerUrl2.Text = string.IsNullOrWhiteSpace(settings.YouTubeServerUrl2) ? "rtmp://a.rtmp.youtube.com/live2/" : settings.YouTubeServerUrl2;
                 if (TxtStreamKey2 != null) TxtStreamKey2.Text = settings.YouTubeStreamKey2 ?? "";
                 YtStreamer2.OnLog = Log;
                 if (TxtFbServerUrl != null) TxtFbServerUrl.Text = string.IsNullOrWhiteSpace(settings.FacebookServerUrl) ? "rtmps://live-api-s.facebook.com:443/rtmp/" : settings.FacebookServerUrl;

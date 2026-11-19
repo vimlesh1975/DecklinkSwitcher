@@ -867,6 +867,15 @@
                     <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="YOUTUBE STREAMING" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Server URL:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Name="TxtStreamServerUrl" Grid.Column="2" Text="rtmp://a.rtmp.youtube.com/live2/" Height="26" FontSize="10.5" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
+                            </Grid>
                             <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -883,6 +892,15 @@
                     <Border Background="{DynamicResource OutputCardYouTubeBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="YOUTUBE STREAMING 2" FontSize="13" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" FontWeight="Black"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Server URL:" Foreground="{DynamicResource TextDim}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBox Name="TxtStreamServerUrl2" Grid.Column="2" Text="rtmp://a.rtmp.youtube.com/live2/" Height="26" FontSize="10.5" Background="{DynamicResource TextBoxBg}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource ControlBorder}" Padding="4,2" VerticalContentAlignment="Center"/>
+                            </Grid>
                             <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>

@@ -19,7 +19,9 @@ namespace DecklinkSwitcher
         public System.Collections.Generic.Dictionary<string, string> InputDevices { get; set; } = new();
         public System.Collections.Generic.Dictionary<string, string> InputVideoFormats { get; set; } = new();
         public System.Collections.Generic.Dictionary<string, double> InputAudioLevels { get; set; } = new();
+        public string YouTubeServerUrl { get; set; } = "rtmp://a.rtmp.youtube.com/live2/";
         public string YouTubeStreamKey { get; set; } = "";
+        public string YouTubeServerUrl2 { get; set; } = "rtmp://a.rtmp.youtube.com/live2/";
         public string YouTubeStreamKey2 { get; set; } = "";
         public string FacebookServerUrl { get; set; } = "rtmps://live-api-s.facebook.com:443/rtmp/";
         public string FacebookStreamKey { get; set; } = "";
