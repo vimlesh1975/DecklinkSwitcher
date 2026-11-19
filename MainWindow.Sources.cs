@@ -205,6 +205,7 @@ namespace DecklinkSwitcher
 
             ApplyOutputButtonStyle(BtnRecord, LclRecorder?.IsRecording == true, "STOP RECORDING", "START RECORDING");
             ApplyOutputButtonStyle(BtnStream, YtStreamer?.IsStreaming == true, "STOP STREAM", "START STREAM");
+            ApplyOutputButtonStyle(BtnStream2, YtStreamer2?.IsStreaming == true, "STOP STREAM 2", "START STREAM 2");
             ApplyOutputButtonStyle(BtnFbStream, FbStreamer?.IsStreaming == true, "STOP FB STREAM", "START FB STREAM");
             ApplyOutputButtonStyle(BtnNdi, NdiOut?.IsRunning == true, "STOP NDI", "START NDI");
             ApplyOutputButtonStyle(BtnSrt, SrtOut?.IsStreaming == true, "STOP SRT", "START SRT");
@@ -3430,7 +3431,7 @@ namespace DecklinkSwitcher
             IntPtr modifiedAudioBuffer = MixAudio(audioSampleCount, ActiveSourceType, ActiveInputName, "software-decklink-output");
 
             byte[]? uyvyBytes = null;
-            if (YtStreamer.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled || IsFtbActive)
+            if (YtStreamer.IsStreaming || YtStreamer2.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled || IsFtbActive)
             {
                 lock (_softwareDeckLinkLock)
                 {

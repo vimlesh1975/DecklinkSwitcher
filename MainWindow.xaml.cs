@@ -85,6 +85,7 @@ namespace DecklinkSwitcher
         private System.Collections.Generic.List<LocalAudioInput> _activeMics = new();
         private CancellationTokenSource? _syntheticCts;
         public static YouTubeStreamer YtStreamer = new YouTubeStreamer();
+        public static YouTubeStreamer YtStreamer2 = new YouTubeStreamer();
         public static YouTubeStreamer FbStreamer = new YouTubeStreamer();
         public static LocalRecorder LclRecorder = new LocalRecorder();
         public static NdiSender NdiOut = new NdiSender();
@@ -222,7 +223,7 @@ namespace DecklinkSwitcher
                     if (_activeSourceType == 3) 
                     {
                         // Push PGM frame to streamer on every VLC frame (not throttled like preview)
-                        if (YtStreamer.IsStreaming || FbStreamer.IsStreaming)
+                        if (YtStreamer.IsStreaming || YtStreamer2.IsStreaming || FbStreamer.IsStreaming)
                         {
                             try
                             {
@@ -250,7 +251,7 @@ namespace DecklinkSwitcher
                             if (modifiedAudioBuffer != IntPtr.Zero)
                             {
                                 SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, mixedSampleCount);
-                                if (YtStreamer.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled || IsFtbActive)
+                                if (YtStreamer.IsStreaming || YtStreamer2.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming || IsFullscreenPreviewActive || IsMixEnabled || IsFtbActive)
                                 {
                                     byte[] audBytes = new byte[mixedSampleCount * 4];
                                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
@@ -262,6 +263,7 @@ namespace DecklinkSwitcher
                                         ApplyLogoOverlayUyvy(uyvyBytes);
                                     }
                                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
+                                    if (YtStreamer2.IsStreaming) YtStreamer2.PushFrame(audBytes, uyvyBytes);
                                     if (FbStreamer.IsStreaming) FbStreamer.PushFrame(audBytes, uyvyBytes);
                                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
                                     if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
@@ -547,6 +549,7 @@ namespace DecklinkSwitcher
                     foreach (var kvp in DynamicMicStates) settings.MicStates[kvp.Key] = kvp.Value;
                     
                     settings.YouTubeStreamKey = TxtStreamKey.Text;
+                    if (TxtStreamKey2 != null) settings.YouTubeStreamKey2 = TxtStreamKey2.Text.Trim();
                     if (TxtFbServerUrl != null) settings.FacebookServerUrl = TxtFbServerUrl.Text.Trim();
                     if (TxtFbStreamKey != null) settings.FacebookStreamKey = TxtFbStreamKey.Text.Trim();
                     settings.SelectedRecordingProfile = (CmbRecordingProfile.SelectedItem as RecordingProfileDefinition)?.DisplayName ?? "MP4 High Quality";
@@ -619,6 +622,7 @@ namespace DecklinkSwitcher
             Task.Run(() =>
             {
                 try { if (YtStreamer.IsStreaming) YtStreamer.Stop(); } catch { }
+                try { if (YtStreamer2.IsStreaming) YtStreamer2.Stop(); } catch { }
                 try { if (FbStreamer.IsStreaming) FbStreamer.Stop(); } catch { }
                 try { if (LclRecorder.IsRecording) LclRecorder.Stop(); } catch { }
                 try { if (NdiOut.IsRunning) NdiOut.Stop(); } catch { }
@@ -1052,6 +1056,8 @@ namespace DecklinkSwitcher
                 
                 TxtStreamKey.Text = settings.YouTubeStreamKey;
                 YtStreamer.OnLog = Log;
+                if (TxtStreamKey2 != null) TxtStreamKey2.Text = settings.YouTubeStreamKey2 ?? "";
+                YtStreamer2.OnLog = Log;
                 if (TxtFbServerUrl != null) TxtFbServerUrl.Text = string.IsNullOrWhiteSpace(settings.FacebookServerUrl) ? "rtmps://live-api-s.facebook.com:443/rtmp/" : settings.FacebookServerUrl;
                 if (TxtFbStreamKey != null) TxtFbStreamKey.Text = settings.FacebookStreamKey ?? "";
                 FbStreamer.OnLog = Log;

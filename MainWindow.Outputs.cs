@@ -237,6 +237,33 @@ namespace DecklinkSwitcher
             }
         }
 
+        private void BtnStream2_Click(object sender, RoutedEventArgs e)
+        {
+            if (YtStreamer2.IsStreaming)
+            {
+                YtStreamer2.Stop();
+                ApplyOutputButtonStyle(BtnStream2, false, "STOP STREAM 2", "START STREAM 2");
+                TxtStatus.Text = "YouTube Stream 2 stopped.";
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(TxtStreamKey2.Text))
+                {
+                    System.Windows.MessageBox.Show("Please enter a YouTube Stream Key 2.");
+                    return;
+                }
+
+                var settings = AppSettings.Load();
+                settings.YouTubeStreamKey2 = TxtStreamKey2.Text.Trim();
+                settings.Save();
+
+                ApplyOutputButtonStyle(BtnStream2, true, "■ STOP STREAM 2", "START STREAM 2");
+                TxtStatus.Text = "YouTube Stream 2 started...";
+                UpdatePgmPreviewSynthetic();
+                YtStreamer2.Start(TxtStreamKey2.Text.Trim(), 1920, 1080, 25);
+            }
+        }
+
         private void BtnFbStream_Click(object sender, RoutedEventArgs e)
         {
             if (FbStreamer.IsStreaming)
@@ -608,11 +635,12 @@ namespace DecklinkSwitcher
             if (modifiedAudioBuffer != IntPtr.Zero && audioSampleCount > 0)
             {
             if (writeSystemAudio) SystemAudioPlayer.WriteAudio(modifiedAudioBuffer, audioSampleCount);
-                if (YtStreamer.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
+                if (YtStreamer.IsStreaming || YtStreamer2.IsStreaming || FbStreamer.IsStreaming || LclRecorder.IsRecording || NdiOut.IsRunning || SrtOut.IsStreaming)
                 {
                     byte[] audBytes = new byte[audioSampleCount * 4];
                     System.Runtime.InteropServices.Marshal.Copy(modifiedAudioBuffer, audBytes, 0, audBytes.Length);
                     if (YtStreamer.IsStreaming) YtStreamer.PushFrame(audBytes, uyvyBytes);
+                    if (YtStreamer2.IsStreaming) YtStreamer2.PushFrame(audBytes, uyvyBytes);
                     if (FbStreamer.IsStreaming) FbStreamer.PushFrame(audBytes, uyvyBytes);
                     if (LclRecorder.IsRecording) LclRecorder.PushFrame(audBytes, uyvyBytes);
                     if (NdiOut.IsRunning) NdiOut.PushFrame(audBytes, uyvyBytes);
