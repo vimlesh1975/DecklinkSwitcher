@@ -24,6 +24,7 @@
 - **Fullscreen Preview**:
   - Click **`⛶ Fullscreen`**, **double-click** the PGM preview box, or press **`F11`** to send a crisp `1920×1080` program feed (including all overlays) to a secondary monitor (or the current display if only one monitor is connected).
   - Press **`ESC`**, **`F11`**, **double-click** the fullscreen window, or click **`✕ Exit Fullscreen`** to exit.
+- **● ON AIR (PGM) Indicator** (below **LOGO OVERLAY**): Shows the currently active Program source name; when a **Multi-Box** scene is on air, it also lists the enabled box sources underneath (`Boxes: ...`).
 
 ---
 
@@ -105,11 +106,11 @@ Use each channel's vertical gain slider (`0.0` – `1.5`) and the **Master PGM**
 ---
 
 ## 9. Outputs (Stream, Record, NDI, SRT)
-- **Local Recording (`START RECORDING`)**: Records the 1080p composited PGM video + mixed audio to disk (supports MP4, TS, ProRes, XDCAM HD422, and **XDCAM Sony Compatible** `.mxf` with 2 discrete 24-bit 48 kHz mono `pcm_s24le` audio tracks, in Infinite or Interval mode).
+- **Local Recording (`START RECORDING`)**: Records the 1080p composited PGM video + mixed audio to disk (supports MP4, TS, ProRes, XDCAM HD422, and **XDCAM Sony Compatible** `.mxf` with 2 discrete 24-bit 48 kHz mono `pcm_s24le` audio tracks, in Infinite or Interval mode). Uses `Stopwatch`-paced CFR delivery and shows a live status badge (`● OFFLINE` / `● STARTING` / `● REC` / `● ERROR`) and `fps • kbps • speed • file size` readout.
 - **YouTube Streaming 1 & 2 (`START STREAM` / `START STREAM 2`)**: Two independent RTMP stream outputs, each with its own **Server URL** (default `rtmp://a.rtmp.youtube.com/live2/`), **Stream Key**, elapsed timer, status badge (`● OFFLINE` / `● CONNECTING` / `● LIVE` / `● ERROR`), and live FFmpeg telemetry (`fps • kbps • speed`). Uses `Stopwatch`-paced CFR delivery (`4500k` / `9000k` VBV) for smooth, buffer-free YouTube ingest.
 - **Facebook Streaming (`START FB STREAM`)**: Dedicated Facebook Live RTMPS output (**Server URL** default `rtmps://live-api-s.facebook.com:443/rtmp/`, **Stream Key**), with the same live status badge, elapsed timer, and FFmpeg `fps • kbps • speed` telemetry.
 - **NDI Output (`START NDI`)**: Publishes the composited PGM feed as an NDI source on your local network.
-- **SRT Output (`START SRT`)**: Streams PGM over SRT (Caller/Listener, Port, Host/IP, Latency, Stream ID, Passphrase).
+- **SRT Output (`START SRT`)**: Streams PGM over SRT (Caller/Listener, Port, Host/IP, Latency, Stream ID, Passphrase) with `Stopwatch`-paced CFR delivery, status badge (`● OFFLINE` / `● CONNECTING` / `● LIVE` / `● ERROR`), and live `fps • kbps • speed` telemetry.
 
 ---
 
