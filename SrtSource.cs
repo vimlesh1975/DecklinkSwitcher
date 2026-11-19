@@ -53,6 +53,37 @@ namespace DecklinkSwitcher
             _videoBuffer = Marshal.AllocCoTaskMem(VideoFrameBytes);
         }
 
+        public static string BuildSrtUrl(string mode, string host, int port, int latencyMs, string streamId, string passphrase)
+        {
+            string m = string.Equals(mode, "Listener", StringComparison.OrdinalIgnoreCase) ? "listener" : "caller";
+            string h = (host ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(h))
+                h = m == "listener" ? "0.0.0.0" : "127.0.0.1";
+            else if (m == "listener" && (h == "127.0.0.1" || h == "localhost"))
+                h = "0.0.0.0";
+
+            int p = port > 0 ? port : 9000;
+            long latencyUs = Math.Max(0, latencyMs) * 1000L;
+
+            var queryParams = new System.Collections.Generic.List<string>
+            {
+                $"mode={m}",
+                $"latency={latencyUs}"
+            };
+
+            string sid = (streamId ?? "").Trim();
+            if (!string.IsNullOrWhiteSpace(sid))
+                queryParams.Add($"streamid={Uri.EscapeDataString(sid)}");
+
+            if (!string.IsNullOrWhiteSpace(passphrase))
+            {
+                queryParams.Add($"passphrase={Uri.EscapeDataString(passphrase)}");
+                queryParams.Add("pbkeylen=16");
+            }
+
+            return $"srt://{h}:{p}?{string.Join("&", queryParams)}";
+        }
+
         private static string ResolveFfmpegPath()
         {
             string baseDirFfmpeg = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg.exe");

@@ -1445,7 +1445,9 @@ namespace DecklinkSwitcher
 
                 var urlBox = new System.Windows.Controls.TextBox
                 {
-                    Text = cfg.Url ?? "",
+                    Text = !string.IsNullOrWhiteSpace(cfg.Url)
+                        ? cfg.Url
+                        : (isSrt ? SrtSource.BuildSrtUrl(cfg.SrtMode, cfg.SrtHost, cfg.SrtPort, cfg.SrtLatencyMs, cfg.SrtStreamId, cfg.SrtPassphrase) : ""),
                     Height = 24,
                     Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32)),
                     Foreground = System.Windows.Media.Brushes.White,
@@ -1454,9 +1456,122 @@ namespace DecklinkSwitcher
                     Padding = new Thickness(4, 2, 4, 2),
                     Margin = new Thickness(0, 0, 0, 4),
                     ToolTip = isSrt
-                        ? "SRT URL (e.g. srt://0.0.0.0:9000?mode=listener or srt://192.168.1.50:9000)"
+                        ? "SRT URL (e.g. srt://0.0.0.0:9000?mode=listener&latency=200000)"
                         : "YouTube Live URL (e.g. https://www.youtube.com/watch?v=...)"
                 };
+                if (isSrt)
+                {
+                    var srtExp = new System.Windows.Controls.Expander
+                    {
+                        Header = "SRT Settings",
+                        Foreground = System.Windows.Media.Brushes.White,
+                        FontSize = 10.5,
+                        FontWeight = FontWeights.SemiBold,
+                        IsExpanded = false,
+                        Margin = new Thickness(0, 0, 0, 4)
+                    };
+                    var srtPanel = new System.Windows.Controls.StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+
+                    var tbBg = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 22, 32));
+                    var tbBr = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 77, 112));
+                    var lblFg = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190));
+
+                    var row1 = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                    row1.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row1.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
+                    row1.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                    var cmbMode = new System.Windows.Controls.ComboBox { Height = 22, FontSize = 10 };
+                    cmbMode.Items.Add("Caller");
+                    cmbMode.Items.Add("Listener");
+                    cmbMode.SelectedIndex = string.Equals(cfg.SrtMode, "Listener", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                    var modeStack = new System.Windows.Controls.StackPanel();
+                    modeStack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Mode:", Foreground = lblFg, FontSize = 9.5 });
+                    modeStack.Children.Add(cmbMode);
+                    System.Windows.Controls.Grid.SetColumn(modeStack, 0);
+                    row1.Children.Add(modeStack);
+
+                    var txtPort = new System.Windows.Controls.TextBox { Text = (cfg.SrtPort > 0 ? cfg.SrtPort : 9000).ToString(), Height = 22, FontSize = 10, Background = tbBg, Foreground = System.Windows.Media.Brushes.White, BorderBrush = tbBr, Padding = new Thickness(3, 1, 3, 1) };
+                    var portStack = new System.Windows.Controls.StackPanel();
+                    portStack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Port:", Foreground = lblFg, FontSize = 9.5 });
+                    portStack.Children.Add(txtPort);
+                    System.Windows.Controls.Grid.SetColumn(portStack, 2);
+                    row1.Children.Add(portStack);
+                    srtPanel.Children.Add(row1);
+
+                    var lblHost = new System.Windows.Controls.TextBlock
+                    {
+                        Text = cmbMode.SelectedIndex == 1 ? "Listen IP (0.0.0.0):" : "Host / IP:",
+                        Foreground = lblFg,
+                        FontSize = 9.5
+                    };
+                    var txtHost = new System.Windows.Controls.TextBox { Text = string.IsNullOrWhiteSpace(cfg.SrtHost) ? "127.0.0.1" : cfg.SrtHost, Height = 22, FontSize = 10, Background = tbBg, Foreground = System.Windows.Media.Brushes.White, BorderBrush = tbBr, Padding = new Thickness(3, 1, 3, 1), Margin = new Thickness(0, 0, 0, 4) };
+                    srtPanel.Children.Add(lblHost);
+                    srtPanel.Children.Add(txtHost);
+
+                    var row2 = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 4) };
+                    row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(4) });
+                    row2.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                    var txtLatency = new System.Windows.Controls.TextBox { Text = Math.Max(0, cfg.SrtLatencyMs).ToString(), Height = 22, FontSize = 10, Background = tbBg, Foreground = System.Windows.Media.Brushes.White, BorderBrush = tbBr, Padding = new Thickness(3, 1, 3, 1) };
+                    var latStack = new System.Windows.Controls.StackPanel();
+                    latStack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Latency (ms):", Foreground = lblFg, FontSize = 9.5 });
+                    latStack.Children.Add(txtLatency);
+                    System.Windows.Controls.Grid.SetColumn(latStack, 0);
+                    row2.Children.Add(latStack);
+
+                    var txtStreamId = new System.Windows.Controls.TextBox { Text = cfg.SrtStreamId ?? "", Height = 22, FontSize = 10, Background = tbBg, Foreground = System.Windows.Media.Brushes.White, BorderBrush = tbBr, Padding = new Thickness(3, 1, 3, 1) };
+                    var sidStack = new System.Windows.Controls.StackPanel();
+                    sidStack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Stream ID:", Foreground = lblFg, FontSize = 9.5 });
+                    sidStack.Children.Add(txtStreamId);
+                    System.Windows.Controls.Grid.SetColumn(sidStack, 2);
+                    row2.Children.Add(sidStack);
+                    srtPanel.Children.Add(row2);
+
+                    srtPanel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Passphrase (Optional):", Foreground = lblFg, FontSize = 9.5 });
+                    var txtPass = new System.Windows.Controls.TextBox { Text = cfg.SrtPassphrase ?? "", Height = 22, FontSize = 10, Background = tbBg, Foreground = System.Windows.Media.Brushes.White, BorderBrush = tbBr, Padding = new Thickness(3, 1, 3, 1) };
+                    srtPanel.Children.Add(txtPass);
+
+                    bool updatingDynSrt = false;
+                    void SyncDynSrtUrl()
+                    {
+                        if (updatingDynSrt) return;
+                        updatingDynSrt = true;
+                        try
+                        {
+                            cfg.SrtMode = cmbMode.SelectedIndex == 1 ? "Listener" : "Caller";
+                            cfg.SrtHost = txtHost.Text.Trim();
+                            cfg.SrtPort = int.TryParse(txtPort.Text.Trim(), out int p) && p > 0 ? p : 9000;
+                            cfg.SrtLatencyMs = int.TryParse(txtLatency.Text.Trim(), out int l) && l >= 0 ? l : 200;
+                            cfg.SrtStreamId = txtStreamId.Text.Trim();
+                            cfg.SrtPassphrase = txtPass.Text;
+                            cfg.Url = SrtSource.BuildSrtUrl(cfg.SrtMode, cfg.SrtHost, cfg.SrtPort, cfg.SrtLatencyMs, cfg.SrtStreamId, cfg.SrtPassphrase);
+                            urlBox.Text = cfg.Url;
+                            SaveCurrentSettings();
+                        }
+                        finally { updatingDynSrt = false; }
+                    }
+
+                    cmbMode.SelectionChanged += (_, __) =>
+                    {
+                        bool isListener = cmbMode.SelectedIndex == 1;
+                        lblHost.Text = isListener ? "Listen IP (0.0.0.0):" : "Host / IP:";
+                        if (isListener && (txtHost.Text == "127.0.0.1" || string.IsNullOrWhiteSpace(txtHost.Text)))
+                            txtHost.Text = "0.0.0.0";
+                        else if (!isListener && txtHost.Text == "0.0.0.0")
+                            txtHost.Text = "127.0.0.1";
+                        SyncDynSrtUrl();
+                    };
+                    txtPort.TextChanged += (_, __) => SyncDynSrtUrl();
+                    txtHost.TextChanged += (_, __) => SyncDynSrtUrl();
+                    txtLatency.TextChanged += (_, __) => SyncDynSrtUrl();
+                    txtStreamId.TextChanged += (_, __) => SyncDynSrtUrl();
+                    txtPass.TextChanged += (_, __) => SyncDynSrtUrl();
+
+                    srtExp.Content = srtPanel;
+                    stack.Children.Add(srtExp);
+                }
                 urlBox.LostFocus += (_, __) => { cfg.Url = urlBox.Text.Trim(); SaveCurrentSettings(); };
                 stack.Children.Add(urlBox);
 
@@ -2405,6 +2520,50 @@ namespace DecklinkSwitcher
         {
             if (_youtubeSource != null) _youtubeSource.AudioLevel = (float)e.NewValue;
             YouTubeAudioLevel = (float)e.NewValue;
+        }
+
+        private bool _isUpdatingSrtSourceUrl = false;
+
+        private void UpdateGeneratedSrtSourceUrl()
+        {
+            if (_isUpdatingSrtSourceUrl || TxtSrtSourceUrl == null || CmbSrtSourceMode == null || TxtSrtSourceHost == null || TxtSrtSourcePort == null || TxtSrtSourceLatency == null)
+                return;
+            _isUpdatingSrtSourceUrl = true;
+            try
+            {
+                string mode = (CmbSrtSourceMode.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Caller";
+                string host = TxtSrtSourceHost.Text.Trim();
+                int port = int.TryParse(TxtSrtSourcePort.Text.Trim(), out int p) && p > 0 ? p : 9000;
+                int latency = int.TryParse(TxtSrtSourceLatency.Text.Trim(), out int l) && l >= 0 ? l : 200;
+                string streamId = TxtSrtSourceStreamId?.Text?.Trim() ?? "";
+                string passphrase = TxtSrtSourcePassphrase?.Text ?? "";
+                TxtSrtSourceUrl.Text = SrtSource.BuildSrtUrl(mode, host, port, latency, streamId, passphrase);
+            }
+            finally { _isUpdatingSrtSourceUrl = false; }
+        }
+
+        private void CmbSrtSourceMode_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (CmbSrtSourceMode == null || TxtSrtSourceHost == null || LblSrtSourceHost == null) return;
+            string mode = (CmbSrtSourceMode.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Caller";
+            if (mode == "Listener")
+            {
+                LblSrtSourceHost.Text = "Listen IP (0.0.0.0 for any):";
+                if (TxtSrtSourceHost.Text == "127.0.0.1" || string.IsNullOrWhiteSpace(TxtSrtSourceHost.Text))
+                    TxtSrtSourceHost.Text = "0.0.0.0";
+            }
+            else
+            {
+                LblSrtSourceHost.Text = "Host / IP (Caller Mode):";
+                if (TxtSrtSourceHost.Text == "0.0.0.0")
+                    TxtSrtSourceHost.Text = "127.0.0.1";
+            }
+            UpdateGeneratedSrtSourceUrl();
+        }
+
+        private void SrtSourceInput_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            UpdateGeneratedSrtSourceUrl();
         }
 
         private async void BtnConnectSrt_Click(object sender, RoutedEventArgs e)

@@ -598,6 +598,15 @@ namespace DecklinkSwitcher
                         settings.ExtraSources.Add(extra.Config);
                     if (TxtYouTubeUrl != null) settings.YouTubeSourceUrl = TxtYouTubeUrl.Text.Trim();
                     if (TxtSrtSourceUrl != null) settings.SrtSourceUrl = TxtSrtSourceUrl.Text.Trim();
+                    if (CmbSrtSourceMode?.SelectedItem is System.Windows.Controls.ComboBoxItem srtSrcModeItem)
+                        settings.SrtSourceMode = srtSrcModeItem.Content?.ToString() ?? "Caller";
+                    if (TxtSrtSourceHost != null) settings.SrtSourceHost = TxtSrtSourceHost.Text.Trim();
+                    if (TxtSrtSourcePort != null && int.TryParse(TxtSrtSourcePort.Text.Trim(), out int srtSrcPort))
+                        settings.SrtSourcePort = srtSrcPort;
+                    if (TxtSrtSourceLatency != null && int.TryParse(TxtSrtSourceLatency.Text.Trim(), out int srtSrcLat))
+                        settings.SrtSourceLatencyMs = srtSrcLat;
+                    if (TxtSrtSourceStreamId != null) settings.SrtSourceStreamId = TxtSrtSourceStreamId.Text.Trim();
+                    if (TxtSrtSourcePassphrase != null) settings.SrtSourcePassphrase = TxtSrtSourcePassphrase.Text;
                     if (SldSystemAudio != null) settings.AudioLevelSystemAudio = SldSystemAudio.Value;
                     if (CmbAudioStateSystemAudio != null && CmbAudioStateSystemAudio.SelectedIndex >= 0)
                         settings.AudioStateSystemAudio = (AudioState)CmbAudioStateSystemAudio.SelectedIndex;
@@ -913,8 +922,28 @@ namespace DecklinkSwitcher
                 YouTubeAudioLevel = (float)settings.AudioLevelYouTube;
                 CmbAudioStateYouTube.SelectedIndex = (int)settings.AudioStateYouTube;
                 StateYouTube = settings.AudioStateYouTube;
-                if (!string.IsNullOrEmpty(settings.SrtSourceUrl))
-                    TxtSrtSourceUrl.Text = settings.SrtSourceUrl;
+                _isUpdatingSrtSourceUrl = true;
+                try
+                {
+                    if (CmbSrtSourceMode != null)
+                        CmbSrtSourceMode.SelectedIndex = string.Equals(settings.SrtSourceMode, "Listener", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                    if (TxtSrtSourceHost != null) TxtSrtSourceHost.Text = string.IsNullOrWhiteSpace(settings.SrtSourceHost) ? "127.0.0.1" : settings.SrtSourceHost;
+                    if (TxtSrtSourcePort != null) TxtSrtSourcePort.Text = (settings.SrtSourcePort > 0 ? settings.SrtSourcePort : 9000).ToString();
+                    if (TxtSrtSourceLatency != null) TxtSrtSourceLatency.Text = Math.Max(0, settings.SrtSourceLatencyMs).ToString();
+                    if (TxtSrtSourceStreamId != null) TxtSrtSourceStreamId.Text = settings.SrtSourceStreamId ?? "";
+                    if (TxtSrtSourcePassphrase != null) TxtSrtSourcePassphrase.Text = settings.SrtSourcePassphrase ?? "";
+                    if (LblSrtSourceHost != null)
+                        LblSrtSourceHost.Text = string.Equals(settings.SrtSourceMode, "Listener", StringComparison.OrdinalIgnoreCase)
+                            ? "Listen IP (0.0.0.0 for any):"
+                            : "Host / IP (Caller Mode):";
+                    if (TxtSrtSourceUrl != null)
+                    {
+                        TxtSrtSourceUrl.Text = !string.IsNullOrEmpty(settings.SrtSourceUrl)
+                            ? settings.SrtSourceUrl
+                            : SrtSource.BuildSrtUrl(settings.SrtSourceMode, settings.SrtSourceHost, settings.SrtSourcePort, settings.SrtSourceLatencyMs, settings.SrtSourceStreamId ?? "", settings.SrtSourcePassphrase ?? "");
+                    }
+                }
+                finally { _isUpdatingSrtSourceUrl = false; }
                 SldSrtAudio.Value = settings.AudioLevelSrt;
                 SrtAudioLevel = (float)settings.AudioLevelSrt;
                 CmbAudioStateSrt.SelectedIndex = (int)settings.AudioStateSrt;

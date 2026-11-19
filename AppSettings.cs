@@ -57,6 +57,12 @@ namespace DecklinkSwitcher
         public double AudioLevelYouTube { get; set; } = 1.0;
         public AudioState AudioStateYouTube { get; set; } = AudioState.AFV;
         public string SrtSourceUrl { get; set; } = "";
+        public string SrtSourceMode { get; set; } = "Caller";
+        public string SrtSourceHost { get; set; } = "127.0.0.1";
+        public int SrtSourcePort { get; set; } = 9000;
+        public int SrtSourceLatencyMs { get; set; } = 200;
+        public string SrtSourcePassphrase { get; set; } = "";
+        public string SrtSourceStreamId { get; set; } = "";
         public double AudioLevelSrt { get; set; } = 1.0;
         public AudioState AudioStateSrt { get; set; } = AudioState.AFV;
         public int YouTubeAudioDelayMs { get; set; } = 200;
@@ -159,5 +165,11 @@ namespace DecklinkSwitcher
         public string AudioState { get; set; } = "AFV";
         public int Fps { get; set; } = 30;
         public int AudioDelayMs { get; set; } = 0;
+        public string SrtMode { get; set; } = "Caller";
+        public string SrtHost { get; set; } = "127.0.0.1";
+        public int SrtPort { get; set; } = 9000;
+        public int SrtLatencyMs { get; set; } = 200;
+        public string SrtStreamId { get; set; } = "";
+        public string SrtPassphrase { get; set; } = "";
     }
 }
