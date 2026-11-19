@@ -212,13 +212,25 @@ namespace DecklinkSwitcher
             var txt = new System.Windows.Controls.TextBlock { Text = "🎙\n" + device.Name, Foreground = System.Windows.Media.Brushes.DarkGray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center, FontWeight = System.Windows.FontWeights.Bold, FontSize = 10, TextAlignment = System.Windows.TextAlignment.Center, TextWrapping = System.Windows.TextWrapping.Wrap };
             border.Child = txt;
             
-            var sld = new System.Windows.Controls.Slider { Orientation = System.Windows.Controls.Orientation.Vertical, Height = 100, Minimum = 0, Maximum = 1.5, Value = initialLevel, SmallChange = 0.05, LargeChange = 0.1 };
-            sld.ValueChanged += (s, e) => { DynamicMicLevels[key] = (float)e.NewValue; };
+            var sld = new System.Windows.Controls.Slider { Orientation = System.Windows.Controls.Orientation.Vertical, Height = 84, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, Minimum = 0, Maximum = 1.5, Value = initialLevel, SmallChange = 0.05, LargeChange = 0.1 };
+            var lblVol = new System.Windows.Controls.TextBlock
+            {
+                Text = $"{Math.Round(initialLevel * 100)}%",
+                FontSize = 9.5,
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                Foreground = System.Windows.Media.Brushes.LightGray,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new System.Windows.Thickness(0, 2, 0, 0)
+            };
+            sld.ValueChanged += (s, e) => { DynamicMicLevels[key] = (float)e.NewValue; lblVol.Text = $"{Math.Round(e.NewValue * 100)}%"; };
+            var sldStack = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical, VerticalAlignment = System.Windows.VerticalAlignment.Center, Width = 32 };
+            sldStack.Children.Add(sld);
+            sldStack.Children.Add(lblVol);
             
             horiz.Children.Add(barL);
             horiz.Children.Add(border);
             horiz.Children.Add(barR);
-            horiz.Children.Add(sld);
+            horiz.Children.Add(sldStack);
             
             var cmb = new System.Windows.Controls.ComboBox { FontSize = 12, Height = 25, Margin = new System.Windows.Thickness(0, 5, 0, 0) };
             cmb.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = "ON" });

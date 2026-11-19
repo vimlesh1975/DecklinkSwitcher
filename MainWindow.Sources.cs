@@ -1290,7 +1290,8 @@ namespace DecklinkSwitcher
                 var sldVol = new System.Windows.Controls.Slider
                 {
                     Orientation = System.Windows.Controls.Orientation.Vertical,
-                    Height = 86,
+                    Height = 72,
+                    HorizontalAlignment = HorizontalAlignment.Center,
                     Minimum = 0,
                     Maximum = 1.5,
                     Value = extra.AudioLevel > 0 ? extra.AudioLevel : 1.0,
@@ -1298,11 +1299,29 @@ namespace DecklinkSwitcher
                     LargeChange = 0.1,
                     ToolTip = "Audio Gain"
                 };
+                var txtVol = new System.Windows.Controls.TextBlock
+                {
+                    Text = $"{Math.Round(sldVol.Value * 100)}%",
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 2, 0, 0)
+                };
+                var volStack = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Width = 30
+                };
+                volStack.Children.Add(sldVol);
+                volStack.Children.Add(txtVol);
                 extra.AudioLevel = sldVol.Value;
                 sldVol.ValueChanged += (_, __) =>
                 {
                     extra.AudioLevel = sldVol.Value;
                     cfg.AudioLevel = sldVol.Value;
+                    txtVol.Text = $"{Math.Round(sldVol.Value * 100)}%";
                     SaveCurrentSettings();
                 };
 
@@ -1350,7 +1369,7 @@ namespace DecklinkSwitcher
                 meterRow.Children.Add(barL);
                 meterRow.Children.Add(previewBorder);
                 meterRow.Children.Add(barR);
-                meterRow.Children.Add(sldVol);
+                meterRow.Children.Add(volStack);
                 stack.Children.Add(meterRow);
 
                 ytSrc.OnAudioLevelArrived += (vl, vr) =>
@@ -1728,7 +1747,8 @@ namespace DecklinkSwitcher
                 var sldVol = new System.Windows.Controls.Slider
                 {
                     Orientation = System.Windows.Controls.Orientation.Vertical,
-                    Height = 86,
+                    Height = 72,
+                    HorizontalAlignment = HorizontalAlignment.Center,
                     Minimum = 0,
                     Maximum = 1.5,
                     Value = extra.AudioLevel > 0 ? extra.AudioLevel : 1.0,
@@ -1736,11 +1756,29 @@ namespace DecklinkSwitcher
                     LargeChange = 0.1,
                     ToolTip = "Audio Gain"
                 };
+                var txtVol = new System.Windows.Controls.TextBlock
+                {
+                    Text = $"{Math.Round(sldVol.Value * 100)}%",
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 170, 190)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 2, 0, 0)
+                };
+                var volStack = new System.Windows.Controls.StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Vertical,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Width = 30
+                };
+                volStack.Children.Add(sldVol);
+                volStack.Children.Add(txtVol);
                 extra.AudioLevel = sldVol.Value;
                 sldVol.ValueChanged += (_, __) =>
                 {
                     extra.AudioLevel = sldVol.Value;
                     cfg.AudioLevel = sldVol.Value;
+                    txtVol.Text = $"{Math.Round(sldVol.Value * 100)}%";
                     SaveCurrentSettings();
                 };
 
@@ -1758,7 +1796,7 @@ namespace DecklinkSwitcher
                 meterRow.Children.Add(barL);
                 meterRow.Children.Add(previewBorder);
                 meterRow.Children.Add(barR);
-                meterRow.Children.Add(sldVol);
+                meterRow.Children.Add(volStack);
                 stack.Children.Add(meterRow);
 
                 mediaSrc.OnAudioLevelArrived += (vl, vr) =>
