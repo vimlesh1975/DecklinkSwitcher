@@ -239,6 +239,29 @@ namespace DecklinkSwitcher
                 _ => ActiveInputName
             };
             TxtPgmActiveSource.Text = string.IsNullOrWhiteSpace(pgmName) ? "Unknown" : pgmName;
+
+            if (TxtPgmMultiBoxSources != null)
+            {
+                if (_activeSourceType == 9)
+                {
+                    var layers = _activeCompositeSceneId == null
+                        ? CompositeLayers
+                        : _extraCompositeScenes.FirstOrDefault(s => s.Config.Id == _activeCompositeSceneId)?.Config.Layers;
+                    var boxNames = layers?
+                        .Where(l => l.Enabled && !string.IsNullOrWhiteSpace(l.SourceKey))
+                        .Select(l => l.SourceKey.Trim())
+                        .ToList();
+                    TxtPgmMultiBoxSources.Text = (boxNames != null && boxNames.Count > 0)
+                        ? "Boxes: " + string.Join(", ", boxNames)
+                        : "Boxes: (none enabled)";
+                    TxtPgmMultiBoxSources.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    TxtPgmMultiBoxSources.Text = "";
+                    TxtPgmMultiBoxSources.Visibility = Visibility.Collapsed;
+                }
+            }
         }
 
         private void UpdateHtmlSourceMuteState()

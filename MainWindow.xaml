@@ -527,10 +527,11 @@
                     
 </StackPanel></ScrollViewer>
 </Border>
-<Border Background="{DynamicResource PanelBg}" BorderBrush="#d32f2f" BorderThickness="1.5" CornerRadius="8" Padding="10,7" Margin="0,8,0,0">
+<Border Background="{DynamicResource PanelBg}" BorderBrush="#d32f2f" BorderThickness="1.5" CornerRadius="8" Padding="10,7" Margin="0,8,0,0" Width="253">
     <StackPanel>
         <TextBlock Text="● ON AIR (PGM)" FontSize="10" FontWeight="Black" Foreground="#ef4444" Margin="0,0,0,2"/>
         <TextBlock Name="TxtPgmActiveSource" Text="Color Bars" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+        <TextBlock Name="TxtPgmMultiBoxSources" Text="" FontSize="10.5" Foreground="{DynamicResource TextDim}" Margin="0,2,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
     </StackPanel>
 </Border>
 </StackPanel>
