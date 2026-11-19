@@ -30,9 +30,8 @@ namespace DecklinkSwitcher
         public int Height = 1080;
         public int Framerate = 30; 
         
-        // Set to true once real frames are being pushed
-        private volatile bool _hasRealFrames = false;
-        private long _lastVideoPushTick = 0;
+        // Latest valid video frame (atomically swapped on PushFrame) for steady CFR pacing
+        private volatile byte[]? _latestVideoFrame;
         
         public void Start(string streamKey, int width, int height, double fps, string baseRtmpUrl = "rtmp://a.rtmp.youtube.com/live2/")
         {
@@ -41,9 +40,8 @@ namespace DecklinkSwitcher
             Width = width;
             Height = height;
             Framerate = (int)Math.Round(fps);
-            if (Framerate <= 0) Framerate = 30; 
-            _hasRealFrames = false;
-            _lastVideoPushTick = 0;
+            if (Framerate <= 0) Framerate = 30;
+            _latestVideoFrame = null;
             
             _cts = new CancellationTokenSource();
             
@@ -76,10 +74,10 @@ namespace DecklinkSwitcher
             string args = $"-y " +
                           $"-f rawvideo -vcodec rawvideo -pix_fmt uyvy422 -s {Width}x{Height} -r {Framerate} -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{videoPipePath}\" " +
                           $"-f s16le -ac 2 -ar 48000 -thread_queue_size 1024 -probesize 32 -analyzeduration 0 -i \"{audioPipePath}\" " +
-                          $"-c:v libx264 -preset superfast -tune zerolatency -profile:v high -b:v 6800k -maxrate 6800k -bufsize 6800k -pix_fmt yuv420p " +
-                          $"-g {gop} -keyint_min {gop} -sc_threshold 0 -force_key_frames \"expr:gte(t,n_forced*2)\" " +
+                          $"-c:v libx264 -preset superfast -tune zerolatency -profile:v high -b:v 4500k -maxrate 4500k -bufsize 9000k -pix_fmt yuv420p " +
+                          $"-g {gop} -keyint_min {gop} -sc_threshold 0 " +
                           $"-c:a aac -profile:a aac_low -ar 48000 -ac 2 -b:a 128k " +
-                          $"-fflags +nobuffer+flush_packets -flush_packets 1 -flvflags no_duration_filesize -f flv \"{rtmpUrl}\"";
+                          $"-flush_packets 1 -flvflags no_duration_filesize -f flv \"{rtmpUrl}\"";
 
             OnLog?.Invoke($"FFmpeg args: {args}");
 
@@ -111,8 +109,8 @@ namespace DecklinkSwitcher
             IsStreaming = true;
             
             _videoTask = Task.Run(() => VideoPipeWorker(_cts.Token)); _audioTask = Task.Run(() => AudioPipeWorker(_cts.Token));
-            // Fallback frame feeder - keeps FFmpeg alive even when no DeckLink frames arrive
-            _feedTask = Task.Run(() => FallbackFeeder(_cts.Token));
+            // Exact CFR frame pacer - guarantees steady video/audio delivery to FFmpeg
+            _feedTask = Task.Run(() => PacerWorker(_cts.Token));
             
             OnLog?.Invoke($"Streaming started. Resolution: {Width}x{Height} @ {Framerate}fps -> {rtmpUrl}");
         }
@@ -156,29 +154,23 @@ namespace DecklinkSwitcher
         public void PushFrame(byte[]? audio, byte[]? video)
         {
             if (!IsStreaming) return;
-            if (video == null || audio == null) return;
-            
-            _hasRealFrames = true;
-            Interlocked.Exchange(ref _lastVideoPushTick, Environment.TickCount64);
-            
-            // Drop BOTH if EITHER queue is getting full, to preserve exact A/V sync!
-            if (_videoQueue.Count >= _videoQueue.BoundedCapacity - 2 || 
-                _audioQueue.Count >= _audioQueue.BoundedCapacity - 2)
+
+            if (video != null)
             {
-                // We are congested. Drop this entire chunk (audio + video)
-                return; 
+                _latestVideoFrame = video;
             }
 
-            try { _videoQueue.TryAdd(video, 0); } catch { }
-            try { _audioQueue.TryAdd(audio, 0); } catch { }
+            if (audio != null && _audioQueue.Count < _audioQueue.BoundedCapacity - 4)
+            {
+                try { _audioQueue.TryAdd(audio, 0); } catch { }
+            }
         }
 
-        // Generates UYVY black frames (1920x1080) when no real frames arrive,
-        // so FFmpeg stays alive and keeps the RTMP connection open.
-        private void FallbackFeeder(CancellationToken token)
+        // Generates steady CFR video (repeating the latest valid frame or black) and fills
+        // audio gaps with silence so FFmpeg always receives exact real-time framerate.
+        private void PacerWorker(CancellationToken token)
         {
-            int frameMs = 1000 / Framerate;
-            int audioSamplesPerFrame = 48000 / Framerate;
+            int audioSamplesPerFrame = 48000 / Math.Max(1, Framerate);
             int frameSize = Width * Height * 2; // UYVY is 2 bytes per pixel
             
             // Black UYVY frame: U=128, Y=16, V=128, Y=16
@@ -194,27 +186,43 @@ namespace DecklinkSwitcher
             // Silent audio
             byte[] silentAudio = new byte[audioSamplesPerFrame * 4]; // 2ch, 16-bit
             
-            OnLog?.Invoke("Fallback feeder started. Will send black frames if no DeckLink signal.");
+            OnLog?.Invoke($"CFR pacer started ({Framerate} fps).");
+
+            double ticksPerFrame = (double)Stopwatch.Frequency / Math.Max(1, Framerate);
+            double nextTick = Stopwatch.GetTimestamp();
 
             while (!token.IsCancellationRequested && IsStreaming)
             {
-                long now = Environment.TickCount64;
-                bool realFrameRecent = _hasRealFrames && (now - Interlocked.Read(ref _lastVideoPushTick)) < 500;
-                
-                if (!realFrameRecent)
+                long now = Stopwatch.GetTimestamp();
+                if (now - nextTick > Stopwatch.Frequency * 0.5)
                 {
-                    // No real frame in 500ms, push black fallback
-                    if (_videoQueue.Count < 5)
-                    {
-                        try { _videoQueue.TryAdd((byte[])blackFrame.Clone(), 0); } catch { }
-                    }
-                    if (_audioQueue.Count < 20)
-                    {
-                        try { _audioQueue.TryAdd((byte[])silentAudio.Clone(), 0); } catch { }
-                    }
+                    nextTick = now;
                 }
-                
-                Thread.Sleep(frameMs);
+
+                byte[] vFrame = _latestVideoFrame ?? blackFrame;
+                if (_videoQueue.Count < 15)
+                {
+                    try { _videoQueue.TryAdd(vFrame, 0); } catch { }
+                }
+
+                if (_audioQueue.Count == 0)
+                {
+                    try { _audioQueue.TryAdd(silentAudio, 0); } catch { }
+                }
+
+                nextTick += ticksPerFrame;
+                while (!token.IsCancellationRequested && IsStreaming)
+                {
+                    long remaining = (long)nextTick - Stopwatch.GetTimestamp();
+                    if (remaining <= 0) break;
+                    double remainingMs = remaining * 1000.0 / Stopwatch.Frequency;
+                    if (remainingMs > 16.5)
+                        Thread.Sleep(1);
+                    else if (remainingMs > 0.5)
+                        Thread.Yield();
+                    else
+                        Thread.SpinWait(50);
+                }
             }
         }
 
